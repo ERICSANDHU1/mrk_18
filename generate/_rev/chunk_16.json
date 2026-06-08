@@ -1,0 +1,38 @@
+[
+{
+"id": "an0981",
+"archetype": "looks-fine-but-broken",
+"founder_style": "asks a narrow question ('why is my CTR low?')",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 4.0 looks great and first-order contribution is +₹490, BUT 90-day repeat is only 5% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Candle brand, D2C, YouTube ads. My CTR is 2.5% which seems fine but I wanted a second opinion. 30-day numbers: AOV ₹1400, margin 60%, CAC ₹350, ROAS 4.0. Repeat at 90 days is 5%. Should I scale?",
+"assistant": "Your CTR is fine — 2.5% is healthy, leave it. But you're looking at the top of the funnel when the problem is at the bottom. First-order math is gorgeous: ₹1,400 × 60% = ₹840 margin minus ₹350 CAC = +₹490 per order, ROAS 4.0. On acquisition alone you're a star.\n\nHere's the leak: 5% repeat in 90 days. For a consumable like candles — something people genuinely re-buy — 5% means almost nobody comes back. That quietly caps your LTV at roughly one order. So your whole business is the +₹490 from the first purchase and then silence. Acquisition is doing its job; retention is a bucket with no bottom.\n\nIf you scale spend now, you just pour more first-time buyers into that leaky bucket faster — and as you scale, CAC almost always rises, so even the first-order ₹490 cushion thins out. Fix repeat before you fix volume: post-purchase WhatsApp flow, a reorder nudge timed to when a candle actually runs out, a returning-customer offer. Get 90-day repeat from 5% to even 20% and the LTV math transforms — then scaling makes sense. Right now it just burns faster."
+},
+{
+"id": "an0983",
+"archetype": "funnel-leak",
+"founder_style": "data dump — pastes the numbers, asks 'what's wrong?'",
+"mode": "data-rich",
+"hint": "REAL STORY: traffic and add-to-cart are healthy (ATC 6%), but checkout→purchase is only 24% (should be ~50-70%). The leak is at the LAST step — payment/checkout friction — not acquisition. LEVER: instrument and fix checkout (surprise shipping, forced login, missing UPI/COD); ad money is fine.",
+"user": "Flipkart seller, Amazon Ads running too. Here's the 30-day funnel: 41,000 visits, 2,602 add to cart, 1,631 reached checkout, 397 purchases. CTR 1.9%. Something's off but I can't tell what. What's wrong?",
+"assistant": "Your ads aren't the problem — your checkout is. Walk the funnel: 2,602 add-to-cart on 41,000 visits is a 6.3% ATC rate, which is healthy, and 1,631 of those reach checkout. So traffic quality and interest are fine. Then 1,631 reach checkout and only 397 buy — that's a 24% checkout-to-purchase rate. It should sit around 50-70%. Three out of four people who are standing at the till with their wallet out are walking away.\n\nThat's not an acquisition problem, so pouring more ad money in just sends more people to the same broken last step. The leak is friction at payment: surprise shipping charges appearing late, a forced account login, no UPI or COD option, slow page, OTP failures. Something in those final clicks is killing intent that your ads already paid for.\n\nThe lever: instrument that last step and fix it. Go through your own checkout on a phone, find where it breaks, and clear it. Recovering checkout-to-purchase from 24% to even 45% roughly doubles orders on the exact same ad spend — that's the highest-leverage rupee in this whole funnel. Leave the ads alone until checkout's fixed."
+},
+{
+"id": "an0987",
+"archetype": "noise-seasonality",
+"founder_style": "panicked / venting before the question",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS moved 16% week-over-week on just 72 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "Footwear D2C, YouTube. ROAS dropped 16% this week versus last week and I'm freaking out — about to tear up the whole strategy. We had 72 conversions this week. Is the channel dying??",
+"assistant": "Don't touch anything. A 16% ROAS swing on 72 conversions is noise, not a trend — at that volume, a handful of orders landing on Tuesday instead of Monday moves the number more than 16% on its own. One week tells you nothing about whether the channel is dying.\n\nThe thing that wrecks accounts isn't bad weeks, it's founders reacting to bad weeks — overhauling strategy on a wobble, then overhauling again when the next week wobbles back. That whipsaw is far more expensive than the dip you're staring at.\n\nWait for a real signal before you change a thing: the same direction sustained for 3-4 weeks, or a single move big enough to clearly clear normal variance — think 35-40%+, not 16%. Until one of those shows up, hold the line and let it run. Right now the only correct action is no action."
+},
+{
+"id": "an0988",
+"archetype": "insufficient-data",
+"founder_style": "panicked / venting before the question",
+"mode": "data-rich",
+"hint": "REAL STORY: 21 conversions over 3 days is far too small to conclude anything — any CAC or ROAS off this is statistical noise. The honest answer is 'we can't know yet'. LEVER: refuse to diagnose; tell them to let it run to ~100 conversions or a 2-3 week window first, and name that exact threshold so they stop guessing.",
+"user": "Okay I'm stressed — logistics SaaS, Amazon Ads. Last 3 days I burned ₹54K and got 21 conversions. Is my CAC good or terrible? Do I scale this or kill it before it eats more money?",
+"assistant": "Breathe — you can't make this call yet, and forcing it is how you waste money, not save it. 21 conversions over 3 days is far too thin to conclude anything. Yes, ₹54K ÷ 21 is a CAC around ₹2,570, but at this sample two or three orders either way swing it wildly, so that figure is statistical noise dressed up as a fact. Scale on it and you might pour budget into a fluke; kill it and you might shut down something that was fine.\n\nThe honest answer is: we don't know yet. Let it run to roughly 100 conversions, or a 2-3 week window — that's where CAC settles enough to trust and the scale-or-kill question actually has an answer. Until you cross that threshold, hold the budget steady and stop watching it daily. Right now you're stressing over a number that isn't real."
+}
+]

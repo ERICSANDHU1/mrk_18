@@ -1,0 +1,128 @@
+[
+{
+"id": "an0002",
+"archetype": "looks-fine-but-broken",
+"founder_style": "describes the numbers in prose, no neat table",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 4.3 looks great and first-order contribution is +₹444, BUT 90-day repeat is only 10% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Quick read on my Amazon numbers. The apparel label's been running well — ROAS came in at 4.3 last month which I'm happy with, AOV around ₹1,650, margins are about half, and Amazon's telling me my CAC is roughly ₹381. CTR's healthy at 1.7%. I want to pour more budget in. The one thing nagging me is repeat purchase sitting near 10% over 90 days, but the acquisition math looks too good to ignore.",
+"assistant": "Your read on acquisition is correct, so let's not pretend otherwise — first-order contribution = ₹1,650 × 50% − ₹381 = ₹825 − ₹381 = +₹444 per order. ROAS 4.3 is real, the ads work, the creative's landing. Nothing wrong with the front of the machine.\n\nThe nag you're trying to talk yourself out of is the actual story. 10% repeat over 90 days means 9 of every 10 buyers never come back. In apparel — a category that should live on second and third orders — that's not a minor footnote, it's the whole business model leaking. You're earning ₹444 once and then the customer evaporates.\n\nHere's the trap with scaling now: more spend buys more first orders, every one of them at a worsening CAC as you push past your best audiences, and none of them compounding into LTV. You'd be pouring water into a bucket with no bottom and calling the splashing 'growth'.\n\nFix retention before you touch the budget. Find out why nobody reorders — a post-purchase flow, a 45-day nudge, a reason-to-return — and get that 10% moving first. Scaling a leaky funnel just makes you lose money faster, more efficiently."
+},
+{
+"id": "an0008",
+"archetype": "noise-seasonality",
+"founder_style": "describes the numbers in prose, no neat table",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS moved 19% week-over-week on just 95 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "Bit panicked. Running Google Performance Max for my IELTS coaching, and my ROAS dropped 19% this week versus last. I had 95 conversions this week. I'm thinking I need to overhaul the whole strategy — new campaigns, new structure, maybe scrap PMax. What would you do first?",
+"assistant": "First thing I'd do? Nothing. Put the overhaul down.\n\nA 19% ROAS swing on 95 conversions is not a trend — it's noise. With a sample that small, the numbers bounce around week to week purely by chance; a handful of orders landing on Monday instead of the previous Sunday can move ROAS that much on their own. You're looking at the weather and trying to rewrite the climate.\n\nThe real damage founders do isn't from bad weeks — it's from reacting to bad weeks. You scrap PMax, the algorithm re-enters its learning phase, performance genuinely tanks for two weeks while it recalibrates, and now you've manufactured the disaster you were afraid of. That's how accounts get whipsawed into the ground.\n\nHere's what actually counts as a signal worth acting on: a consistent direction held over 3–4 weeks, or a drop steep enough to clear the noise (think 30–40%+ sustained, not a single −19% blip). One week is never enough.\n\nSo leave it alone. Let PMax keep its learnings, check back when you've got three more weeks of data stacked up, and only then decide if there's a pattern. Right now there's nothing to fix — just a normal week pretending to be a crisis."
+},
+{
+"id": "an0014",
+"archetype": "creative-fatigue",
+"founder_style": "panicked / venting before the question",
+"mode": "data-absent",
+"hint": "DATA-ABSENT (dual mode): the founder suspects a problem but shares no metrics. MRK18 must NOT invent a diagnosis. LEVER: ask, in-voice, for the 2-3 specific numbers needed to judge it (for this 'creative-fatigue' worry: e.g. AOV, gross margin, 90-day repeat, or the funnel stages) and say exactly what each would tell you — then stop.",
+"user": "Honestly I'm freaking out a bit. My haircare email numbers have been sliding and I just KNOW it's the same campaigns going stale — I've been sending the same kind of stuff for months, people must be sick of it, the whole list is probably fried. What do I do, rebuild everything?",
+"assistant": "Breathe — you might be right that it's fatigue, but 'I just know' isn't a diagnosis, and rebuilding everything off a hunch is how you torch six months of list-building in a weekend. Let's confirm before you swing the hammer.\n\nThree numbers tell the whole story:\n\n- Open rate trend over the last 8–10 sends. If opens are decaying send over send, that's genuine fatigue or a deliverability slide — your instinct's correct. If opens are steady, the problem is elsewhere and a rebuild would be a waste.\n- Click-through trend on those same sends. Steady opens but falling clicks means the content's tiring, not the relationship — a much smaller fix than 'rebuild everything.'\n- Unsubscribe and spam rate per send. This is your fatigue alarm; if it's climbing, the list really is irritated and we act fast.\n\nPull those ten sends into a row and look at the slope. Bring it back and I'll tell you whether you refresh the angles or rebuild the engine. Don't burn the list down over a feeling."
+},
+{
+"id": "an0015",
+"archetype": "funnel-leak",
+"founder_style": "asks a narrow question ('why is my CTR low?')",
+"mode": "data-rich",
+"hint": "REAL STORY: traffic and add-to-cart are healthy (ATC 7%), but checkout→purchase is only 19% (should be ~50-70%). The leak is at the LAST step — payment/checkout friction — not acquisition. LEVER: instrument and fix checkout (surprise shipping, forced login, missing UPI/COD); ad money is fine.",
+"user": "Quick one — why is my CTR low? Coffee brand, I drive a lot from email. Last 30 days roughly 40,000 visits, about 2,660 added to cart, 1,982 got to checkout, and only 383 actually bought. CTR's sitting around 1.7%. Trying to figure out the CTR thing.",
+"assistant": "You're asking about the wrong number. CTR at 1.7% is normal — perfectly healthy for email-driven traffic — and it isn't what's hurting you. Let me show you where the money's actually leaking, because it's not at the top.\n\nWalk the funnel: 40,000 visits → 2,660 add-to-cart is about 7%, which is fine. Add-to-cart → checkout, 2,660 → 1,982, is 75% — strong. Then look at the last step: 1,982 reached checkout and only 383 bought. That's a 19% checkout-to-purchase rate, when a working checkout should clear 50–70%.\n\nSo roughly 1,600 people a month walk all the way to the till, wallet out, and abandon. That's your problem, not CTR. And the cause is almost never the ads at that stage — it's checkout friction: a shipping cost that appears late, a forced account-creation step, or missing UPI/COD on mobile.\n\nForget the CTR. Go open your own checkout on your phone right now and buy something. Watch where it makes you hesitate, add UPI and COD if they're absent, and fix the surprise costs. Recover even half of those 1,600 and you've roughly tripled orders without touching a single ad."
+},
+{
+"id": "an0031",
+"archetype": "insufficient-data",
+"founder_style": "calm, sophisticated — wants the non-obvious read",
+"mode": "data-rich",
+"hint": "REAL STORY: 25 conversions over 5 days is far too small to conclude anything — any CAC or ROAS off this is statistical noise. The honest answer is 'we can't know yet'. LEVER: refuse to diagnose; tell them to let it run to ~100 conversions or a 2-3 week window first, and name that exact threshold so they stop guessing.",
+"user": "Salon chain, testing YouTube ads. I've spent ₹38K over the last 5 days and got 25 conversions. Is my CAC good? Should I scale this or kill it?",
+"assistant": "Honest answer: you can't know yet, and neither can I — 25 conversions over 5 days is far too little to conclude anything.\n\nHere's why. Yes, ₹38K ÷ 25 gives a CAC of about ₹1,520, but that number is almost meaningless at this sample size. With 25 data points, a handful of conversions landing differently — a couple of cheap days, one expensive one — swings your CAC by hundreds of rupees. You'd be making a scale-or-kill decision on what is, statistically, noise. Both 'this is great, triple it' and 'this is dead, kill it' are equally unsupported right now.\n\nSo don't decide. Let it run. The threshold that earns a real read is roughly 100 conversions, or a 2–3 week window — whichever comes first. At ~5 conversions a day you're about two more weeks from a number you can actually trust. Until then, keep the budget steady, don't touch the targeting, and resist the urge to read tea leaves.\n\nWhen you hit ~100 conversions, come back with the CAC and your per-member value and I'll give you a straight scale-or-kill call. Right now the only correct move is patience."
+},
+{
+"id": "an0036",
+"archetype": "creative-fatigue",
+"founder_style": "panicked / venting before the question",
+"mode": "data-absent",
+"hint": "DATA-ABSENT (dual mode): the founder suspects a problem but shares no metrics. MRK18 must NOT invent a diagnosis. LEVER: ask, in-voice, for the 2-3 specific numbers needed to judge it (for this 'creative-fatigue' worry: e.g. AOV, gross margin, 90-day repeat, or the funnel stages) and say exactly what each would tell you — then stop.",
+"user": "Help, I'm panicking. Skincare brand, I rely on organic/content. My stuff was working and now it just feels like everything I post falls flat — like my whole approach has gone stale overnight and I don't know how to fix it. I'm new to this and freaking out.",
+"assistant": "First, breathe — content doesn't go stale overnight, so whatever you're feeling, it's probably slower and more fixable than the panic suggests. But I won't tell you your approach is tired without seeing it, because the fix for 'tired content' is nothing like the fix for 'one slow month.' Pull a few things first:\n\n- Your traffic or reach trend over the last 8–10 posts. A steady slide says the angles really are tiring; a flat line with one bad week says you're reacting to noise.\n- Engagement rate on those same posts — saves, shares, comments. If reach holds but engagement drops, the topics are fatiguing, not your whole approach.\n- Which 2–3 posts ever worked best, and when. That tells us what actually resonated so a refresh builds on proof instead of guessing.\n\nLine those up and the picture usually calms down on its own. Bring them back and I'll tell you whether you genuinely need new content angles or just steadier nerves. Don't tear up an approach that might only be having a quiet fortnight."
+},
+{
+"id": "an0039",
+"archetype": "looks-fine-but-broken",
+"founder_style": "asks a narrow question ('why is my CTR low?')",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 4.4 looks great and first-order contribution is +₹386, BUT 90-day repeat is only 7% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Pet-care brand, running a Meta + Google mix. Narrow question — why is my CTR low? Last 30 days: AOV ₹1,100, margin 58%, CAC ₹252, ROAS 4.4, repeat 7%, CTR 2.5%.",
+"assistant": "Your CTR is 2.5% — that's not low, that's good. You're staring at the one healthy number while the actual problem sits right next to it, unread.\n\nHere's the real picture. First-order contribution = ₹1,100 × 58% − ₹252 = ₹638 − ₹252 = +₹386. Acquisition is genuinely strong: cheap CAC, 4.4 ROAS, solid margin. The machine that brings you a first-time buyer works beautifully. So forget CTR; nothing's wrong there.\n\nWhat's broken is what happens after. 90-day repeat is 7%. In pet-care — food, treats, supplements, the most reorder-driven category there is — 93 of every 100 buyers never come back. That's not a small inefficiency, it's the whole long game leaking out the bottom. You're profitable on order one and then the customer vanishes, so your lifetime value barely exceeds that single ₹386.\n\nAnd this is exactly the trap: those great acquisition numbers will tempt you to scale spend. Don't, not yet — you'd just be buying more first orders into a bucket with no bottom, faster. Fix repeat first. Why does a pet owner not reorder food they presumably keep needing? Set up a reorder reminder around their run-out date, a subscribe-and-save, a 30-day follow-up. Move that 7% and the same ad spend suddenly compounds. The CTR was never the question."
+},
+{
+"id": "an0052",
+"archetype": "noise-seasonality",
+"founder_style": "wrong self-diagnosis — blames the obvious metric",
+"mode": "data-rich",
+"hint": "REAL STORY: CAC moved 8% week-over-week on just 100 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "Gym, Amazon Ads for merch. My CAC jumped 8% this week versus last and I'm sure my targeting's degrading — I'm about to tear the whole campaign down and rebuild. Where should I start?",
+"assistant": "Start by leaving it alone. An 8% CAC move on 100 conversions in a single week is noise, not a degrading audience — that's well inside the normal week-to-week wobble of a sample that size. A handful of pricier conversions and CAC twitches 8% with nothing actually wrong underneath.\n\nTearing down and rebuilding over one noisy week is exactly how founders wreck good accounts: the rebuild resets Amazon's learning, performance genuinely dips for a couple of weeks while it recalibrates, and now you've manufactured the problem you imagined. That's the whipsaw, and it's self-inflicted.\n\nWhat would actually justify action: CAC rising in the same direction for 3–4 consecutive weeks, or a single jump big enough to clear the noise — think 25–30%+, not 8%. Keep the campaign exactly as is, log CAC each week, and reassess once you've got a month of data. There's no signal here to chase yet."
+},
+{
+"id": "an0055",
+"archetype": "looks-fine-but-broken",
+"founder_style": "describes the numbers in prose, no neat table",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 3.1 looks great and first-order contribution is +₹353, BUT 90-day repeat is only 10% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Pet-care brand, selling mainly over WhatsApp broadcasts. Let me describe it rather than make a table — my AOV's about ₹2,500, margins sit near 46%, and it costs me roughly ₹797 to get a customer. ROAS is around 3.1 which I'm pleased with, click-throughs are healthy at 2.3%. The only odd thing is repeat purchase is about 10% over 90 days, but acquisition looks solid so I want to scale.",
+"assistant": "Your acquisition genuinely is solid, so I won't pretend otherwise — first-order contribution = ₹2,500 × 46% − ₹797 = ₹1,150 − ₹797 = +₹353. ROAS 3.1, healthy CTR, profitable on the first order. The front of your funnel works.\n\nBut the 'odd thing' you mentioned almost as an afterthought is the entire problem. 10% repeat over 90 days, in pet-care, is alarming. This is a category built on reordering — food, treats, supplements run out and get rebought on a schedule. If only 1 in 10 of your customers comes back in three months, you're not running a pet-care brand, you're running a one-time-sale machine, and your lifetime value barely clears that single ₹353.\n\nThat's why scaling now is the wrong move. More spend buys more first orders at a worsening CAC, none of them compounding into repeat revenue — you'd be pouring water into a bucket with no bottom, just faster.\n\nFix the bottom first. A pet owner who bought food this month needs more next month — so why aren't they back? Set up a reorder nudge timed to when the product runs out, a subscribe-and-save with a small discount, a WhatsApp reminder. Get repeat from 10% toward 30% and the same ad spend suddenly pays you two and three times over. Then scale."
+},
+{
+"id": "an0060",
+"archetype": "intent-mismatch",
+"founder_style": "data dump — pastes the numbers, asks 'what's wrong?'",
+"mode": "data-absent",
+"hint": "DATA-ABSENT (dual mode): the founder suspects a problem but shares no metrics. MRK18 must NOT invent a diagnosis. LEVER: ask, in-voice, for the 2-3 specific numbers needed to judge it (for this 'intent-mismatch' worry: e.g. AOV, gross margin, 90-day repeat, or the funnel stages) and say exactly what each would tell you — then stop.",
+"user": "Salon chain, Google Search. Here's my worry, no clean numbers to hand — I feel like the people clicking my ads aren't really looking to book, they're just window-shopping, and that's why it's not working. What's the real story?",
+"assistant": "Can't give you the real story without the one number that reveals it — and I won't invent a verdict you'd act on. Your window-shopper theory is testable, so let's test it. Pull these:\n\n- Conversion rate from ad click to actual booking. If lots click and almost none book, your hunch is right — the traffic is browsing, not buying, usually because broad keywords or vague ad copy are pulling in the wrong searches. If conversion's normal, the 'window-shopper' theory is wrong and the leak is elsewhere.\n- Which search terms your clicks are actually coming from. Intent lives in the query — 'haircut near me' books; 'hairstyle ideas' browses. The mix tells you instantly whether you're buying intent or curiosity.\n- Cost per booking, not per click, so we measure the thing that pays you.\n\nGet me those and we'll know if it's genuine intent-mismatch — in which case the fix is tightening keywords and adding negatives — or something downstream like a clunky booking step. Two minutes in Google Ads; bring the numbers and I'll name it."
+},
+{
+"id": "an0070",
+"archetype": "funnel-leak",
+"founder_style": "panicked / venting before the question",
+"mode": "data-absent",
+"hint": "DATA-ABSENT (dual mode): the founder suspects a problem but shares no metrics. MRK18 must NOT invent a diagnosis. LEVER: ask, in-voice, for the 2-3 specific numbers needed to judge it (for this 'funnel-leak' worry: e.g. AOV, gross margin, 90-day repeat, or the funnel stages) and say exactly what each would tell you — then stop.",
+"user": "Candle brand, organic traffic. I'm stressing — people visit, they seem interested, and then they just... don't buy. It feels like my whole funnel is broken and I don't know where it's falling apart. Help me find it before I lose my mind.",
+"assistant": "Breathe — a funnel that 'feels broken everywhere' is almost always broken in one specific place, and once you see where, the stress drops fast. But I can't point at it without the stages, and I won't guess. Pull your last 30 days as four numbers:\n\n- Visits → add-to-cart. If few add, the product page or the traffic is the issue — people arrive and aren't sold on the candle itself.\n- Add-to-cart → reached checkout. A drop here is usually a price or shipping shock revealed too late.\n- Reached checkout → purchase. A drop here is pure friction — forced login, no UPI, no COD, a mobile checkout that stumbles.\n\nThe stage with the steepest fall IS the break. That's the whole diagnosis — one number, not a vague everywhere. Get me those four counts and I'll tell you exactly where you're losing them. For a candle brand on organic, my instinct says the last step, but bring the numbers and we'll know instead of fear."
+},
+{
+"id": "an0074",
+"archetype": "intent-mismatch",
+"founder_style": "asks a narrow question ('why is my CTR low?')",
+"mode": "data-rich",
+"hint": "REAL STORY: impressions and clicks are high but conversion is just 0.72% — you're buying broad, low-intent traffic (broad-match keywords), people browsing, not buying. CTR isn't the problem; intent is. LEVER: tighten to high-intent audiences/keywords, add negatives, and stop optimising for clicks.",
+"user": "Jewellery brand, Google Search. I want a sharp answer, not the obvious one: why is my CTR low? Last 30 days — 970K impressions, 11,656 clicks so CTR ~1.2%, but only 84 orders, which is a 0.72% conversion rate. AOV ₹1,500, on broad-match keywords.",
+"assistant": "The sharp answer is that CTR is the wrong number to be asking about, and chasing it would deepen the actual problem.\n\nLook at the real wound: 11,656 clicks, 84 orders, 0.72% conversion. Nearly twelve thousand people clicked and almost none bought. That's not an ad-interest failure — your 1.2% CTR is fine — it's an intent failure. Broad-match is casting your jewellery ad across loosely related searches: 'gold rate today', 'jewellery designs', 'how to clean silver'. Those people click out of curiosity and leave, because they were never shopping to buy.\n\nSo if you 'fixed' CTR, you'd just buy more of the wrong clicks faster. The lever runs the opposite way. Kill broad-match; move to phrase and exact match on genuine purchase intent — '[your style] necklace buy online', 'gold earrings under ₹X', your branded terms. Build a hard negative-keyword list to block the window-shopping queries draining ₹ on every click. Expect your click volume to fall and your conversion rate to climb — that's the trade you want.\n\nStop optimising for clicks. At ₹1,500 AOV you can't afford 12,000 browsers; you need 2,000 buyers. Chase intent, and the 0.72% takes care of itself."
+},
+{
+"id": "an0075",
+"archetype": "insufficient-data",
+"founder_style": "panicked / venting before the question",
+"mode": "data-absent",
+"hint": "DATA-ABSENT (dual mode): the founder suspects a problem but shares no metrics. MRK18 must NOT invent a diagnosis. LEVER: ask, in-voice, for the 2-3 specific numbers needed to judge it (for this 'insufficient-data' worry: e.g. AOV, gross margin, 90-day repeat, or the funnel stages) and say exactly what each would tell you — then stop.",
+"user": "Footwear brand on Meesho, I'm freaking out — I launched a new campaign and the early numbers look bad, like really bad, and I'm about to pull the plug on the whole thing. Tell me what to do!",
+"assistant": "Stop — don't pull anything yet. 'Early numbers look bad' is exactly the moment to NOT make a decision, because early numbers are mostly noise, and panic-killing a campaign on day three is how founders throw away things that would've worked. Before you touch it, tell me two things:\n\n- How many conversions has it actually gotten, and over how many days? If it's a handful over a few days, there is no signal there — good or bad. Any CAC you're staring at is a coin-flip, not a verdict.\n- What did you set it up to do, and what would 'working' even look like in numbers? If you don't have a target, you can't tell bad from normal-early.\n\nHere's the rule: a campaign needs roughly 100 conversions, or a 2–3 week window, before its numbers mean anything. Until then, leave it running and don't read the tea leaves. Get me that conversion count and the days elapsed, and I'll tell you whether you're looking at a real problem or just a nervous start. Almost certainly the latter."
+},
+{
+"id": "an0090",
+"archetype": "insufficient-data",
+"founder_style": "calm, sophisticated — wants the non-obvious read",
+"mode": "data-absent",
+"hint": "DATA-ABSENT (dual mode): the founder suspects a problem but shares no metrics. MRK18 must NOT invent a diagnosis. LEVER: ask, in-voice, for the 2-3 specific numbers needed to judge it (for this 'insufficient-data' worry: e.g. AOV, gross margin, 90-day repeat, or the funnel stages) and say exactly what each would tell you — then stop.",
+"user": "Jewellery brand, Meta. Considered question — I've got an early read on a new campaign and I'm trying to decide whether the CAC is good enough to commit more budget. I don't have the full figures in front of me, just a rough sense it's 'okay'.",
+"assistant": "A 'rough sense it's okay' is exactly the read I can't let you scale on — so tell me the two numbers that turn a sense into a decision: how many conversions has it gotten, and over how many days?\n\nIf it's a small handful over a few days, your CAC is statistical noise, and committing budget off it is a coin-flip dressed as a decision. Jewellery especially has a longer, more considered purchase — people deliberate — so early conversions trickle in and a true CAC takes time to settle. The honest threshold before you commit is roughly 100 conversions or a 2–3 week window. Send me the conversion count and the days, and I'll tell you whether you're ready to scale or still reading tea leaves. Patience here is cheaper than a wrong commitment."
+}
+]

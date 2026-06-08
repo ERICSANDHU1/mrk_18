@@ -1,0 +1,128 @@
+[
+{
+"id": "an0809",
+"archetype": "looks-fine-but-broken",
+"founder_style": "calm, sophisticated — wants the non-obvious read",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 4.1 looks great and first-order contribution is +₹596, BUT 90-day repeat is only 11% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Running our logistics SaaS acquisition mostly through email-led campaigns. Last 30 days: AOV ₹2,400, gross margin 49%, CAC ₹580, ROAS 4.1, CTR 2.5%. On paper this looks healthy and I'm tempted to pour more budget in. But I'm new to reading these — what's the non-obvious thing I'm missing here?",
+"assistant": "Your first-order economics are genuinely good: ₹2,400 × 49% − ₹580 = +₹596 contribution per order, and 4.1 ROAS confirms acquisition is working. So the surface read is right — nothing wrong at the top.\n\nThe leak is downstream. Your 90-day repeat is 11%. That means roughly 9 in 10 customers buy once and never come back. For a SaaS that should be a recurring-revenue business, a single-order LTV is the whole problem — your model only works if people stick. Right now you're acquiring efficiently and then quietly losing almost everyone.\n\nThat changes what you do next. Pouring more spend in just fills a bucket with no bottom faster — you'll book more first orders and the same 89% will churn. Fix retention before you scale: onboarding, the second-month activation moment, why month-2 logins drop. Get repeat from 11% toward something defensible, then the acquisition engine you've already built becomes worth feeding.\n\nOne caveat — 30 days is short to read 90-day repeat cleanly; pull the actual cohort curve by signup month to confirm the drop-off point before you act. But the direction is clear: retention, not budget, is your lever."
+},
+{
+"id": "an0810",
+"archetype": "scaling-wall",
+"founder_style": "panicked / venting before the question",
+"mode": "data-rich",
+"hint": "REAL STORY: spend ₹3L→₹6.3L, ROAS 3.2→2.3, CAC rising — you've saturated your best audiences/intent and extra budget is buying colder, pricier reach. The channel has an efficient ceiling and you hit it. LEVER: create new demand (new audiences/creatives/channels) before adding budget — don't just push more spend into the same finite pool.",
+"user": "Okay I'm a bit stressed about this. Flipkart seller, scaling our Google Search spend hard. Eight weeks ago I was at ₹3L/month, CAC ₹612, ROAS 3.2. Now I'm at ₹6.3L, CAC has climbed to ₹863 and ROAS dropped to 2.3. AOV ₹1,950, margin 64%. Did Google's algorithm change on me? Why is everything getting worse as I spend more??",
+"assistant": "Breathe — nothing broke. This is exactly what a working channel looks like when you push past its efficient size. You doubled spend (₹3L → ₹6.3L), and CAC went ₹612 → ₹863 while ROAS slid 3.2 → 2.3. That's not the algorithm turning on you; that's saturation.\n\nHere's the mechanism. Your first ₹3L was buying the highest-intent searchers — the people already typing exactly what you sell. There's a finite pool of those. To spend the next ₹3.3L, Google had to reach colder, broader, lower-intent queries, and colder traffic costs more to convert. The rising CAC IS the signal that you've drained the cheap intent and are now paying up for the marginal buyer.\n\nThe economics still hold — ₹1,950 × 64% − ₹863 = +₹385 per order, so you're not bleeding. But your efficient ceiling on this channel is real, and more budget into the same finite pool just keeps dragging the average up.\n\nThe lever isn't budget, it's new demand: fresh audiences, new keyword clusters, a second channel. Expand the pool before you expand the spend. One check first — confirm CAC is rising on stable conversion volume and not a seasonal dip in Flipkart search; pull the weekly trend to be sure."
+},
+{
+"id": "an0812",
+"archetype": "insufficient-data",
+"founder_style": "describes the numbers in prose, no neat table",
+"mode": "data-rich",
+"hint": "REAL STORY: 11 conversions over 7 days is far too small to conclude anything — any CAC or ROAS off this is statistical noise. The honest answer is 'we can't know yet'. LEVER: refuse to diagnose; tell them to let it run to ~100 conversions or a 2-3 week window first, and name that exact threshold so they stop guessing.",
+"user": "Small D2C candle brand testing YouTube. In the last 7 days I spent ₹18K and got 11 conversions. Is my CAC good? Should I scale this or kill it?",
+"assistant": "Honest answer: you can't know yet, and neither can I. 11 conversions over 7 days is far too small to conclude anything — whatever CAC or ROAS you compute off it is statistical noise, not a real read. One good day or one dud day swings the whole number.\n\nSo don't scale and don't kill on this. Both are guesses dressed up as decisions.\n\nLet it run until you have roughly 100 conversions, or a clean 2–3 week window — whichever comes first. That's the point where the CAC stabilises enough to actually trust. Until you cross that threshold, the only mistake available is reacting to a number that hasn't formed yet. Keep the budget steady, leave the creative alone, and check back when the sample is real."
+},
+{
+"id": "an0819",
+"archetype": "intent-mismatch",
+"founder_style": "asks a narrow question ('why is my CTR low?')",
+"mode": "data-rich",
+"hint": "REAL STORY: impressions and clicks are high but conversion is just 0.42% — you're buying broad, low-intent traffic (broad / interest-based), people browsing, not buying. CTR isn't the problem; intent is. LEVER: tighten to high-intent audiences/keywords, add negatives, and stop optimising for clicks.",
+"user": "Test-prep edtech, running Meta. Last 30 days: 1.26M impressions, 21,896 clicks, CTR 1.7%, 93 orders, conversion rate 0.42%, AOV ₹850. Targeting is broad / interest-based. Why is my CTR low?",
+"assistant": "Your CTR isn't the problem — 1.7% on Meta is perfectly normal, and chasing it higher would solve nothing. The number that should worry you is downstream: 21,896 clicks turned into 93 orders. That's a 0.42% click-to-purchase rate, and it's where your money is leaking.\n\nThe mechanism is in the line you mentioned last: broad / interest-based targeting. You're paying for a flood of clicks from people who are curious, not committed — students browsing, parents window-shopping, the broadly-interested. They click (hence the healthy CTR) and bounce (hence the 0.42%). You're optimising the funnel for the wrong thing: clicks instead of intent.\n\nSo the fix isn't a punchier ad to lift CTR — it'd just buy more low-intent clicks. The lever is tightening intent: move from broad interests to high-intent signals — people actively searching for your exam, lookalikes off actual purchasers, retargeting pools — and stop optimising the campaign for link clicks; optimise for purchases so Meta hunts buyers, not browsers. One caveat: 93 orders is a modest sample to slice deeply, so confirm the 0.42% holds across a couple more weeks before you rebuild everything — but the direction is clear: intent, not CTR."
+},
+{
+"id": "an0822",
+"archetype": "noise-seasonality",
+"founder_style": "describes the numbers in prose, no neat table",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS moved 15% week-over-week on just 109 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "IELTS edtech, Amazon Ads. This week vs last week my ROAS dropped about 15%. We had 109 conversions this week. I'm pretty sophisticated about this stuff and I'm ready to overhaul the entire strategy this weekend — before I do, sanity check me?",
+"assistant": "Sanity check: don't touch anything. A 15% ROAS move week-over-week on 109 conversions is well inside normal variance — it's noise, not a trend. At that sample size, the random week-to-week wobble alone can swing ROAS more than 15% in either direction without a single thing actually changing in your account.\n\nOverhauling strategy off one noisy week is how good operators whipsaw their own accounts: you tear up a working setup, the next week reverts to the mean anyway, and now you can't tell what your changes did. You'd be adding chaos, not signal.\n\nSo this weekend, do nothing. A real shift looks like one of two things: the same direction sustained for 3–4 consecutive weeks, or a single move large enough to clearly clear the noise band — a drop more like 35–40% on stable volume, not 15%. Until you see that, this is just the metric breathing.\n\nMark the line in the sand now — 'I act only if it's down 3+ weeks running or down >35% on this volume' — so next week's number can't bait you into a reaction you'll regret."
+},
+{
+"id": "an0830",
+"archetype": "intent-mismatch",
+"founder_style": "panicked / venting before the question",
+"mode": "data-rich",
+"hint": "REAL STORY: impressions and clicks are high but conversion is just 0.65% — you're buying broad, low-intent traffic (broad-match keywords), people browsing, not buying. CTR isn't the problem; intent is. LEVER: tighten to high-intent audiences/keywords, add negatives, and stop optimising for clicks.",
+"user": "Okay I'm losing my mind a bit here. Performance Max for my skincare brand, 30 days: 850,000 impressions, 16,220 clicks, CTR 1.9%, and only 106 orders. Conversion rate is 0.65%. AOV ₹950. I'm on broad-match keywords. Everyone clicks and nobody buys, what is going on??",
+"assistant": "Breathe — the funnel isn't broken at the top, it's mismatched at the source. Your CTR of 1.9% is perfectly normal; people are clicking fine. The tell is the 0.65% conversion rate: 16,220 clicks turning into just 106 orders. That's not a landing-page or pricing failure, that's the kind of number you get when the traffic was never in buying mode to begin with. Broad-match keywords plus Performance Max is the culprit — it's hoovering up huge volume (850K impressions) of loosely-related, low-intent searches: people researching, comparing, reading 'best ingredients for oily skin,' not reaching for their card. You're optimising for clicks and Google is happily selling you cheap ones. The lever is intent, not clicks: tighten to high-intent keywords and audiences, layer in a real negative-keyword list to choke off the browsing traffic, and feed Pmax conversion signals so it stops chasing volume. Expect impressions to fall — that's the point, you want fewer, better visitors. Caveat: 106 orders in 30 days is a workable but not huge sample, so make keyword cuts deliberately and watch a couple of weeks rather than gutting everything at once."
+},
+{
+"id": "an0831",
+"archetype": "noise-seasonality",
+"founder_style": "asks a narrow question ('why is my CTR low?')",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS moved 14% week-over-week on just 67 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "Quick one — why's my email CTR/ROAS suddenly worse? Haircare brand. This week vs last week ROAS is down 14%. We did 67 conversions this week. I'm ready to rip up the whole email strategy and rebuild it. What changed?",
+"assistant": "Nothing changed. Put the rebuild plans down. A 14% ROAS swing on 67 conversions in a single week isn't a trend, it's noise — that sample is small enough that a handful of orders landing on Monday instead of the previous Sunday moves the number that much. Reacting to one wobbly week is exactly how founders whipsaw a perfectly fine account into the ground, chasing ghosts. Do nothing this week. A real signal looks like one of two things: the same direction sustained for 3–4 weeks running, or a swing big enough in a single week that it clearly clears the normal bounce — think 30–40%, not 14%. Until you see one of those, your strategy is fine; the variance is just variance. Keep sending, keep logging the weekly number, and only act when the trend earns it."
+},
+{
+"id": "an0837",
+"archetype": "insufficient-data",
+"founder_style": "data dump — pastes the numbers, asks 'what's wrong?'",
+"mode": "data-rich",
+"hint": "REAL STORY: 25 conversions over 5 days is far too small to conclude anything — any CAC or ROAS off this is statistical noise. The honest answer is 'we can't know yet'. LEVER: refuse to diagnose; tell them to let it run to ~100 conversions or a 2-3 week window first, and name that exact threshold so they stop guessing.",
+"user": "Running Google Search for my test-prep platform. Last 5 days: spend ₹56K, 25 conversions. Is my CAC good? Should I scale this or kill it?",
+"assistant": "Honest answer: you can't know yet, and acting on this number is how you light money on fire either direction.\n\n25 conversions over 5 days is far too thin to mean anything. CAC, ROAS, whatever you compute off it — it's statistical noise. One good day or one bad day swings the whole picture. If I told you ₹56K ÷ 25 = ₹2,240 CAC and you scaled on it, you'd be betting your budget on a coin that's been flipped five times.\n\nDon't scale, don't kill. Let it run untouched until you hit roughly 100 conversions or a clean 2–3 week window, whichever comes first. That's the threshold where the average stops being random. Test-prep also has a seasonal intent cycle — admission and exam dates move demand hard — so a 5-day read can't even see your own demand curve.\n\nCheck back when you've got ~100 conversions. Then we'll have a real CAC to judge, and a real decision to make."
+},
+{
+"id": "an0842",
+"archetype": "scaling-wall",
+"founder_style": "panicked / venting before the question",
+"mode": "data-rich",
+"hint": "REAL STORY: spend ₹7L→₹15.7L, ROAS 4.8→3.2, CAC rising — you've saturated your best audiences/intent and extra budget is buying colder, pricier reach. The channel has an efficient ceiling and you hit it. LEVER: create new demand (new audiences/creatives/channels) before adding budget — don't just push more spend into the same finite pool.",
+"user": "Okay I'm freaking out a bit. My apparel label was flying on Meesho Ads and now it feels like it's falling apart. I scaled spend from ₹7L to ₹15.7L over 8 weeks and my ROAS tanked from 4.8 to 3.2, CAC crept up ₹395 to ₹596. AOV ₹1,900, margin 63%. Did I just kill my best channel??",
+"assistant": "Breathe — you didn't kill anything. You did the single most common thing a scaling founder does, and the numbers are behaving exactly as they should.\n\nYou more than doubled spend, ₹7L to ₹15.7L, and ROAS fell 4.8 to 3.2. That's not a broken channel, that's a saturated one. Your best buyers on Meesho are a finite pool. The first ₹7L reached them; the extra ₹8.7L is reaching colder, less-likely shoppers, so CAC rose to ₹596. Completely normal.\n\nAnd here's why you can stop panicking: even at the worse number you're solidly profitable. ₹1,900 × 63% − ₹596 = ₹1,197 − ₹596 = +₹601 per order. A 3.2 ROAS at 63% margin is a channel most founders would kill for.\n\nThe lever: stop trying to force more budget through the same audience — that's what's dragging efficiency down. Create new demand instead: new creative angles, new audience segments, a second channel running alongside. Grow the pool, don't squeeze it.\n\nCaveat: ₹596 CAC against ₹601 contribution still works, but the trend is the warning. Hold spend at the efficient level while you open new demand, rather than pushing toward the point where the next rupee actually loses money."
+},
+{
+"id": "an0844",
+"archetype": "noise-seasonality",
+"founder_style": "calm, sophisticated — wants the non-obvious read",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS moved 17% week-over-week on just 84 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "Reading my skincare numbers on Meesho Ads and I think I need to overhaul the whole strategy. ROAS dropped 17% this week versus last week. 84 conversions this week. The trend worries me — want your honest read before I rip everything up.",
+"assistant": "Don't rip anything up. Put the scalpel down.\n\nA 17% ROAS move on 84 conversions is not a trend — it's noise. With that few orders, normal week-to-week randomness alone can swing ROAS more than 17% in either direction. Nothing in this data tells you the channel changed. The only real risk on the table is the one you're about to create: overhauling a working account on one wobbly week is how founders whipsaw themselves and lose the stable thing they had.\n\nDo nothing for now. Let it run untouched.\n\nWhat would actually count as a signal: the same direction sustained for 3–4 weeks, or a single move big enough it clearly can't be chance — a 40–50% drop, not 17. Until one of those shows up, this week is inside the band of normal variance, and the right action is patience."
+},
+{
+"id": "an0849",
+"archetype": "looks-fine-but-broken",
+"founder_style": "data dump — pastes the numbers, asks 'what's wrong?'",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 3.0 looks great and first-order contribution is +₹268, BUT 90-day repeat is only 7% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Cloud kitchen, want a sharp read because the numbers look healthy but something nags me. 30 days: AOV ₹1,000, margin 60%, CAC ₹332, ROAS 3.0, CTR 1.8%, and 90-day repeat rate is 7%. What's wrong, if anything?",
+"assistant": "Your acquisition is excellent. Your business has a hole in the bottom of the bucket. Both are true, and the second one is what's nagging you.\n\nFirst-order math is genuinely good: ₹1,000 × 60% − ₹332 = ₹600 − ₹332 = +₹268 per order, ROAS 3.0. If this were a one-and-done purchase, you'd be thrilled. But it's a cloud kitchen — the entire economics depend on people ordering again. And only 7% repeat in 90 days. That's the broken number hiding under the healthy ones.\n\nFor food, 7% is alarmingly low; this category should run repeat in the tens of percent because eating is habitual. It means you're paying ₹332 to acquire someone who orders once and vanishes, so your real LTV is barely more than that single +₹268. Scale spend now and you just buy more one-time strangers — filling a bucket with no bottom, faster.\n\nThe lever: fix repeat before you scale acquisition. Find why the second order isn't happening — food quality, delivery time, packaging, no reason to come back — and close that gap. A WhatsApp re-order nudge and a second-order incentive is the cheap first probe.\n\nCaveat: 30 days only partially captures a 90-day repeat window, so the 7% may tick up as cohorts mature — but it's low enough that the warning stands regardless."
+},
+{
+"id": "an0854",
+"archetype": "funnel-leak",
+"founder_style": "data dump — pastes the numbers, asks 'what's wrong?'",
+"mode": "data-rich",
+"hint": "REAL STORY: traffic and add-to-cart are healthy (ATC 6%), but checkout→purchase is only 29% (should be ~50-70%). The leak is at the LAST step — payment/checkout friction — not acquisition. LEVER: instrument and fix checkout (surprise shipping, forced login, missing UPI/COD); ad money is fine.",
+"user": "Flipkart seller, running Meta. Pasting last 30 days, tell me what's wrong: 50,000 visits, 3,206 add to cart, 2,239 reached checkout, 656 purchases. CTR on the ads is 2.3%. Something's bleeding and I can't see it.",
+"assistant": "Walk the funnel and the leak points to itself. 50,000 visits → 3,206 add-to-cart is a 6% ATC rate — healthy; your ads and product page are doing their job. 3,206 → 2,239 reaching checkout is a normal drop. Then 2,239 reached checkout → 656 purchases. That's 29%. Roughly seven in ten people who pull out their wallet and start checkout walk away before paying. A working checkout converts 50-70% from that step. The leak isn't acquisition — it's the very last metre, and that's almost always friction you can't see from the ad dashboard: a shipping charge that appears only at the final screen, a forced account creation, no UPI or COD option, a coupon field that screams 'go hunt for a code', or a payment gateway timing out. The lever: instrument the checkout and fix it. Don't touch the ad spend — pouring more traffic in just feeds a leakier bucket. Go through your own checkout on a cheap Android phone over mobile data and watch where it makes you hesitate; that's where the 71% is dying. Caveat: confirm the gap is genuine drop-off and not legit COD/abandonment that later converts via your recovery flow — pull the actual checkout-abandonment reasons before you assume it's all pure friction."
+},
+{
+"id": "an0855",
+"archetype": "noise-seasonality",
+"founder_style": "calm, sophisticated — wants the non-obvious read",
+"mode": "data-rich",
+"hint": "REAL STORY: CTR moved 13% week-over-week on just 94 conversions — that's inside normal variance, not a trend. Reacting to one noisy week is how founders whipsaw their accounts. LEVER: do NOTHING yet; wait for a 3-4 week signal before changing anything, and tell them what would actually count as a real shift.",
+"user": "Want your read on this before I do something rash. D2C coffee, Meesho Ads. CTR dropped 13% week-over-week and I'm honestly about to tear up the whole strategy and rebuild. We did 94 conversions this week. Is the creative dead?",
+"assistant": "Do nothing. Genuinely — close the tab. A 13% CTR swing on a week with 94 conversions isn't a trend, it's noise. On a base that small, a single slow Tuesday, a festive-week dip, or a couple of weaker placements will move CTR more than that, and it'll bounce back next week with no action from you. Overhauling your whole strategy off one wobbly week is exactly how founders whipsaw their accounts into the ground — every reset throws the algorithm back into learning and torches the next two weeks too. The creative isn't dead; you don't have enough data to claim it's even sick. What would actually count as a signal: the same direction holding for 3-4 consecutive weeks, or a swing big enough in a single week to clearly clear normal variance — a 30-40%+ drop, not 13%. Until then there's no decision to make. Caveat: if you'd seen frequency climbing and CTR sliding together over a month, that's real creative fatigue worth acting on — but you're looking at one week, and one week tells you nothing."
+},
+{
+"id": "an0860",
+"archetype": "looks-fine-but-broken",
+"founder_style": "data dump — pastes the numbers, asks 'what's wrong?'",
+"mode": "data-rich",
+"hint": "REAL STORY: ROAS 4.1 looks great and first-order contribution is +₹260, BUT 90-day repeat is only 5% — acquisition works, retention is the leak; with almost no second order the LTV collapses. LEVER: fix repeat BEFORE scaling spend; you're filling a bucket with no bottom.",
+"user": "Gym, running Meta. Here's the last 30 days dump, tell me what's wrong because honestly it all looks good to me: AOV ₹1,050, gross margin 49%, CAC ₹255, ROAS 4.1, CTR 1.3%, and 90-day repeat rate is 5%. I want to pour more money in but wanted a sanity check first.",
+"assistant": "Your acquisition is genuinely good — that's not flattery, the math backs it. First-order contribution = ₹1,050 × 49% − ₹255 = ₹514.50 − ₹255 = +₹259.50 per member acquired. A 4.1 ROAS and ₹260 positive contribution on the first sale means the front of your funnel works. Don't scale it. The number that should stop you cold is the 90-day repeat rate: 5%. For a gym that's catastrophic — the entire economics of a gym live in renewal and retention, not the first month's payment. A 5% repeat means 95 of every 100 members you acquire never come back, so there's no LTV stacking on top of that ₹260; you're paying ₹255 to rent a customer for one cycle and then losing them. Pour more spend into that and you just acquire churned members faster — filling a bucket with no bottom. The lever: fix retention before you touch the budget — onboarding in the first two weeks, attendance nudges over WhatsApp, a reason to renew — and get repeat off the floor. Once a second purchase is normal, LTV makes scaling spend a no-brainer. Caveat: confirm what '90-day repeat' counts — if your gym sells annual memberships, a low 90-day repeat might be a measurement-window artefact rather than true churn; check the renewal curve before you panic-spend on retention either."
+}
+]
