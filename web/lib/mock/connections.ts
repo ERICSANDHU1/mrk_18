@@ -1,0 +1,60 @@
+import type { Connection } from "./types";
+
+export const connections: Connection[] = [
+  {
+    id: "cn-gads",
+    name: "Google Ads",
+    category: "Paid",
+    connected: true,
+    lastSync: "18 min ago",
+    unlocks: "Keyword-level waste detection and CAC per campaign.",
+  },
+  {
+    id: "cn-meta",
+    name: "Meta Ads",
+    category: "Paid",
+    connected: true,
+    lastSync: "1 h ago",
+    unlocks: "Creative fatigue alerts and retargeting frequency caps.",
+  },
+  {
+    id: "cn-linkedin",
+    name: "LinkedIn Ads",
+    category: "Paid",
+    connected: true,
+    lastSync: "3 h ago",
+    unlocks: "Title-level audience verdicts and offer tests.",
+  },
+  {
+    id: "cn-ga4",
+    name: "Google Analytics 4",
+    category: "Analytics",
+    connected: false,
+    lastSync: null,
+    unlocks: "Full funnel verdicts: which channel's traffic actually activates.",
+  },
+  {
+    id: "cn-hubspot",
+    name: "HubSpot",
+    category: "CRM",
+    connected: false,
+    lastSync: null,
+    unlocks: "Pipeline attribution — marketing customers traced to revenue.",
+  },
+  {
+    id: "cn-mailchimp",
+    name: "Mailchimp",
+    category: "Email",
+    connected: true,
+    lastSync: "2 h ago",
+    unlocks: "Sequence performance inside the weekly report.",
+  },
+  {
+    id: "cn-stripe",
+    name: "Stripe",
+    category: "Revenue",
+    connected: true,
+    lastSync: "44 min ago",
+    unlocks: "True paying-customer counts behind every CAC number.",
+  },
+];

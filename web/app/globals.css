@@ -1,0 +1,231 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0a0b;
+  --surface: #141416;
+  --surface-2: #1b1b1e;
+  --ink: #f4f1ec;
+  --muted: #9a958c;
+  --molten: #ff6a00;
+  --amber: #ff9e2c;
+  --ember: #e0490e;
+  --gold: #f2c879;
+  --stroke: rgba(244, 241, 236, 0.08);
+  --glass: rgba(20, 20, 22, 0.55);
+  --gradient-brand: linear-gradient(120deg, var(--molten), var(--amber) 55%, var(--ember));
+  /* dashboard status tokens — color = status, never ornament */
+  --good: #34d399;
+  --watch: #ff9e2c;
+  --bad: #f87171;
+  --stroke-2: rgba(255, 255, 255, 0.07);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-molten: var(--molten);
+  --color-amber: var(--amber);
+  --color-ember: var(--ember);
+  --color-gold: var(--gold);
+  --color-stroke: var(--stroke);
+  --color-good: var(--good);
+  --color-watch: var(--watch);
+  --color-bad: var(--bad);
+  --color-stroke-2: var(--stroke-2);
+  --font-sans: var(--font-sora);
+  --font-mono: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-weight: 300;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--molten);
+  color: #0a0a0b;
+}
+
+/* hide native cursor only when the custom cursor is mounted on a fine pointer */
+@media (pointer: fine) {
+  html.custom-cursor,
+  html.custom-cursor a,
+  html.custom-cursor button {
+    cursor: none;
+  }
+}
+
+/* ---------- brand utilities ---------- */
+
+.text-gradient {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--stroke);
+}
+
+.gradient-border-l {
+  border-left: 2px solid transparent;
+  border-image: linear-gradient(180deg, var(--molten), var(--ember)) 1;
+}
+
+/* giant outlined display text (watermark / contact) */
+.text-outline {
+  -webkit-text-stroke: 1px rgba(244, 241, 236, 0.16);
+  color: transparent;
+}
+
+/* outlined headline that fills with gradient left→right on hover */
+.fill-on-hover {
+  position: relative;
+  -webkit-text-stroke: 1px rgba(244, 241, 236, 0.25);
+  color: transparent;
+}
+.fill-on-hover::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 0;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 700ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.fill-on-hover:hover::before {
+  clip-path: inset(0 0 0 0);
+}
+
+/* ---------- marquee ---------- */
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* ---------- pulsing live badge ---------- */
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* CTA sheen sweep */
+@keyframes sheen {
+  from {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(230%) skewX(-18deg);
+  }
+}
+
+/* visible keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ---------- dashboard ---------- */
+
+/* skeleton shimmer */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* funnel leak drip */
+@keyframes drip {
+  0% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+.drip {
+  animation: drip 1.8s ease-in infinite;
+}
+
+/* thin dark scrollbars for long-session panels */
+.dash-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+.dash-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.dash-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+.dash-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

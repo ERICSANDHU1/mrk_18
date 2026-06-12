@@ -1,0 +1,38 @@
+import SmoothScroll from "../components/SmoothScroll";
+import Preloader from "../components/Preloader";
+import Background3D from "../components/Background3D";
+import CustomCursor from "../components/CustomCursor";
+import ScrollProgress from "../components/ScrollProgress";
+import Navbar from "../components/Navbar";
+import Marquee from "../components/Marquee";
+import Hero from "../components/sections/Hero";
+import Problem from "../components/sections/Problem";
+import HowItWorks from "../components/sections/HowItWorks";
+import Features from "../components/sections/Features";
+import Proof from "../components/sections/Proof";
+import Pricing from "../components/sections/Pricing";
+import Contact from "../components/sections/Contact";
+import Footer from "../components/sections/Footer";
+
+export default function Home() {
+  return (
+    <SmoothScroll>
+      <Preloader />
+      <Background3D />
+      <CustomCursor />
+      <ScrollProgress />
+      <Navbar />
+      <main>
+        <Hero />
+        <Marquee items={["ADVISE", "WATCHDOG", "EXECUTE", "MRK18"]} variant="gradient" />
+        <Problem />
+        <HowItWorks />
+        <Features />
+        <Proof />
+        <Pricing />
+        <Contact />
+      </main>
+      <Footer />
+    </SmoothScroll>
+  );
+}
