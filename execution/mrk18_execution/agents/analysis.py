@@ -18,11 +18,27 @@ from ..schemas.report import ReportSection
 
 SOURCE_RULES = (
     "SOURCE RULES (strict): you have NO web access. For every claim set "
-    "`source` to either 'intake:<field_name>' (something the founder said — "
-    "confidence high) or 'model-knowledge' (general industry knowledge — "
-    "confidence medium, or low if you are unsure). NEVER invent specific "
-    "statistics, prices, or named reports. If something would need fresh "
-    "research, state it as low confidence."
+    "`source` to either 'intake:<field_name>' (a value the founder LITERALLY "
+    "stated in that field — confidence high) or 'model-knowledge' (general "
+    "industry knowledge — confidence medium, or low if you are unsure). A "
+    "number the founder did NOT give (a competitor's price, a market size, a "
+    "churn %) is NEVER 'intake:' — it is 'model-knowledge' at medium/low at "
+    "best. NEVER invent specific statistics, prices, or named reports. If "
+    "something would need fresh research, state it as low confidence."
+)
+
+# The single most trust-critical rule for a "never makes things up" CMO.
+# Used by synthesis + content generation, which (unlike the analysis agents)
+# have no per-claim source field to keep them honest.
+NO_FABRICATION = (
+    "GROUNDING (non-negotiable): do NOT invent specific numbers the founder "
+    "did not provide — no prices, no discount amounts, no coupon/promo codes, "
+    "no percentages or statistics stated as fact, no spend figures. You may "
+    "use a number ONLY if it appears in the founder's intake or the analysis "
+    "above. If a figure would help but you don't have it, either leave it out "
+    "or name it as the founder's call to make (e.g. 'price your launch offer "
+    "to clear stock' — never a specific rupee value you made up). A fabricated "
+    "price or promo code in a founder's post is the worst error you can make."
 )
 
 INDIA_LENS = (
@@ -109,7 +125,7 @@ async def run_synthesis(
         "Merge the three analyses below into ONE verdict for the founder: "
         "what is actually true about their situation, the single most "
         "important next move, and why. 150-300 words, direct address "
-        "('your', not 'the founder'). " + INDIA_LENS
+        "('your', not 'the founder'). " + INDIA_LENS + " " + NO_FABRICATION
     )
     user = (
         f"{_profile_brief(profile, founder_flags, performance_memo, company_knowledge)}\n\n"

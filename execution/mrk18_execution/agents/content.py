@@ -11,6 +11,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from .analysis import NO_FABRICATION
 from ..llm.socket import AgentRole, LLMSocket, Usage
 from ..schemas.constraints import PLATFORM_CONSTRAINTS
 from ..schemas.content import ContentItem
@@ -74,6 +75,9 @@ def _gen_prompt(
         "You are MRK18's content engine writing AS the founder (first person), in their "
         f"brand voice. Voice/tone: {profile.get('tone', 'direct, warm')}. "
         "India-first, concrete, zero generic AI fluff. Never attack competitors by name. "
+        f"\n\n{NO_FABRICATION} In a post this means: NEVER state a specific price, "
+        "offer amount, or coupon/promo code unless the founder gave it — write an honest "
+        "CTA instead ('launch offer inside', 'first-kit discount — link below'). "
         f"\n\nFORMAT BRIEF: {FORMAT_BRIEFS[fmt]}"
         f"\nHard platform limits: max {c.max_body_chars} chars in body"
         + (f", max {c.max_hashtags} hashtags" if c.max_hashtags else "")
