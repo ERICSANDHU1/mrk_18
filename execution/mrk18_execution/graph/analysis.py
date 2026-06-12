@@ -51,7 +51,12 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
     def make_agent_node(role: AgentRole):
         async def agent_node(state: AnalysisState) -> dict:
             section, usage = await run_analysis_agent(
-                socket, role, state["profile"], state.get("founder_flags", [])
+                socket,
+                role,
+                state["profile"],
+                state.get("founder_flags", []),
+                performance_memo=state.get("performance_memo"),
+                company_knowledge=state.get("company_knowledge"),
             )
             return {
                 "analyses": [{"agent": role.value, "section": section.model_dump(mode="json")}],
@@ -71,7 +76,12 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
     async def synthesize(state: AnalysisState) -> dict:
         sections = _latest_sections(state)
         synthesis, usage = await run_synthesis(
-            socket, state["profile"], sections, state.get("founder_flags", [])
+            socket,
+            state["profile"],
+            sections,
+            state.get("founder_flags", []),
+            performance_memo=state.get("performance_memo"),
+            company_knowledge=state.get("company_knowledge"),
         )
         report = MarketingIntelligenceReport(
             run_id=UUID(state["run_id"]),
@@ -126,6 +136,8 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
                     "profile": state["profile"],
                     "report": state["report"],
                     "platform": platform,
+                    "performance_memo": state.get("performance_memo"),
+                    "company_knowledge": state.get("company_knowledge"),
                 },
             )
             for platform in platforms
@@ -134,7 +146,13 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
     async def generate_item_node(plan: dict) -> dict:
         platform = Platform(plan["platform"])
         item, usages = await generate_item(
-            socket, plan["run_id"], plan["profile"], plan["report"], platform
+            socket,
+            plan["run_id"],
+            plan["profile"],
+            plan["report"],
+            platform,
+            performance_memo=plan.get("performance_memo"),
+            company_knowledge=plan.get("company_knowledge"),
         )
         if (
             image_engine is not None
@@ -214,6 +232,8 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
                         "profile": state["profile"],
                         "report": state["report"],
                         "item": item,
+                        "performance_memo": state.get("performance_memo"),
+                        "company_knowledge": state.get("company_knowledge"),
                     },
                 )
                 for item in queue
@@ -238,6 +258,8 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
             prior_body=prior["body"],
             rejection_note=prior.get("regeneration_note"),
             regeneration_count=prior.get("regeneration_count", 0) + 1,
+            performance_memo=plan.get("performance_memo"),
+            company_knowledge=plan.get("company_knowledge"),
         )
         if (
             image_engine is not None

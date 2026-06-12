@@ -141,7 +141,15 @@ async def start_analysis_run(
         raise HTTPException(status_code=404, detail="founder not found")
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    _spawn(request, lifecycle.execute_run(graph, factory, run))
+    _spawn(
+        request,
+        lifecycle.execute_run(
+            graph,
+            factory,
+            run,
+            embedding_engine=getattr(request.app.state, "embedding_engine", None),
+        ),
+    )
     return _view(run)
 
 

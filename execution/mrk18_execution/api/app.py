@@ -53,6 +53,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
 
             pool, saver = await open_checkpointer(settings.checkpointer_dsn)
             socket = LLMSocket(default_registry(settings.groq_api_key))
+            app.state.llm_socket = socket  # Slice 3.4 — Comment Agent drafts here
             engine = pick_engine(settings)  # Cloudflare free > fal > none
             store = (
                 SupabaseMediaStore(settings.supabase_url, settings.supabase_service_key)
@@ -191,9 +192,35 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     async def health() -> dict:
         return {"status": "ok"}
 
+    # Slice 3.1 — Eagle-View automated sources (filled at go-live; tests inject)
+    app.state.signal_sources = {}
+    # Slice 3.4 — Comment Agent: LLM socket + comment sources (tests inject both)
+    if not hasattr(app.state, "llm_socket"):
+        app.state.llm_socket = None
+    app.state.comment_sources = {}
+
+    # Slice 3.3 — Company Brain embeddings: BGE-M3 on Cloudflare's free tier,
+    # SAME credentials as the free image engine. Unset → knowledge endpoints
+    # answer 503 and runs simply proceed without retrieved knowledge.
+    if settings.cf_account_id and settings.cf_api_token:
+        from ..llm.embeddings import CloudflareEmbeddingEngine
+
+        app.state.embedding_engine = CloudflareEmbeddingEngine(
+            settings.cf_account_id, settings.cf_api_token
+        )
+    else:
+        app.state.embedding_engine = None
+
+    from .comments import router as comments_router
+    from .knowledge import router as knowledge_router
+    from .signals import router as signals_router
+
     app.include_router(intake_router)
     app.include_router(runs_router)
     app.include_router(review_router)
     app.include_router(connections_router)
     app.include_router(privacy_router)
+    app.include_router(signals_router)
+    app.include_router(knowledge_router)
+    app.include_router(comments_router)
     return app

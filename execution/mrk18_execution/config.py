@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     approval_signing_key: str = ""
     token_vault_key: str = ""
     maintenance_key: str = ""  # ops endpoints (cron) — not founder-facing
+    # Company Brain (Slice 3.3 — free-tier MVP cap; raise with the Pro plan)
+    knowledge_max_chunks: int = 1500
+
     # Perimeter (Slice 2.4)
     rate_limit_enabled: bool = True
     rate_limit_default_per_min: int = 240

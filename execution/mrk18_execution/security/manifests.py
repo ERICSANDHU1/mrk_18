@@ -26,6 +26,18 @@ AGENT_MANIFESTS: dict[str, frozenset[str]] = {
     "agent:publisher": frozenset(
         {"publish:export", "publish:linkedin", "publish:x", "publish:instagram"}
     ),
+    # Eagle-View reads the world and writes metrics — it may NEVER publish,
+    # never call the LLM, never touch tokens
+    "agent:eagle_view": frozenset({"signals:read", "signals:write"}),
+    # the Company Brain: knowledge in, knowledge out — cannot publish,
+    # cannot call the chat LLM (embeddings ride their own engine)
+    "agent:company_brain": frozenset({"knowledge:read", "knowledge:write"}),
+    # the Comment Agent: reads comments, scores sentiment (a signal write),
+    # drafts replies via the LLM — but CANNOT publish. A drafted reply only
+    # goes out when the founder approves it (no publish:* capability here).
+    "agent:comment": frozenset(
+        {"llm:complete", "comments:read", "comments:write", "signals:write"}
+    ),
 }
 
 

@@ -61,7 +61,14 @@ FORMAT_BRIEFS: dict[ContentFormat, str] = {
 }
 
 
-def _gen_prompt(profile: dict, report: dict, fmt: ContentFormat, platform: Platform) -> tuple[str, str]:
+def _gen_prompt(
+    profile: dict,
+    report: dict,
+    fmt: ContentFormat,
+    platform: Platform,
+    performance_memo: str | None = None,
+    company_knowledge: str | None = None,
+) -> tuple[str, str]:
     c = PLATFORM_CONSTRAINTS[platform]
     system = (
         "You are MRK18's content engine writing AS the founder (first person), in their "
@@ -74,11 +81,15 @@ def _gen_prompt(profile: dict, report: dict, fmt: ContentFormat, platform: Platf
         "rendered inside the image) and a short alt_text."
     )
     strategy = report.get("content_strategy", {})
+    memo = f"{performance_memo}\n\n" if performance_memo else ""
+    knowledge = f"{company_knowledge}\n\n" if company_knowledge else ""
     user = (
         f"Founder profile: {profile}\n\n"
         f"Approved strategy summary: {strategy.get('summary', '')}\n"
         f"Strategy claims: {[c0['text'] for c0 in strategy.get('claims', [])][:6]}\n"
         f"CMO verdict: {report.get('synthesis', '')[:800]}\n\n"
+        f"{memo}"
+        f"{knowledge}"
         f"Write ONE {fmt.value} for {platform.value} executing this strategy."
     )
     return system, user
@@ -95,6 +106,8 @@ async def generate_item(
     prior_body: str | None = None,
     rejection_note: str | None = None,
     regeneration_count: int = 0,
+    performance_memo: str | None = None,
+    company_knowledge: str | None = None,
 ) -> tuple[ContentItem, list[Usage]]:
     """Generate one validated ContentItem; feed rule violations back once.
 
@@ -102,7 +115,9 @@ async def generate_item(
     note steers the rewrite, regeneration_count increments (schema caps it).
     """
     fmt = PLATFORM_FORMAT[platform]
-    system, user = _gen_prompt(profile, report, fmt, platform)
+    system, user = _gen_prompt(
+        profile, report, fmt, platform, performance_memo, company_knowledge
+    )
     if rejection_note:
         user += (
             f"\n\nTHE FOUNDER REJECTED the previous draft. Their note (follow it "

@@ -56,6 +56,7 @@ class AgentRole(str, Enum):
     SYNTHESIS = "synthesis"
     CONTENT = "content"  # adapter #7's future seat (ad copywriter)
     TRIAGE = "triage"
+    COMMENT = "comment"  # Slice 3.4 — drafts replies to comments AS the founder
 
 
 @dataclass
@@ -96,6 +97,7 @@ def default_registry(groq_api_key: str) -> dict[AgentRole, ModelSeat]:
         AgentRole.STRATEGY: ModelSeat(**big),
         AgentRole.SYNTHESIS: ModelSeat(**big, max_tokens=2200),
         AgentRole.CONTENT: ModelSeat(**big, max_tokens=1800, temperature=0.6),
+        AgentRole.COMMENT: ModelSeat(**big, max_tokens=400, temperature=0.5),
         AgentRole.TRIAGE: ModelSeat(
             base_url=GROQ_BASE_URL, api_key=groq_api_key, model="llama-3.1-8b-instant"
         ),

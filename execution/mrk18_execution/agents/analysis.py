@@ -58,7 +58,12 @@ class SynthesisOut(BaseModel):
     synthesis: str = Field(min_length=50, description="The CMO's verdict, 150-300 words")
 
 
-def _profile_brief(profile: dict, founder_flags: list[str]) -> str:
+def _profile_brief(
+    profile: dict,
+    founder_flags: list[str],
+    performance_memo: str | None = None,
+    company_knowledge: str | None = None,
+) -> str:
     brief = json.dumps(profile, ensure_ascii=False)
     flags = (
         "\n\nTHE FOUNDER DISAGREED with the previous analysis on these points — "
@@ -66,14 +71,29 @@ def _profile_brief(profile: dict, founder_flags: list[str]) -> str:
         if founder_flags
         else ""
     )
-    return f"Founder intake (verbatim):\n{brief}{flags}"
+    # Slice 3.2 — measured lessons ride along; a memo claim counts as sourced
+    # data (it IS measurement), but flags still outrank it
+    memo = f"\n\n{performance_memo}" if performance_memo else ""
+    # Slice 3.3 — the founder's own documents ground the analysis
+    knowledge = f"\n\n{company_knowledge}" if company_knowledge else ""
+    return f"Founder intake (verbatim):\n{brief}{flags}{memo}{knowledge}"
 
 
 async def run_analysis_agent(
-    socket: LLMSocket, role: AgentRole, profile: dict, founder_flags: list[str]
+    socket: LLMSocket,
+    role: AgentRole,
+    profile: dict,
+    founder_flags: list[str],
+    performance_memo: str | None = None,
+    company_knowledge: str | None = None,
 ) -> tuple[ReportSection, Usage]:
     system = f"{AGENT_PROMPTS[role]}\n\n{SOURCE_RULES}\n\n{INDIA_LENS}"
-    return await socket.complete(role, system, _profile_brief(profile, founder_flags), ReportSection)
+    return await socket.complete(
+        role,
+        system,
+        _profile_brief(profile, founder_flags, performance_memo, company_knowledge),
+        ReportSection,
+    )
 
 
 async def run_synthesis(
@@ -81,6 +101,8 @@ async def run_synthesis(
     profile: dict,
     sections: dict[str, dict],
     founder_flags: list[str],
+    performance_memo: str | None = None,
+    company_knowledge: str | None = None,
 ) -> tuple[SynthesisOut, Usage]:
     system = (
         "You are MRK18, the AI CMO — bitter truth, India-first, no fluff. "
@@ -90,7 +112,7 @@ async def run_synthesis(
         "('your', not 'the founder'). " + INDIA_LENS
     )
     user = (
-        f"{_profile_brief(profile, founder_flags)}\n\n"
+        f"{_profile_brief(profile, founder_flags, performance_memo, company_knowledge)}\n\n"
         f"MARKET INTEL:\n{json.dumps(sections['market_intel'], ensure_ascii=False)}\n\n"
         f"AUDIENCE & POSITIONING:\n{json.dumps(sections['audience'], ensure_ascii=False)}\n\n"
         f"CONTENT STRATEGY:\n{json.dumps(sections['strategy'], ensure_ascii=False)}"

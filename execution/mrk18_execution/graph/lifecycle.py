@@ -239,21 +239,98 @@ async def _drive(graph, session_factory: async_sessionmaker, run_id: UUID, graph
         await session.commit()
 
 
-async def execute_run(graph, session_factory: async_sessionmaker, run: RunRow) -> None:
-    # B3: profile load happens BEFORE _drive's own try/except, so guard the
+async def build_graph_input(
+    session_factory: async_sessionmaker, run: RunRow, embedding_engine=None
+) -> dict:
+    """Everything a fresh run starts from: the validated profile, plus the two
+    closed-loop blocks — Eagle-View's lessons (3.2: run N's numbers steer run
+    N+1) and the Company Brain's retrieved knowledge (3.3: the founder's own
+    documents ground the agents)."""
+    profile = await _load_profile(session_factory, run.founder_id)
+    return {
+        "run_id": str(run.run_id),
+        "founder_id": str(run.founder_id),
+        "profile": profile,
+        "founder_flags": [],
+        "rerun_count": 0,
+        "analyses": [],
+        "usage": [],
+        "report": None,
+        "gate1_decision": None,
+        "performance_memo": await _load_performance_memo(
+            session_factory, run.founder_id, run.run_id
+        ),
+        "company_knowledge": await _load_company_knowledge(
+            session_factory, run.founder_id, profile, embedding_engine
+        ),
+    }
+
+
+async def _load_company_knowledge(
+    session_factory: async_sessionmaker,
+    founder_id: UUID,
+    profile: dict,
+    embedding_engine,
+) -> str | None:
+    """Retrieve the founder's most relevant knowledge for this run. No engine
+    or no corpus → None (the run proceeds ungrounded, never blocked).
+    Retrieval failures degrade the same way — a flaky embedding API must
+    never kill an analysis run."""
+    if embedding_engine is None:
+        return None
+    from ..rag.store import knowledge_as_prompt, retrieve
+
+    query = " ".join(
+        str(profile.get(key, ""))
+        for key in ("company_name", "product_description", "icp", "primary_goal")
+    ).strip()
+    if not query:
+        return None
+    try:
+        async with tenant_session(session_factory, founder_id) as session:
+            chunks = await retrieve(
+                session, founder_id=founder_id, query=query, engine=embedding_engine
+            )
+    except Exception as exc:  # noqa: BLE001 — degrade, never block the run
+        log.warning("knowledge retrieval degraded for founder %s: %r", founder_id, exc)
+        return None
+    return knowledge_as_prompt(chunks) if chunks else None
+
+
+async def _load_performance_memo(
+    session_factory: async_sessionmaker, founder_id: UUID, run_id: UUID
+) -> str | None:
+    """Build + render the founder's lessons; the injection itself is audited
+    so 'this run was steered by measured data' is provable, not vibes."""
+    from ..monitor.insights import build_performance_memo, memo_as_prompt
+
+    async with tenant_session(session_factory, founder_id) as session:
+        memo = await build_performance_memo(session, founder_id)
+        if memo is None:
+            return None
+        await record(
+            session,
+            event_type=AuditEventType.AGENT_ACTION,
+            agent_id="agent:eagle_view",
+            founder_id=founder_id,
+            run_id=run_id,
+            outcome="performance_memo_injected",
+            detail={
+                "posts_measured": memo["posts_measured"],
+                "guidance": memo["guidance"],
+            },
+        )
+        await session.commit()
+        return memo_as_prompt(memo)
+
+
+async def execute_run(
+    graph, session_factory: async_sessionmaker, run: RunRow, embedding_engine=None
+) -> None:
+    # B3: input assembly happens BEFORE _drive's own try/except, so guard the
     # whole body — any failure here must land the run as 'failed', never vanish.
     try:
-        graph_input = {
-            "run_id": str(run.run_id),
-            "founder_id": str(run.founder_id),
-            "profile": await _load_profile(session_factory, run.founder_id),
-            "founder_flags": [],
-            "rerun_count": 0,
-            "analyses": [],
-            "usage": [],
-            "report": None,
-            "gate1_decision": None,
-        }
+        graph_input = await build_graph_input(session_factory, run, embedding_engine)
         await _drive(graph, session_factory, run.run_id, graph_input)
     except Exception as exc:  # noqa: BLE001
         log.exception("execute_run failed for run %s", run.run_id)

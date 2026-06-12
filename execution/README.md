@@ -13,6 +13,7 @@ This is the execution engine of MRK18 — the AI CMO for Indian startup founders
 | 0 | Architecture lock + scaffold | ✅ this commit |
 | 1 | Execution workflow (intake → analysis → gates → generation → stub-publish + real export) | ⛔ awaiting blueprint approval |
 | 2 | Security pipeline (S1–S5 + DPDP) | ✅ complete — vault · RLS enforcing · JWT auth · agent sandbox · perimeter + hash-chained audit · DPDP rights (access/correct/erase/withdraw) · [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) · sweep clean |
+| 3 | Closed loop | ✅ complete — Eagle-View signals (3.1) · self-learning memo (3.2) · Company Brain RAG, free-tier (3.3) · Comment Agent (3.4). Run→measure→learn, all sandboxed |
 | 3 | Closed loop (Eagle-View, Comment Agent, Company Brain RAG) | pending |
 | 4 | Merge the trained Brain (vLLM multi-LoRA) | pending |
 

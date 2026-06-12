@@ -202,6 +202,89 @@ class OAuthStateRow(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class SignalRow(Base):
+    """Eagle-View metrics — mirrors the frozen SignalRecord contract (Slice 1.1).
+    One row per item × platform × window; re-entry updates (founders correct
+    numbers), so the latest value wins."""
+
+    __tablename__ = "signals"
+    __table_args__ = (UniqueConstraint("item_id", "platform", "window_point"),)
+
+    signal_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    founder_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("founders.id", ondelete="CASCADE"), nullable=False
+    )
+    item_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("content_items.item_id", ondelete="CASCADE"), nullable=False
+    )
+    platform: Mapped[str] = mapped_column(String(32), nullable=False)
+    window_point: Mapped[str] = mapped_column(String(8), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    pulled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    reach: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    engagement_rate: Mapped[float] = mapped_column(Numeric(10, 6), nullable=False, default=0)
+    follower_delta_48h: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    link_ctr: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
+    comment_sentiment: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+    saves: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    half_life_hours: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class PostCommentRow(Base):
+    """Comment Agent (Slice 3.4): one row per comment on a published post, plus
+    its drafted reply and where that reply stands. Nothing is ever sent without
+    the founder flipping reply_status to approved — no auto-reply, ever."""
+
+    __tablename__ = "post_comments"
+    __table_args__ = (UniqueConstraint("item_id", "external_id"),)
+
+    comment_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    founder_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("founders.id", ondelete="CASCADE"), nullable=False
+    )
+    item_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("content_items.item_id", ondelete="CASCADE"), nullable=False
+    )
+    platform: Mapped[str] = mapped_column(String(32), nullable=False)
+    external_id: Mapped[str] = mapped_column(Text, nullable=False)  # platform's comment id
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    author_handle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    sentiment: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
+    reply_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reply_status: Mapped[str] = mapped_column(String(24), nullable=False, default="new")
+    reply_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    redraft_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+class KnowledgeChunkRow(Base):
+    """Company Brain corpus (Slice 3.3, free-tier edition). Embeddings live in
+    a portable JSON column — exact cosine in Python at MVP scale; the Pro
+    upgrade (vector(1024) + HNSW) is one documented migration away."""
+
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (UniqueConstraint("founder_id", "source", "seq"),)
+
+    chunk_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    founder_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("founders.id", ondelete="CASCADE"), nullable=False
+    )
+    source: Mapped[str] = mapped_column(String(200), nullable=False)  # doc:/url:/insight:
+    seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list] = mapped_column(JSONType, nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
 class AuditRow(Base):
     __tablename__ = "audit_log"
 
