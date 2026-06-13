@@ -1,0 +1,79 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg" font-family="'DejaVu Sans', sans-serif">
+  <defs>
+    <radialGradient id="bgM1" cx="50%" cy="20%" r="90%">
+      <stop offset="0%" stop-color="#0d2030"/>
+      <stop offset="100%" stop-color="#06121c"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bgM1)"/>
+
+  <text x="540" y="84" text-anchor="middle" font-size="54" font-weight="bold" fill="#eaf3ef">What is an AI CMO?</text>
+  <text x="540" y="132" text-anchor="middle" font-size="24" fill="#8aa6a0">A senior marketing brain for founders who can't yet afford one.</text>
+
+  <!-- definition -->
+  <rect x="70" y="172" width="940" height="172" rx="16" fill="#0f2233" stroke="#1f6b4f" stroke-width="2"/>
+  <text x="540" y="228" text-anchor="middle" font-size="26" font-weight="bold" fill="#eaf3ef">Software that watches your marketing, tells you the</text>
+  <text x="540" y="264" text-anchor="middle" font-size="26" font-weight="bold" fill="#eaf3ef">bitter truth about what's leaking money —</text>
+  <text x="540" y="300" text-anchor="middle" font-size="26" font-weight="bold" fill="#eaf3ef">then helps you execute.</text>
+  <text x="540" y="330" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="17" fill="#00d982">the judgment of a marketing leader, at software cost</text>
+
+  <!-- 3 stage cards -->
+  <rect x="70" y="386" width="290" height="320" rx="16" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+  <circle cx="120" cy="436" r="26" fill="#00d982"/>
+  <text x="120" y="446" text-anchor="middle" font-size="24" font-weight="bold" fill="#06121c">1</text>
+  <text x="162" y="446" font-size="27" font-weight="bold" fill="#00d982">ADVICE</text>
+  <text x="96" y="512" font-size="19" fill="#cfe0da">Looks at your numbers</text>
+  <text x="96" y="544" font-size="19" fill="#cfe0da">and tells you what to do</text>
+  <text x="96" y="576" font-size="19" fill="#cfe0da">next — and what to stop.</text>
+  <text x="96" y="660" font-family="'DejaVu Sans Mono', monospace" font-size="15" fill="#7e9b94">tells you the truth</text>
+
+  <rect x="395" y="386" width="290" height="320" rx="16" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+  <circle cx="445" cy="436" r="26" fill="#00d982"/>
+  <text x="445" y="446" text-anchor="middle" font-size="24" font-weight="bold" fill="#06121c">2</text>
+  <text x="487" y="446" font-size="27" font-weight="bold" fill="#00d982">WATCHDOG</text>
+  <text x="421" y="512" font-size="19" fill="#cfe0da">Watches every week and</text>
+  <text x="421" y="544" font-size="19" fill="#cfe0da">flags what's leaking money</text>
+  <text x="421" y="576" font-size="19" fill="#cfe0da">before it's a crisis.</text>
+  <text x="421" y="660" font-family="'DejaVu Sans Mono', monospace" font-size="15" fill="#7e9b94">watches it for you</text>
+
+  <rect x="720" y="386" width="290" height="320" rx="16" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+  <circle cx="770" cy="436" r="26" fill="#00d982"/>
+  <text x="770" y="446" text-anchor="middle" font-size="24" font-weight="bold" fill="#06121c">3</text>
+  <text x="812" y="446" font-size="27" font-weight="bold" fill="#00d982">EXECUTE</text>
+  <text x="746" y="512" font-size="19" fill="#cfe0da">Helps you run the work —</text>
+  <text x="746" y="544" font-size="19" fill="#cfe0da">so advice becomes shipped</text>
+  <text x="746" y="576" font-size="19" fill="#cfe0da">marketing, not a report.</text>
+  <text x="746" y="660" font-family="'DejaVu Sans Mono', monospace" font-size="15" fill="#7e9b94">helps you do it</text>
+
+  <text x="377" y="556" text-anchor="middle" font-size="40" fill="#00d982">→</text>
+  <text x="702" y="556" text-anchor="middle" font-size="40" fill="#00d982">→</text>
+
+  <!-- bottom band -->
+  <rect x="70" y="752" width="940" height="332" rx="16" fill="#0b1a27" stroke="#20405a" stroke-width="1.5"/>
+  <line x1="383" y1="780" x2="383" y2="1056" stroke="#20405a" stroke-width="1.5"/>
+  <line x1="697" y1="780" x2="697" y2="1056" stroke="#20405a" stroke-width="1.5"/>
+
+  <text x="226" y="812" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="18" fill="#00d982" letter-spacing="2">WATCHES</text>
+  <text x="226" y="862" text-anchor="middle" font-size="18" fill="#cfe0da">Channels</text>
+  <text x="226" y="898" text-anchor="middle" font-size="18" fill="#cfe0da">Spend / CAC</text>
+  <text x="226" y="934" text-anchor="middle" font-size="18" fill="#cfe0da">Signups</text>
+  <text x="226" y="970" text-anchor="middle" font-size="18" fill="#cfe0da">Activation</text>
+  <text x="226" y="1006" text-anchor="middle" font-size="18" fill="#cfe0da">Retention</text>
+
+  <text x="540" y="812" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="18" fill="#00d982" letter-spacing="2">TELLS YOU</text>
+  <text x="540" y="862" text-anchor="middle" font-size="18" fill="#cfe0da">What's working</text>
+  <text x="540" y="898" text-anchor="middle" font-size="18" fill="#cfe0da">What's wasting money</text>
+  <text x="540" y="934" text-anchor="middle" font-size="18" fill="#cfe0da">What to do next</text>
+  <text x="540" y="982" text-anchor="middle" font-size="16" fill="#7e9b94">— in plain language,</text>
+  <text x="540" y="1006" text-anchor="middle" font-size="16" fill="#7e9b94">every week</text>
+
+  <text x="854" y="812" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="18" fill="#00d982" letter-spacing="2">DOES</text>
+  <text x="854" y="862" text-anchor="middle" font-size="18" fill="#cfe0da">Turns it into</text>
+  <text x="854" y="898" text-anchor="middle" font-size="18" fill="#cfe0da">executed marketing</text>
+  <text x="854" y="946" text-anchor="middle" font-size="16" fill="#7e9b94">— not another</text>
+  <text x="854" y="970" text-anchor="middle" font-size="16" fill="#7e9b94">dashboard you ignore</text>
+
+  <!-- footer -->
+  <text x="540" y="1170" text-anchor="middle" font-size="22" fill="#8aa6a0">Built for founders running marketing without a marketing team.</text>
+  <text x="540" y="1290" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="22" font-weight="bold" fill="#00d982">mrk18 — your AI CMO</text>
+</svg>

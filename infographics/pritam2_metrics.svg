@@ -1,0 +1,61 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg" font-family="'DejaVu Sans', sans-serif">
+  <rect width="1080" height="1350" fill="#f3ede1"/>
+
+  <text x="540" y="82" text-anchor="middle" font-size="46" font-weight="bold" fill="#22313f">Vanity Metrics vs Metrics That Matter</text>
+  <text x="540" y="132" text-anchor="middle" font-size="24" fill="#717b85">If a number doesn't change what you do next, it's decoration.</text>
+
+  <text x="300" y="216" text-anchor="middle" font-size="22" font-weight="bold" fill="#9a8a72" letter-spacing="1">VANITY · FEELS GOOD</text>
+  <text x="784" y="216" text-anchor="middle" font-size="22" font-weight="bold" fill="#c8632a" letter-spacing="1">MATTERS · DRIVES DECISIONS</text>
+  <line x1="540" y1="244" x2="540" y2="1150" stroke="#d8c9b0" stroke-width="2"/>
+
+  <!-- rows -->
+  <text x="78" y="312" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="312" font-size="23" fill="#8a7d6b">Impressions</text>
+  <text x="566" y="312" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="312" font-size="23" font-weight="bold" fill="#22313f">Qualified pipeline</text>
+  <line x1="78" y1="344" x2="1002" y2="344" stroke="#e6dcc9" stroke-width="1.5"/>
+
+  <text x="78" y="404" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="404" font-size="23" fill="#8a7d6b">Followers</text>
+  <text x="566" y="404" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="404" font-size="23" font-weight="bold" fill="#22313f">Activated users</text>
+  <line x1="78" y1="436" x2="1002" y2="436" stroke="#e6dcc9" stroke-width="1.5"/>
+
+  <text x="78" y="496" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="496" font-size="23" fill="#8a7d6b">Click-through rate</text>
+  <text x="566" y="496" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="496" font-size="23" font-weight="bold" fill="#22313f">CAC payback period</text>
+  <line x1="78" y1="528" x2="1002" y2="528" stroke="#e6dcc9" stroke-width="1.5"/>
+
+  <text x="78" y="588" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="588" font-size="23" fill="#8a7d6b">Email open rate</text>
+  <text x="566" y="588" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="588" font-size="23" font-weight="bold" fill="#22313f">Revenue per send</text>
+  <line x1="78" y1="620" x2="1002" y2="620" stroke="#e6dcc9" stroke-width="1.5"/>
+
+  <text x="78" y="680" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="680" font-size="23" fill="#8a7d6b">Likes &amp; comments</text>
+  <text x="566" y="680" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="680" font-size="23" font-weight="bold" fill="#22313f">Retention / repeat use</text>
+  <line x1="78" y1="712" x2="1002" y2="712" stroke="#e6dcc9" stroke-width="1.5"/>
+
+  <text x="78" y="772" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="772" font-size="23" fill="#8a7d6b">Website traffic</text>
+  <text x="566" y="772" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="772" font-size="23" font-weight="bold" fill="#22313f">Trial-to-paid conversion</text>
+  <line x1="78" y1="804" x2="1002" y2="804" stroke="#e6dcc9" stroke-width="1.5"/>
+
+  <text x="78" y="864" font-size="24" fill="#b0a48f">✗</text>
+  <text x="116" y="864" font-size="23" fill="#8a7d6b">Total signups</text>
+  <text x="566" y="864" font-size="24" fill="#c8632a">✓</text>
+  <text x="606" y="864" font-size="23" font-weight="bold" fill="#22313f">Net revenue retention</text>
+
+  <!-- note -->
+  <rect x="78" y="944" width="924" height="150" rx="16" fill="#fbeede" stroke="#d8a878" stroke-width="2"/>
+  <text x="540" y="1004" text-anchor="middle" font-size="24" font-weight="bold" fill="#22313f">The trap:</text>
+  <text x="540" y="1044" text-anchor="middle" font-size="21" fill="#7a5a3f">vanity numbers create a false sense of progress</text>
+  <text x="540" y="1074" text-anchor="middle" font-size="21" fill="#7a5a3f">while the money quietly leaks.</text>
+
+  <text x="78" y="1290" font-size="19" fill="#9a8a72">The honest test: does this number make me do something different?</text>
+  <text x="1002" y="1290" text-anchor="end" font-size="19" font-weight="bold" fill="#c8632a">mrk18 · @pritam-raj</text>
+</svg>

@@ -1,0 +1,50 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glowE" cx="50%" cy="34%" r="60%">
+      <stop offset="0%" stop-color="#00ff88" stop-opacity="0.13"/>
+      <stop offset="100%" stop-color="#00ff88" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowA" cx="22%" cy="62%" r="40%">
+      <stop offset="0%" stop-color="#ffb000" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffb000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1080" height="1350" fill="#07090a"/>
+  <ellipse cx="540" cy="420" rx="560" ry="380" fill="url(#glowE)"/>
+  <ellipse cx="300" cy="860" rx="420" ry="300" fill="url(#glowA)"/>
+
+  <!-- eyebrow -->
+  <text x="80" y="92" font-family="'DejaVu Sans Mono', monospace" font-size="22" letter-spacing="3" fill="#00ff88">● BUILDING IN PUBLIC — DAY 01</text>
+  <text x="1000" y="92" font-family="'DejaVu Sans', sans-serif" font-size="26" font-weight="bold" fill="#eef2ee" text-anchor="end" letter-spacing="1">mrk18</text>
+
+  <!-- terminal card -->
+  <rect x="80" y="150" width="920" height="475" rx="24" fill="#0b100e" stroke="#1d2b24" stroke-width="2"/>
+  <circle cx="120" cy="190" r="8" fill="#ff5f57"/>
+  <circle cx="148" cy="190" r="8" fill="#ffb000"/>
+  <circle cx="176" cy="190" r="8" fill="#00ff88"/>
+  <text x="210" y="198" font-family="'DejaVu Sans Mono', monospace" font-size="22" fill="#6f7d74">test-runner — mrk18 core</text>
+  <line x1="80" y1="222" x2="1000" y2="222" stroke="#1d2b24" stroke-width="1.5"/>
+
+  <text x="120" y="288" font-family="'DejaVu Sans Mono', monospace" font-size="27" fill="#9fe9c2">✓ onboarding flow ............. passed</text>
+  <text x="120" y="338" font-family="'DejaVu Sans Mono', monospace" font-size="27" fill="#9fe9c2">✓ background analysis ......... passed</text>
+  <text x="120" y="388" font-family="'DejaVu Sans Mono', monospace" font-size="27" fill="#9fe9c2">✓ bitter-truth report ........ passed</text>
+  <text x="120" y="438" font-family="'DejaVu Sans Mono', monospace" font-size="27" fill="#9fe9c2">✓ "your CMO is calling" ...... passed</text>
+  <text x="120" y="510" font-family="'DejaVu Sans Mono', monospace" font-size="30" font-weight="bold" fill="#00ff88">✓ 50 passing (50)            12.4s</text>
+  <text x="120" y="572" font-family="'DejaVu Sans Mono', monospace" font-size="28" fill="#ffb000">&gt; but is this actually right?<tspan fill="#ffb000">_</tspan></text>
+
+  <!-- stark word -->
+  <text x="76" y="838" font-family="'DejaVu Sans', sans-serif" font-size="150" font-weight="bold" letter-spacing="-3" fill="#eef2ee">Doubt<tspan fill="#ffb000">.</tspan></text>
+
+  <!-- subhook -->
+  <text x="80" y="915" font-family="'DejaVu Sans', sans-serif" font-size="36" fill="#aab4ae">50 tests passed.</text>
+  <text x="80" y="963" font-family="'DejaVu Sans', sans-serif" font-size="36" fill="#aab4ae">None of them check if it's the right thing.</text>
+
+  <!-- accent -->
+  <text x="80" y="1045" font-family="'DejaVu Sans Mono', monospace" font-size="25" fill="#00ff88" fill-opacity="0.9">Green ≠ right.</text>
+
+  <!-- footer -->
+  <line x1="80" y1="1250" x2="1000" y2="1250" stroke="#1d2b24" stroke-width="1.5"/>
+  <text x="80" y="1295" font-family="'DejaVu Sans Mono', monospace" font-size="22" fill="#6f7d74">@eric-sandhu  ·  THE WORKSHOP</text>
+  <text x="1000" y="1295" font-family="'DejaVu Sans Mono', monospace" font-size="22" fill="#6f7d74" text-anchor="end">mrk18 — your AI CMO</text>
+</svg>

@@ -1,0 +1,53 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg" font-family="'DejaVu Sans', sans-serif">
+  <defs>
+    <radialGradient id="bgM3" cx="50%" cy="16%" r="90%">
+      <stop offset="0%" stop-color="#0d2030"/>
+      <stop offset="100%" stop-color="#06121c"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bgM3)"/>
+
+  <text x="540" y="84" text-anchor="middle" font-size="48" font-weight="bold" fill="#eaf3ef">What Your AI CMO Watches</text>
+  <text x="540" y="132" text-anchor="middle" font-size="24" fill="#8aa6a0">Five signals and the leaks between them — checked weekly, not quarterly.</text>
+  <line x1="60" y1="166" x2="1020" y2="166" stroke="#1f6b4f" stroke-width="3"/>
+
+  <g>
+    <rect x="60" y="200" width="960" height="150" rx="14" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+    <text x="100" y="296" font-size="62" font-weight="bold" fill="#15402f">01</text>
+    <text x="220" y="258" font-size="29" font-weight="bold" fill="#00d982">Channels</text>
+    <text x="220" y="298" font-size="20" fill="#cfe0da">Where your attention and customers actually come from.</text>
+  </g>
+  <g>
+    <rect x="60" y="362" width="960" height="150" rx="14" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+    <text x="100" y="458" font-size="62" font-weight="bold" fill="#15402f">02</text>
+    <text x="220" y="420" font-size="29" font-weight="bold" fill="#00d982">Spend &amp; CAC</text>
+    <text x="220" y="460" font-size="20" fill="#cfe0da">What each customer costs to win — and whether it's creeping up.</text>
+  </g>
+  <g>
+    <rect x="60" y="524" width="960" height="150" rx="14" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+    <text x="100" y="620" font-size="62" font-weight="bold" fill="#15402f">03</text>
+    <text x="220" y="582" font-size="29" font-weight="bold" fill="#00d982">Signups</text>
+    <text x="220" y="622" font-size="20" fill="#cfe0da">Top-of-funnel volume — and how qualified it really is.</text>
+  </g>
+  <g>
+    <rect x="60" y="686" width="960" height="150" rx="14" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+    <text x="100" y="782" font-size="62" font-weight="bold" fill="#15402f">04</text>
+    <text x="220" y="744" font-size="29" font-weight="bold" fill="#00d982">Activation</text>
+    <text x="220" y="784" font-size="20" fill="#cfe0da">How many new users reach real value — not just sign up.</text>
+  </g>
+  <g>
+    <rect x="60" y="848" width="960" height="150" rx="14" fill="#0f2233" stroke="#20405a" stroke-width="1.5"/>
+    <text x="100" y="944" font-size="62" font-weight="bold" fill="#15402f">05</text>
+    <text x="220" y="906" font-size="29" font-weight="bold" fill="#00d982">Retention</text>
+    <text x="220" y="946" font-size="20" fill="#cfe0da">Who stays, who churns — the leak that quietly kills growth.</text>
+  </g>
+  <g>
+    <rect x="60" y="1010" width="960" height="150" rx="14" fill="#0b1a27" stroke="#1f6b4f" stroke-width="2"/>
+    <text x="100" y="1106" font-size="58" font-weight="bold" fill="#15402f">+</text>
+    <text x="220" y="1068" font-size="29" font-weight="bold" fill="#eaf3ef">The leaks between them</text>
+    <text x="220" y="1108" font-size="20" fill="#cfe0da">Where money drains as people fall through the cracks.</text>
+  </g>
+
+  <text x="60" y="1290" font-family="'DejaVu Sans Mono', monospace" font-size="19" fill="#7e9b94">Weekly, in plain language. Not a dashboard you forget to open.</text>
+  <text x="1020" y="1290" text-anchor="end" font-family="'DejaVu Sans Mono', monospace" font-size="19" font-weight="bold" fill="#00d982">mrk18</text>
+</svg>

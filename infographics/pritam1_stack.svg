@@ -1,0 +1,60 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg" font-family="'DejaVu Sans', sans-serif">
+  <rect width="1080" height="1350" fill="#f3ede1"/>
+
+  <text x="540" y="84" text-anchor="middle" font-size="52" font-weight="bold" fill="#22313f">The Founder Marketing Stack</text>
+  <text x="540" y="132" text-anchor="middle" font-size="24" fill="#717b85">Every layer you run before there's a team to run it.</text>
+  <line x1="70" y1="166" x2="1010" y2="166" stroke="#c8632a" stroke-width="3"/>
+
+  <g>
+    <rect x="70" y="205" width="940" height="128" rx="14" fill="#fffdf7" stroke="#e6dcc9" stroke-width="1.5"/>
+    <circle cx="138" cy="269" r="32" fill="#c8632a"/>
+    <text x="138" y="280" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">1</text>
+    <text x="200" y="258" font-size="30" font-weight="bold" fill="#22313f">Positioning</text>
+    <text x="200" y="298" font-size="20" fill="#717b85">Who it's for, what it replaces, why it's better. Get this wrong and every layer leaks.</text>
+  </g>
+  <g>
+    <rect x="70" y="341" width="940" height="128" rx="14" fill="#fffdf7" stroke="#e6dcc9" stroke-width="1.5"/>
+    <circle cx="138" cy="405" r="32" fill="#c8632a"/>
+    <text x="138" y="416" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">2</text>
+    <text x="200" y="394" font-size="30" font-weight="bold" fill="#22313f">Channels</text>
+    <text x="200" y="434" font-size="20" fill="#717b85">The 1–2 places your buyers actually are. Win somewhere, not everywhere.</text>
+  </g>
+  <g>
+    <rect x="70" y="477" width="940" height="128" rx="14" fill="#fffdf7" stroke="#e6dcc9" stroke-width="1.5"/>
+    <circle cx="138" cy="541" r="32" fill="#c8632a"/>
+    <text x="138" y="552" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">3</text>
+    <text x="200" y="530" font-size="30" font-weight="bold" fill="#22313f">Content / Offer</text>
+    <text x="200" y="570" font-size="20" fill="#717b85">The message and proof that makes a stranger stop and care.</text>
+  </g>
+  <g>
+    <rect x="70" y="613" width="940" height="128" rx="14" fill="#fffdf7" stroke="#e6dcc9" stroke-width="1.5"/>
+    <circle cx="138" cy="677" r="32" fill="#c8632a"/>
+    <text x="138" y="688" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">4</text>
+    <text x="200" y="666" font-size="30" font-weight="bold" fill="#22313f">Distribution</text>
+    <text x="200" y="706" font-size="20" fill="#717b85">Getting it in front of people, repeatedly. Content with no distribution is a diary.</text>
+  </g>
+  <g>
+    <rect x="70" y="749" width="940" height="128" rx="14" fill="#fffdf7" stroke="#e6dcc9" stroke-width="1.5"/>
+    <circle cx="138" cy="813" r="32" fill="#c8632a"/>
+    <text x="138" y="824" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">5</text>
+    <text x="200" y="802" font-size="30" font-weight="bold" fill="#22313f">Conversion</text>
+    <text x="200" y="842" font-size="20" fill="#717b85">Attention → signups → paying customers. The page, the onboarding, the aha.</text>
+  </g>
+  <g>
+    <rect x="70" y="885" width="940" height="128" rx="14" fill="#fffdf7" stroke="#e6dcc9" stroke-width="1.5"/>
+    <circle cx="138" cy="949" r="32" fill="#c8632a"/>
+    <text x="138" y="960" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">6</text>
+    <text x="200" y="938" font-size="30" font-weight="bold" fill="#22313f">Retention</text>
+    <text x="200" y="978" font-size="20" fill="#717b85">Keeping who you won. Cheaper than acquisition, and the real growth engine.</text>
+  </g>
+  <g>
+    <rect x="70" y="1021" width="940" height="128" rx="14" fill="#fbeede" stroke="#d8a878" stroke-width="2"/>
+    <circle cx="138" cy="1085" r="32" fill="#22313f"/>
+    <text x="138" y="1096" text-anchor="middle" font-size="30" font-weight="bold" fill="#ffffff">7</text>
+    <text x="200" y="1074" font-size="30" font-weight="bold" fill="#22313f">Measurement</text>
+    <text x="200" y="1114" font-size="20" fill="#7a5a3f">The numbers under all of it — what's working, what's leaking. Most founders skip it.</text>
+  </g>
+
+  <text x="70" y="1290" font-size="19" fill="#9a8a72">Each layer only works if the one above it is solid.</text>
+  <text x="1010" y="1290" text-anchor="end" font-size="19" font-weight="bold" fill="#c8632a">mrk18 · @pritam-raj</text>
+</svg>

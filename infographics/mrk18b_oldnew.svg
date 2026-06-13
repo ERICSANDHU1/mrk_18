@@ -1,0 +1,67 @@
+<svg viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg" font-family="'DejaVu Sans', sans-serif">
+  <defs>
+    <radialGradient id="bgM2" cx="50%" cy="18%" r="90%">
+      <stop offset="0%" stop-color="#0d2030"/>
+      <stop offset="100%" stop-color="#06121c"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bgM2)"/>
+
+  <text x="540" y="80" text-anchor="middle" font-size="44" font-weight="bold" fill="#eaf3ef">Founder Marketing: Old Way vs New Way</text>
+  <text x="540" y="128" text-anchor="middle" font-size="24" fill="#8aa6a0">The problem was never effort — it was flying blind.</text>
+
+  <text x="300" y="208" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="21" font-weight="bold" fill="#e08a7a" letter-spacing="1">OLD WAY · FLYING BLIND</text>
+  <text x="788" y="208" text-anchor="middle" font-family="'DejaVu Sans Mono', monospace" font-size="21" font-weight="bold" fill="#00d982" letter-spacing="1">NEW WAY · AI CMO</text>
+  <line x1="540" y1="234" x2="540" y2="1120" stroke="#20405a" stroke-width="2"/>
+
+  <text x="70" y="300" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="300" font-size="22" fill="#9bb0ab">Guessing what works from gut</text>
+  <text x="566" y="300" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="300" font-size="22" font-weight="bold" fill="#eaf3ef">Knowing from your real numbers</text>
+  <line x1="70" y1="332" x2="1010" y2="332" stroke="#15293a" stroke-width="1.5"/>
+
+  <text x="70" y="392" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="392" font-size="22" fill="#9bb0ab">Vanity dashboards of likes</text>
+  <text x="566" y="392" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="392" font-size="22" font-weight="bold" fill="#eaf3ef">A weekly bitter-truth report</text>
+  <line x1="70" y1="424" x2="1010" y2="424" stroke="#15293a" stroke-width="1.5"/>
+
+  <text x="70" y="484" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="484" font-size="22" fill="#9bb0ab">Strategy only in your head</text>
+  <text x="566" y="484" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="484" font-size="22" font-weight="bold" fill="#eaf3ef">Written down, watched, updated</text>
+  <line x1="70" y1="516" x2="1010" y2="516" stroke="#15293a" stroke-width="1.5"/>
+
+  <text x="70" y="576" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="576" font-size="22" fill="#9bb0ab">An agency you can't afford</text>
+  <text x="566" y="576" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="576" font-size="22" font-weight="bold" fill="#eaf3ef">Software at startup cost</text>
+  <line x1="70" y1="608" x2="1010" y2="608" stroke="#15293a" stroke-width="1.5"/>
+
+  <text x="70" y="668" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="668" font-size="22" fill="#9bb0ab">Spotting a leak months late</text>
+  <text x="566" y="668" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="668" font-size="22" font-weight="bold" fill="#eaf3ef">Caught the week it starts</text>
+  <line x1="70" y1="700" x2="1010" y2="700" stroke="#15293a" stroke-width="1.5"/>
+
+  <text x="70" y="760" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="760" font-size="22" fill="#9bb0ab">Stalls when you're heads-down</text>
+  <text x="566" y="760" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="760" font-size="22" font-weight="bold" fill="#eaf3ef">Keeps running while you build</text>
+  <line x1="70" y1="792" x2="1010" y2="792" stroke="#15293a" stroke-width="1.5"/>
+
+  <text x="70" y="852" font-size="24" fill="#c96b5a">✗</text>
+  <text x="108" y="852" font-size="22" fill="#9bb0ab">Advice you execute alone</text>
+  <text x="566" y="852" font-size="24" fill="#00d982">✓</text>
+  <text x="606" y="852" font-size="22" font-weight="bold" fill="#eaf3ef">Advice that comes with help</text>
+
+  <!-- note -->
+  <rect x="70" y="930" width="940" height="150" rx="16" fill="#0b1a27" stroke="#1f6b4f" stroke-width="2"/>
+  <text x="540" y="992" text-anchor="middle" font-size="24" font-weight="bold" fill="#00d982">Same founder. Same effort.</text>
+  <text x="540" y="1034" text-anchor="middle" font-size="21" fill="#cfe0da">The only thing that changed is being able to see.</text>
+
+  <!-- footer -->
+  <line x1="70" y1="1240" x2="1010" y2="1240" stroke="#20405a" stroke-width="1.5"/>
+  <text x="70" y="1286" font-family="'DejaVu Sans Mono', monospace" font-size="20" fill="#7e9b94">Points at the problem, not at people.</text>
+  <text x="1010" y="1286" text-anchor="end" font-family="'DejaVu Sans Mono', monospace" font-size="20" font-weight="bold" fill="#00d982">mrk18 — your AI CMO</text>
+</svg>
