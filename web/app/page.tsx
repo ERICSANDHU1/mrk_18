@@ -9,7 +9,6 @@ import Hero from "../components/sections/Hero";
 import Problem from "../components/sections/Problem";
 import HowItWorks from "../components/sections/HowItWorks";
 import Features from "../components/sections/Features";
-import Proof from "../components/sections/Proof";
 import Pricing from "../components/sections/Pricing";
 import Contact from "../components/sections/Contact";
 import Footer from "../components/sections/Footer";
@@ -22,13 +21,12 @@ export default function Home() {
       <CustomCursor />
       <ScrollProgress />
       <Navbar />
-      <main>
+      <main className="overflow-x-clip">
         <Hero />
         <Marquee items={["ADVISE", "WATCHDOG", "EXECUTE", "MRK18"]} variant="gradient" />
         <Problem />
         <HowItWorks />
         <Features />
-        <Proof />
         <Pricing />
         <Contact />
       </main>

@@ -1,9 +1,8 @@
 import Reveal from "../ui/Reveal";
 
 const CARDS = [
-  { label: "Email", value: "hello@mrk18.com", href: "mailto:hello@mrk18.com" },
-  { label: "LinkedIn", value: "mrk18", href: "https://www.linkedin.com/company/mrk18" },
-  { label: "X", value: "@mrk18", href: "https://x.com/mrk18" },
+  { label: "Email", value: "mrk18ai@gmail.com", href: "mailto:mrk18ai@gmail.com" },
+  { label: "LinkedIn", value: "mrk ai", href: "https://www.linkedin.com/in/mrk-ai-4a78a9409" },
 ];
 
 export default function Contact() {
@@ -19,7 +18,7 @@ export default function Contact() {
 
         <Reveal delay={0.1}>
           <a
-            href="mailto:hello@mrk18.com"
+            href="mailto:mrk18ai@gmail.com"
             data-text="JOIN THE WAITLIST"
             className="fill-on-hover mt-10 block text-[clamp(2.6rem,8.5vw,7.5rem)] font-extrabold leading-[1.02] tracking-[-0.03em]"
           >
@@ -27,7 +26,7 @@ export default function Contact() {
           </a>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="mt-20 grid grid-cols-1 gap-6 md:grid-cols-2">
           {CARDS.map((card, i) => (
             <Reveal key={card.label} delay={0.15 + i * 0.08}>
               <a
