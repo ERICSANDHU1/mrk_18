@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Auth — generic JWT verification (Clerk, Supabase, any OIDC). Falls back to
     # supabase_jwks_url when auth_jwks_url is unset.
     auth_jwks_url: str = ""  # e.g. https://<your-clerk-subdomain>.clerk.accounts.dev/.well-known/jwks.json
-    auth_audience: str = "authenticated"  # "" → skip aud check (Clerk default session tokens)
+    auth_audience: str = ""  # default: skip aud check (Clerk session tokens omit aud). Set "authenticated" for Supabase.
     auth_issuer: str = ""  # verify iss when set — recommended for Clerk (your Frontend API URL)
 
     # CORS — comma-separated browser origins allowed to call the API
