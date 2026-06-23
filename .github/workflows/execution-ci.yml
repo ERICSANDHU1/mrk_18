@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - "execution/**"
+      - ".github/workflows/execution-ci.yml"
   pull_request:
     paths:
       - "execution/**"
+      - ".github/workflows/execution-ci.yml"
 
 jobs:
   test:
@@ -25,3 +27,52 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+
+  rls-tenant-isolation:
+    # Proves Row-Level Security ACTUALLY isolates tenants on real Postgres.
+    # The default suite (job above) runs on SQLite, which has no roles or RLS,
+    # so tests/test_tenant_isolation.py otherwise skips and the safety net is
+    # dormant. Here we apply the Supabase migrations to a throwaway Postgres
+    # (creating the tables, the non-bypass `mrk18_tenant` role, and the
+    # tenant_isolation_* policies) and run the cross-tenant read/write tests for
+    # real — so a regression in any RLS policy fails the build.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: execution
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mrk18_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # the test reads TEST_PG_DSN; asyncpg is a core dependency
+      TEST_PG_DSN: postgresql+asyncpg://postgres:postgres@localhost:5432/mrk18_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Apply migrations to Postgres
+        # psql handles the dollar-quoted DO/function bodies in the migrations
+        # correctly (a naive semicolon splitter would not). ON_ERROR_STOP makes
+        # any non-portable statement fail loudly here rather than skip silently.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          command -v psql >/dev/null || { sudo apt-get update && sudo apt-get install -y postgresql-client; }
+          for f in supabase/migrations/*.sql; do
+            echo "==> applying $f"
+            psql -h localhost -U postgres -d mrk18_test -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+      - name: Tenant-isolation tests (real RLS)
+        run: pytest tests/test_tenant_isolation.py -v
