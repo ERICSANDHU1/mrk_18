@@ -1,0 +1,13 @@
+{
+  "ref": "case_0014",
+  "kind": "campaign_case",
+  "category": "D2C food (regional snacks)",
+  "channels": ["Meta ads", "Amazon.in", "Blinkit", "Zepto", "WhatsApp"],
+  "stage": "Series A scale-up, ₹1.8 Cr to pan-India",
+  "budget_band": "₹15-25L/month ad spend",
+  "title": "Pune makhana brand sequenced Meta → Amazon → quick-commerce and cut blended CAC 41%",
+  "content": "A Pune roasted-makhana and millet-snack brand at ₹1.8 Cr/year — 80% off its own Shopify — decided to go pan-India. The founder wanted to light up Meta, Amazon, Blinkit, Zepto and Meesho at once across eight cities. The model was brutal: ₹22L/month spread across cold channels pushed new-customer CAC to ₹690 on a ₹540 AOV at 44% gross margin (₹238 gross profit/order) — every first order bled ₹450. So we sequenced by intent temperature instead of going broad. Phase 1 (8 weeks): Meta-only in Pune, Mumbai, Bengaluru, building first-party data and creator UGC; CAC settled at ₹310 on warm lookalikes. Phase 2: we listed only the SKUs Meta had proven by pincode on Amazon.in and ran Sponsored Products against validated keywords, capturing existing search intent at ₹240 CAC. Phase 3: only then did we switch on Blinkit and Zepto in the four pincode clusters Amazon showed as dense, dodging dead-zone dark-store fees. Blended new-customer CAC fell from ₹690 to ₹405 (−41%); a WhatsApp reorder flow pushed repeat rate to 40%, so contribution margin turned positive at 14%. Revenue hit ₹4.6 Cr in 11 months.",
+  "lesson": "Don't light up every channel at once. Sequence by buyer-intent temperature — Meta demand-gen, then Amazon search-capture, then quick-commerce density — so each channel's pincode data de-risks the next channel's spend. And don't call CAC 'fixed' until a repeat loop (WhatsApp reorder) carries the orders paid acquisition can't pay back.",
+  "metrics": { "cac_before_inr": 690, "cac_after_inr": 405, "cac_reduction": 0.41, "meta_warm_lal_cac_inr": 310, "amazon_sponsored_cac_inr": 240, "aov_inr": 540, "gross_margin": 0.44, "repeat_rate_after": 0.40, "contribution_margin_after": 0.14, "revenue_11mo_inr_cr": 4.6 },
+  "provenance": "reconstructed"
+}

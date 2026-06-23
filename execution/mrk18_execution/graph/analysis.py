@@ -14,6 +14,7 @@ from uuid import UUID
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
+from pydantic import BaseModel, Field
 
 from ..agents.analysis import run_analysis_agent, run_synthesis
 from ..agents.content import IMAGE_FORMATS, PLATFORM_FORMAT, generate_item
@@ -40,6 +41,12 @@ MAX_RERUNS = 1
 ANALYSIS_AGENTS = (AgentRole.MARKET_INTEL, AgentRole.AUDIENCE, AgentRole.STRATEGY)
 
 
+class _CompetitorNames(BaseModel):
+    """Structured output for the competitor-discovery extraction step."""
+
+    names: list[str] = Field(default_factory=list)
+
+
 def _latest_sections(state: AnalysisState) -> dict[str, dict]:
     latest: dict[str, dict] = {}
     for entry in state.get("analyses", []):
@@ -47,7 +54,9 @@ def _latest_sections(state: AnalysisState) -> dict[str, dict]:
     return latest
 
 
-def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, media_store=None):
+def build_analysis_graph(
+    socket: LLMSocket, checkpointer, image_engine=None, media_store=None, researcher=None
+):
     def make_agent_node(role: AgentRole):
         async def agent_node(state: AnalysisState) -> dict:
             section, usage = await run_analysis_agent(
@@ -57,6 +66,8 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
                 state.get("founder_flags", []),
                 performance_memo=state.get("performance_memo"),
                 company_knowledge=state.get("company_knowledge"),
+                web_research=state.get("web_research"),
+                experience=state.get("experience"),
             )
             return {
                 "analyses": [{"agent": role.value, "section": section.model_dump(mode="json")}],
@@ -65,12 +76,62 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
 
         return agent_node
 
+    async def _extract_competitor_names(context: str) -> list[str]:
+        """LLM-extract clean competitor names from discovery search results
+        (cheap TRIAGE seat). Closure so it captures `socket`."""
+        system = (
+            "From the web search results, extract ONLY the real competitor or "
+            "alternative company/product names for this brand — names only, no "
+            "descriptions, max 4, most relevant first. Indian and global are fine."
+        )
+        obj, _usage = await socket.complete(
+            AgentRole.TRIAGE, system, context, _CompetitorNames
+        )
+        return obj.names
+
     async def router(state: AnalysisState) -> dict:
         # Prompt-route placeholder (Sheet 4, row R: "prompt-route now, cheap
         # classifier later"). One pipeline today → nothing to choose between;
         # the seam exists so the trained router slots in without rewiring.
         if not state.get("profile"):
             raise ValueError("router: no validated profile in state")
+        # Web-search grounding: DISCOVER the brand's competitors (founder no longer
+        # provides them), then deep-search the brand + each one, BEFORE the analysis
+        # agents fan out. Persists into state so a re-run reuses it. Degrades to no
+        # context on any error — a run never breaks because search was unavailable.
+        if researcher is not None:
+            try:
+                from ..research.web import (
+                    discover_competitors,
+                    fetch_brand_page,
+                    gather_market_research,
+                )
+
+                profile = state["profile"]
+                competitors = [
+                    c
+                    for c in (profile.get("top_competitors") or [])
+                    if isinstance(c, str) and c.strip()
+                ]
+                if not competitors:
+                    competitors = await discover_competitors(
+                        researcher, profile, extract_fn=_extract_competitor_names
+                    )
+                # Level 1: read the founder's OWN website — grounds the analysis AND
+                # the image prompts in the real product (its look, features, words).
+                brand_page = await fetch_brand_page(researcher, profile)
+                research = await gather_market_research(
+                    researcher, profile, competitors=competitors, brand_page=brand_page
+                )
+                out: dict = {}
+                if research:
+                    out["web_research"] = research
+                if brand_page:
+                    out["brand_page"] = brand_page
+                if out:
+                    return out
+            except Exception as exc:  # noqa: BLE001 — search must never break a run
+                log.warning("web research skipped: %s", exc)
         return {}
 
     async def synthesize(state: AnalysisState) -> dict:
@@ -82,6 +143,8 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
             state.get("founder_flags", []),
             performance_memo=state.get("performance_memo"),
             company_knowledge=state.get("company_knowledge"),
+            web_research=state.get("web_research"),
+            experience=state.get("experience"),
         )
         report = MarketingIntelligenceReport(
             run_id=UUID(state["run_id"]),
@@ -138,6 +201,7 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
                     "platform": platform,
                     "performance_memo": state.get("performance_memo"),
                     "company_knowledge": state.get("company_knowledge"),
+                    "brand_page": state.get("brand_page"),
                 },
             )
             for platform in platforms
@@ -153,6 +217,7 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
             platform,
             performance_memo=plan.get("performance_memo"),
             company_knowledge=plan.get("company_knowledge"),
+            brand_page=plan.get("brand_page"),
         )
         if (
             image_engine is not None
@@ -234,6 +299,7 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
                         "item": item,
                         "performance_memo": state.get("performance_memo"),
                         "company_knowledge": state.get("company_knowledge"),
+                        "brand_page": state.get("brand_page"),
                     },
                 )
                 for item in queue
@@ -260,6 +326,7 @@ def build_analysis_graph(socket: LLMSocket, checkpointer, image_engine=None, med
             regeneration_count=prior.get("regeneration_count", 0) + 1,
             performance_memo=plan.get("performance_memo"),
             company_knowledge=plan.get("company_knowledge"),
+            brand_page=plan.get("brand_page"),
         )
         if (
             image_engine is not None

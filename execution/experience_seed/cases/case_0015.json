@@ -1,0 +1,27 @@
+{
+  "ref": "case_0015",
+  "kind": "campaign_case",
+  "category": "D2C colour cosmetics (foundation & complexion)",
+  "channels": ["Instagram", "Meta ads", "Amazon.in", "YouTube", "WhatsApp"],
+  "stage": "Growth (₹1.2 Cr/month revenue, scaling)",
+  "budget_band": "₹25-50L/month marketing spend",
+  "title": "Bengaluru makeup brand reframed a 31% return rate as a positioning gap and beat MAC on Indian undertones",
+  "content": "SITUATION: A Bengaluru D2C makeup brand was stuck at ₹1.2 Cr/month, burning ₹18L/month on Meta at 1.8 ROAS and losing foundation to MAC and Maybelline. Its positioning — 'premium, long-wear' — was the exact claim imported brands already owned and outspent it on. Worse, foundation return rate hit 31%, almost all 'shade mismatch' for medium-to-deep skin with yellow-olive undertones that Western 12-shade ranges ignore. On ~₹650 AOV that meant ~5,700 returns/month; at ~₹220 reverse-logistics each, the leak alone burned ~₹12L/month. ACTION: We killed the 'premium' line and rebuilt the brand on one wedge: '42 shades built for Indian undertones, not adapted from the West.' We shot UGC with real tier-2/3 women in Indore, Patna and Kochi, ran a Meta 'find your undertone' quiz funnel, cut an Instagram and YouTube shade-matcher Reel series, and closed high-intent leads with a WhatsApp shade consultation before checkout. OUTCOME: In four months foundation return rate fell 31% to 12%, Meta ROAS rose 1.8 to 3.4, monthly revenue grew to ₹2.1 Cr, and Amazon.in foundation rank climbed from page 3 to top-5 in category.",
+  "lesson": "Don't fight an incumbent on the claim it already owns (premium, long-wear). Find the customer pain it structurally cannot fix — here, undertones engineered for Indian skin — and make that single wedge your whole brand. And read a high return rate as a positioning diagnosis, not a logistics problem: when buyers keep sending the product back for the same reason, the market is telling you what you should have been selling.",
+  "metrics": {
+    "monthly_revenue_before_inr_cr": 1.2,
+    "monthly_revenue_after_inr_cr": 2.1,
+    "foundation_return_rate_before": 0.31,
+    "foundation_return_rate_after": 0.12,
+    "meta_roas_before": 1.8,
+    "meta_roas_after": 3.4,
+    "meta_monthly_spend_inr": 1800000,
+    "reverse_logistics_cost_per_return_inr": 220,
+    "monthly_return_leak_before_inr_lakh": 12,
+    "shades_for_indian_undertones": 42,
+    "amazon_rank_before": "page 3",
+    "amazon_rank_after": "top 5 in category",
+    "repositioning_timeline_months": 4
+  },
+  "provenance": "reconstructed"
+}

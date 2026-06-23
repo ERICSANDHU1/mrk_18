@@ -1,0 +1,13 @@
+{
+  "ref": "case_0002",
+  "kind": "campaign_case",
+  "category": "B2B SaaS",
+  "channels": ["LinkedIn", "Founder content"],
+  "stage": "pre-revenue to first ₹10L ARR",
+  "budget_band": "under ₹50K/month",
+  "title": "Indian B2B SaaS got pipeline from founder LinkedIn, not paid — proof beat reach",
+  "content": "A pre-revenue Indian B2B SaaS founder selling compliance software to mid-market ops leaders had ₹40K/month and was tempted to run LinkedIn lead-gen ads. The ads route produced cheap leads that never converted — wrong intent, long sales cycle, and a small ticket couldn't absorb paid CAC. They scrapped paid and went founder-led instead: three LinkedIn posts a week, each built around ONE real customer problem the founder had seen (a missed filing, a penalty notice), ending with a soft 'this is what we built' rather than a CTA. They also DM-ed every commenter who engaged, not to pitch but to ask a question. Over four months the account went from ~400 to ~6,000 relevant followers, and roughly 60% of qualified demos came from inbound comments and DMs — zero ad spend. The posts that worked were never feature posts; they were specific failure stories the buyer recognised.",
+  "lesson": "For high-trust, long-cycle Indian B2B with a small budget, paid lead-gen burns money on wrong-intent clicks. Founder-led proof content (specific customer failure stories, not features) on LinkedIn compounds and converts — and engaging commenters by DM is the real pipeline, not the post.",
+  "metrics": { "monthly_budget_inr": 40000, "paid_spend_inr": 0, "inbound_demo_share": 0.6 },
+  "provenance": "reconstructed"
+}

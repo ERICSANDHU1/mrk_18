@@ -35,8 +35,17 @@ dependencies = [
 dev = [
     "pytest~=8.2",
     "pytest-asyncio~=0.23",
+    "pytest-cov~=5.0",
     "ruff~=0.5",
     "aiosqlite~=0.20",
+]
+# Background worker (C3) — ARQ on Redis. Optional so the API never needs Redis to boot.
+worker = [
+    "arq~=0.26",
+]
+# Observability (C4) — Sentry is optional; absent DSN (or absent package) = no-op.
+observability = [
+    "sentry-sdk[fastapi]~=2.0",
 ]
 
 [tool.ruff]
@@ -46,6 +55,14 @@ target-version = "py311"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["mrk18_execution"]
+# the worker needs Redis + the deploy entrypoint needs a process — both run only
+# in deployment, so they're excluded from the unit-coverage gate.
+omit = [
+    "mrk18_execution/worker/*",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

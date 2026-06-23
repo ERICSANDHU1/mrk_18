@@ -12,7 +12,8 @@ def build_engine(database_url: str) -> AsyncEngine:
         database_url,
         pool_size=5,
         max_overflow=2,
-        pool_pre_ping=True,
+        pool_pre_ping=True,  # health-check a connection before handing it out
+        pool_recycle=300,  # recycle conns >5 min old — Supabase's pooler reaps idle ones
     )
 
 

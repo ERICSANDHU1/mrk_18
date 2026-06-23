@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ..audit.recorder import record
 from ..db.models import ApprovalEventRow, ContentItemRow, FounderProfileRow, RunRow
-from ..llm.socket import PRICES_USD_PER_M, USD_TO_INR
+from ..config import get_settings
+from ..llm.socket import cost_inr_for
 from ..schemas.approval import ApprovalEvent
 from ..schemas.content import can_transition
 from ..schemas.enums import ApprovalDecision, AuditEventType, ContentStatus
@@ -73,15 +74,45 @@ async def fail_run(session_factory: async_sessionmaker, run_id: UUID, exc: BaseE
 def _totals(usage_entries: list[dict]) -> tuple[int, int, float]:
     tin = sum(u["tokens_in"] for u in usage_entries)
     tout = sum(u["tokens_out"] for u in usage_entries)
-    inr = 0.0
-    for u in usage_entries:
-        p_in, p_out = PRICES_USD_PER_M.get(u["model"], (0.0, 0.0))
-        inr += (u["tokens_in"] * p_in + u["tokens_out"] * p_out) / 1_000_000 * USD_TO_INR
+    inr = sum(cost_inr_for(u["model"], u["tokens_in"], u["tokens_out"]) for u in usage_entries)
     return tin, tout, round(inr, 4)
 
 
-async def start_run(session_factory: async_sessionmaker, founder_id: UUID) -> RunRow:
-    """Create the run row. Hard gate: only a ready_for_analysis founder may run."""
+class CostCapExceeded(Exception):
+    """Raised when a founder's daily ₹ budget is already spent (A5)."""
+
+
+def _run_cap_inr(override: float | None) -> float:
+    return override if override is not None else get_settings().run_cost_cap_inr
+
+
+def _daily_cap_inr(override: float | None) -> float:
+    return override if override is not None else get_settings().daily_cost_cap_inr
+
+
+async def _today_spend_inr(session, founder_id: UUID) -> float:
+    """Metered ₹ across the founder's runs since 00:00 UTC today."""
+    from sqlalchemy import func
+
+    start = _utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    total = (
+        await session.execute(
+            select(func.coalesce(func.sum(RunRow.cost_inr), 0)).where(
+                RunRow.founder_id == founder_id, RunRow.started_at >= start
+            )
+        )
+    ).scalar_one()
+    return float(total or 0.0)
+
+
+async def start_run(
+    session_factory: async_sessionmaker,
+    founder_id: UUID,
+    *,
+    daily_cost_cap_inr: float | None = None,
+) -> RunRow:
+    """Create the run row. Hard gates: only a ready_for_analysis founder may run,
+    and not once today's metered spend has hit the daily ₹ cap (A5)."""
     async with tenant_session(session_factory, founder_id) as session:
         profile = (
             await session.execute(
@@ -92,6 +123,15 @@ async def start_run(session_factory: async_sessionmaker, founder_id: UUID) -> Ru
             raise LookupError("founder not found")
         if profile.status != "ready_for_analysis":
             raise ValueError("intake is not complete — analysis cannot start")
+
+        cap = _daily_cap_inr(daily_cost_cap_inr)
+        if cap and cap > 0:
+            spent = await _today_spend_inr(session, founder_id)
+            if spent >= cap:
+                raise CostCapExceeded(
+                    f"daily cost cap ₹{cap:.0f} reached (₹{spent:.2f} spent today) — "
+                    "runs resume tomorrow or raise the cap"
+                )
 
         run_id = uuid4()
         row = RunRow(
@@ -113,8 +153,17 @@ async def start_run(session_factory: async_sessionmaker, founder_id: UUID) -> Ru
         return row
 
 
-async def _drive(graph, session_factory: async_sessionmaker, run_id: UUID, graph_input) -> None:
-    """Invoke the graph and persist whatever state it lands in."""
+async def _drive(
+    graph,
+    session_factory: async_sessionmaker,
+    run_id: UUID,
+    graph_input,
+    *,
+    run_cost_cap_inr: float | None = None,
+) -> None:
+    """Invoke the graph and persist whatever state it lands in. A5: if the run's
+    metered ₹ cost crosses the per-run cap, it lands as 'failed' (circuit-breaker)
+    instead of advancing — a runaway regeneration loop can't burn the budget."""
     # owner for RLS scoping — the run already exists (start_run created it)
     async with session_factory() as probe:
         prow = await probe.get(RunRow, run_id)
@@ -206,6 +255,24 @@ async def _drive(graph, session_factory: async_sessionmaker, run_id: UUID, graph
         if items:
             row.images_generated = images
 
+        # A5 — per-run circuit-breaker: over the ₹ ceiling → stop here as failed.
+        cap = _run_cap_inr(run_cost_cap_inr)
+        if cap and cap > 0 and inr > cap:
+            row.status = "failed"
+            row.error = f"run cost ceiling ₹{cap:.0f} exceeded (metered ₹{inr:.2f})"
+            row.finished_at = _utcnow()
+            await record(
+                session,
+                event_type=AuditEventType.ERROR,
+                agent_id=AGENT,
+                founder_id=row.founder_id,
+                run_id=run_id,
+                outcome="run_cost_ceiling_exceeded",
+                detail={"cost_inr": inr, "cap_inr": cap},
+            )
+            await session.commit()
+            return
+
         interrupts = result.get("__interrupt__")
         if interrupts:
             payload = interrupts[0].value
@@ -263,7 +330,35 @@ async def build_graph_input(
         "company_knowledge": await _load_company_knowledge(
             session_factory, run.founder_id, profile, embedding_engine
         ),
+        # RAG Tier 1/2: the SHARED experience base (real campaign cases) every
+        # founder draws from. Same engine, not tenant-scoped.
+        "experience": await _load_experience(session_factory, profile, embedding_engine),
     }
+
+
+async def _load_experience(
+    session_factory: async_sessionmaker, profile: dict, embedding_engine
+) -> str | None:
+    """Retrieve the most relevant shared case studies (Experience Brain) for this
+    run. SHARED, not tenant-scoped. No engine / empty corpus / any failure → None
+    (the run proceeds without precedent, never blocked)."""
+    if embedding_engine is None:
+        return None
+    from ..rag.experience import experience_as_prompt, retrieve_experience
+
+    query = " ".join(
+        str(profile.get(key, ""))
+        for key in ("product_description", "icp", "primary_goal", "company_name")
+    ).strip()
+    if not query:
+        return None
+    try:
+        async with session_factory() as session:  # shared corpus → plain session, no tenant scope
+            cases = await retrieve_experience(session, query=query, engine=embedding_engine)
+    except Exception as exc:  # noqa: BLE001 — degrade, never block the run
+        log.warning("experience retrieval degraded: %r", exc)
+        return None
+    return experience_as_prompt(cases) if cases else None
 
 
 async def _load_company_knowledge(
@@ -325,16 +420,84 @@ async def _load_performance_memo(
 
 
 async def execute_run(
-    graph, session_factory: async_sessionmaker, run: RunRow, embedding_engine=None
+    graph,
+    session_factory: async_sessionmaker,
+    run: RunRow,
+    embedding_engine=None,
+    *,
+    run_cost_cap_inr: float | None = None,
 ) -> None:
     # B3: input assembly happens BEFORE _drive's own try/except, so guard the
     # whole body — any failure here must land the run as 'failed', never vanish.
     try:
         graph_input = await build_graph_input(session_factory, run, embedding_engine)
-        await _drive(graph, session_factory, run.run_id, graph_input)
+        await _drive(
+            graph,
+            session_factory,
+            run.run_id,
+            graph_input,
+            run_cost_cap_inr=run_cost_cap_inr,
+        )
     except Exception as exc:  # noqa: BLE001
         log.exception("execute_run failed for run %s", run.run_id)
         await fail_run(session_factory, run.run_id, exc)
+
+
+# ── C3 — auto-resume runs orphaned by a restart ──────────────────────────────
+# The API kicks runs off as fire-and-forget tasks; a process restart loses them
+# mid-flight and the run is stuck in a working state. LangGraph's checkpointer
+# still holds the state, so the worker re-drives from the last checkpoint.
+
+_RESUMABLE = ("generating", "generating_content", "publishing")
+
+
+async def resume_interrupted_run(
+    graph,
+    session_factory: async_sessionmaker,
+    run_id: UUID,
+    embedding_engine=None,
+    *,
+    run_cost_cap_inr: float | None = None,
+) -> None:
+    """Re-drive one run from its checkpoint (invoke with None = continue). Only
+    for non-gate states — gate states wait on the founder, not the worker."""
+    await _drive(graph, session_factory, run_id, None, run_cost_cap_inr=run_cost_cap_inr)
+
+
+async def resume_stuck_runs(
+    graph,
+    session_factory: async_sessionmaker,
+    *,
+    stuck_after_minutes: int = 15,
+    embedding_engine=None,
+) -> dict:
+    """Find runs left mid-flight (a working, non-gate state whose row hasn't
+    advanced in `stuck_after_minutes`) and re-drive each. The threshold avoids
+    racing a merely-slow run; a heartbeat/claim column is the production-grade
+    upgrade. Returns {candidates, resumed, failed}."""
+    from datetime import timedelta
+
+    cutoff = _utcnow() - timedelta(minutes=stuck_after_minutes)
+    async with session_factory() as session:
+        run_ids = list(
+            (
+                await session.execute(
+                    select(RunRow.run_id).where(
+                        RunRow.status.in_(_RESUMABLE),
+                        RunRow.updated_at < cutoff,
+                    )
+                )
+            ).scalars()
+        )
+    resumed = failed = 0
+    for rid in run_ids:
+        try:
+            await resume_interrupted_run(graph, session_factory, rid, embedding_engine)
+            resumed += 1
+        except Exception as exc:  # noqa: BLE001 — one stuck run never blocks the sweep
+            log.warning("auto-resume failed for run %s: %r", rid, exc)
+            failed += 1
+    return {"candidates": len(run_ids), "resumed": resumed, "failed": failed}
 
 
 async def _lock_run(session, run_id: UUID) -> RunRow | None:

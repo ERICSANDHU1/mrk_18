@@ -1,0 +1,24 @@
+{
+  "ref": "case_0013",
+  "kind": "campaign_case",
+  "category": "B2B industrial supplies (precision bearings & motion components)",
+  "channels": ["LinkedIn", "WhatsApp", "Email"],
+  "stage": "Growth (Series A, ₹40L/yr marketing budget)",
+  "budget_band": "₹3-4L/month",
+  "title": "Pune bearings supplier ditched broad demand-gen and won 11 plant accounts with account-based LinkedIn",
+  "content": "SITUATION: A Pune supplier of precision linear bearings and motion components had a tiny, countable TAM — ~320 OEM plants across Pune, Chakan and Coimbatore that actually spec their class of part. The buy ran 7-9 months through a maintenance engineer, then a purchase manager. They were burning ₹1.8L/month on Google Search and Meta for 140 leads at ₹1,290 CPL, but ~80% were students, traders or wrong-spec hobbyists — just two qualified RFQs that whole quarter. ACTION: They killed broad demand-gen. They built a named list of all 320 plants, mapped 540 maintenance and procurement decision-makers in LinkedIn Sales Navigator (₹5,300/month), and ran ₹1.4L/month of account-based LinkedIn ads plus personal connection requests against only those names. Content was trade-specific — load-rating calculators, ISO 281 life guides, MTBF field notes — not 'we supply quality parts.' Warm replies moved to WhatsApp for drawings and quotes, with specs confirmed over email. OUTCOME: Over 9 months CPL fell to ₹740 but on real buyers: 38 qualified RFQs, 11 plant accounts closed worth ₹2.6Cr, at a blended CAC of ₹1.1L against a ₹24L average account value. LESSON: When your TAM fits on a spreadsheet, stop buying reach. Name every account, reach the two humans who actually sign off, and let technical-depth content do the qualifying for you.",
+  "lesson": "When your TAM is small enough to list on a spreadsheet, broad demand-gen wastes budget on the wrong audience. Name every account, target the 2-3 people who actually sign off, and use technical-depth content (calculators, standards, field data — not 'quality parts' claims) to self-qualify a long, multi-stakeholder buy.",
+  "metrics": {
+    "total_addressable_plants": 320,
+    "decision_makers_targeted_linkedin": 540,
+    "monthly_linkedin_abm_spend_inr": 140000,
+    "old_broad_channel_cpl_inr": 1290,
+    "new_qualified_cpl_inr": 740,
+    "qualified_rfqs_9_months": 38,
+    "plant_accounts_closed": 11,
+    "revenue_closed_inr_cr": 2.6,
+    "blended_cac_per_account_inr": 110000,
+    "average_account_value_inr_lakh": 24
+  },
+  "provenance": "reconstructed"
+}

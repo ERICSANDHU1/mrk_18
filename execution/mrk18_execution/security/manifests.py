@@ -19,6 +19,9 @@ AGENT_MANIFESTS: dict[str, frozenset[str]] = {
     "agent:synthesis": frozenset({"llm:complete"}),
     "agent:content": frozenset({"llm:complete"}),
     "agent:triage": frozenset({"llm:complete"}),
+    # Analytics Interpreter: reads metrics -> diagnosis. Text in, text out — no
+    # publish, no token access, never touches the outside world.
+    "agent:analytics": frozenset({"llm:complete"}),
     # the execution half of images: render + store, may NOT call the LLM
     "agent:photo_funnel": frozenset({"images:generate", "storage:write"}),
     # the only agent allowed to touch the outside world — and even then only

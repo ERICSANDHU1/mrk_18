@@ -1,0 +1,13 @@
+{
+  "ref": "case_0009",
+  "kind": "campaign_case",
+  "category": "D2C home services (cleaning & repairs)",
+  "channels": ["Google Business Profile", "Justdial", "WhatsApp", "Google Ads", "Meta"],
+  "stage": "Early-revenue / seed",
+  "budget_band": "₹1.5-3L/month",
+  "title": "Pune home-services startup: a review engine out-converted paid ads at a fraction of CAC",
+  "content": "A Pune home-cleaning and repairs startup was burning ₹2.2L/month on Google and Meta, paying ₹540 per lead at a 22% close rate — so a real booking cost ₹2,450 against an average ticket of just ₹1,300. It was buying every customer at a loss. We froze 60% of paid spend and built a review engine instead. Every completed job auto-triggered a WhatsApp message 90 minutes after the technician left, with a one-tap Google review link; 5-star customers were nudged to Justdial too. The ask was never 'please review us' but 'what should we fix next time' — phrasing the problem, not begging, lifted reply rates. In 90 days the Google Business Profile went from 38 reviews (4.1★) to 270 (4.7★), and Justdial crossed 180 ratings. Map-pack calls jumped 3.4x; 71% of new bookings now came from organic local search and Justdial, at a blended ₹190 per booking versus ₹2,450 on ads. Monthly bookings rose from 310 to 540 while spend fell to ₹90K. Blended CAC dropped 84% and repeat-booking share hit 34%.",
+  "lesson": "For local high-intent home services, Google and Justdial review velocity is a distribution channel, not vanity — it directly drives map-pack rank, which out-converts paid at a fraction of CAC. The mechanic that compounds: an automated WhatsApp ask after every single job, framed as 'what should we fix' (so even unhappy customers reply privately instead of leaving a 1★). Build the review engine before scaling ad spend, not after.",
+  "metrics": { "cac_reduction": 0.84, "cost_per_booking_organic_inr": 190, "cost_per_booking_paid_inr": 2450, "google_reviews_after_90d": 270, "google_rating": 4.7, "monthly_bookings_after": 540, "organic_jd_booking_share": 0.71, "map_pack_call_uplift_x": 3.4, "repeat_booking_share": 0.34 },
+  "provenance": "reconstructed"
+}

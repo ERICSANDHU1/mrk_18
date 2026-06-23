@@ -1,0 +1,13 @@
+{
+  "ref": "case_0004",
+  "kind": "campaign_case",
+  "category": "D2C apparel (mid-premium ethnic-fusion womenswear)",
+  "channels": ["Instagram", "Meta ads", "WhatsApp", "Google"],
+  "stage": "early growth, ~₹18 Cr ARR (Series A-ready)",
+  "budget_band": "₹35-45L/month paid",
+  "title": "Ethnic-fusion womenswear cut CAC 41% by trading polished influencers for raw creator-UGC",
+  "content": "A Bengaluru ethnic-fusion womenswear brand (AOV ₹2,400) was burning ₹14L/month of its ₹35-45L paid budget on macro-influencer collabs (50K-300K followers) on Instagram. By Q3 FY25 the math broke: blended CAC had climbed to ₹1,180, Meta ROAS on influencer-seeded campaigns had slipped to 1.7, and the Reels pulled healthy 4-6% saves but only a 0.8% Reel-to-cart rate. The studio-lit content looked like an ad, so it converted like one. The team killed 80% of the macro deals and built a creator-UGC engine: 60 micro-creators (3K-25K followers) on a ₹3,500 flat + product model, briefed to shoot try-on and unboxing in real homes on phone cameras — no ring lights. The best 12 clips ran as Meta Advantage+ catalogue ads; WhatsApp recovered abandoned carts at ₹22 a conversion. Over 11 weeks blended CAC fell to ₹695 (down 41%), Meta ROAS recovered to 3.4, UGC cart rate hit 2.1%, and cost per creative asset dropped from ₹45,000 to ₹3,500.",
+  "lesson": "When influencer content looks like a polished ad, the feed and the buyer both treat it like one. Phone-shot creator-UGC converts because it reads as a peer recommendation, not bought media — and it scales at roughly 1/12th the creative cost, so you can test 12 angles for the price of one studio shoot.",
+  "metrics": { "cac_before_inr": 1180, "cac_after_inr": 695, "cac_reduction_pct": 0.41, "roas_after": 3.4, "reel_to_cart_before_pct": 0.008, "ugc_cart_rate_after_pct": 0.021, "creative_cost_before_inr": 45000, "creative_cost_after_inr": 3500, "micro_creators_onboarded": 60, "whatsapp_cart_recovery_cpa_inr": 22 },
+  "provenance": "reconstructed"
+}

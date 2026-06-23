@@ -51,7 +51,7 @@ export default function CustomCursor() {
           y: ringY,
           translateX: "-50%",
           translateY: "-50%",
-          borderColor: "rgba(255, 158, 44, 0.55)",
+          borderColor: "rgba(180, 83, 42, 0.55)",
         }}
         animate={{
           width: hovering ? 52 : 32,

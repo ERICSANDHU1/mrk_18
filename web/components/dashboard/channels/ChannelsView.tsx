@@ -149,7 +149,7 @@ export default function ChannelsView({ channels }: { channels: Channel[] }) {
 
               {ch.verdict !== "healthy" && (
                 <Link
-                  href="/leaks"
+                  href="/console/leaks"
                   className="mt-3.5 inline-flex items-center gap-1 text-[12px] font-bold text-amber transition-opacity duration-200 hover:opacity-80"
                 >
                   See the leak breakdown

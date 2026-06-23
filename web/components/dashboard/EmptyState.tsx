@@ -5,8 +5,8 @@ import { Plug } from "lucide-react";
 export default function EmptyState({
   title = "No verdict yet",
   body = "Connect a data source and your CMO will deliver the first verdict within a day.",
-  ctaLabel = "Connect a source",
-  ctaHref = "/connections",
+  ctaLabel = "Start a run",
+  ctaHref = "/cowork",
 }: {
   title?: string;
   body?: string;
@@ -22,7 +22,7 @@ export default function EmptyState({
       <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">{body}</p>
       <Link
         href={ctaHref}
-        className="mt-5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2 text-[13px] font-bold text-black transition-opacity duration-200 hover:opacity-90"
+        className="mt-5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
       >
         {ctaLabel}
       </Link>

@@ -8,6 +8,7 @@ publish-without-approval attempt FIRES a critical alert, not just a row.
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -26,7 +27,7 @@ from mrk18_execution.db.models import ApprovalEventRow, AuditRow, ContentItemRow
 from mrk18_execution.publishers.service import publish_run
 from mrk18_execution.schemas.enums import AuditEventType
 from mrk18_execution.security.ratelimit import RateLimiter
-from mrk18_execution.security.retention import erase_founder
+from mrk18_execution.security.retention import erase_founder, purge_audit_older_than
 from tests.authtools import MAINTENANCE_KEY, install_auth
 
 KEY = "test-approval-signing-key"
@@ -183,6 +184,36 @@ async def test_chains_are_per_scope(factory):
     await _record_n(factory, None, 1)  # global scope (system events)
     result = await verify_audit_chain(factory)
     assert result["ok"] and result["scopes"] == 3 and result["checked"] == 5
+
+
+async def test_purge_redacts_old_rows_and_chain_survives(factory):
+    """Retention purge past the window REDACTS in place (never hard-deletes), so
+    the tamper-evident chain still verifies — lawful retention must not look
+    like rewritten history (A3)."""
+    fid = uuid4()
+    await _record_n(factory, fid, 4)
+    # backdate the two oldest rows beyond the 24-month window
+    old = datetime.now(timezone.utc) - timedelta(days=800)
+    async with factory() as session:
+        rows = (await session.execute(select(AuditRow).order_by(AuditRow.id))).scalars().all()
+        for r in rows[:2]:
+            await session.execute(
+                update(AuditRow).where(AuditRow.id == r.id).values(created_at=old)
+            )
+        await session.commit()
+
+    redacted = await purge_audit_older_than(factory)  # default 730-day window
+    assert redacted == 2
+
+    result = await verify_audit_chain(factory)
+    assert result["ok"], result  # lawful retention — NOT tampering
+    assert result["redacted"] == 2
+
+    async with factory() as session:
+        rows = (await session.execute(select(AuditRow).order_by(AuditRow.id))).scalars().all()
+    assert len(rows) == 4  # nothing hard-deleted — the chain skeleton survives
+    assert rows[0].redacted and rows[0].detail == {"redacted": True}
+    assert not rows[3].redacted  # recent rows untouched
 
 
 async def test_erasure_redacts_but_chain_survives(factory):

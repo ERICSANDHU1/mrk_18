@@ -1,0 +1,13 @@
+{
+  "ref": "case_0007",
+  "kind": "campaign_case",
+  "category": "D2C telemedicine (health-tech app)",
+  "channels": ["Meta ads", "WhatsApp", "Google ads", "YouTube"],
+  "stage": "Series A, scaling tier-2/3 acquisition",
+  "budget_band": "₹18-25L/month ad spend",
+  "title": "Vernacular WhatsApp cut a telemedicine app's CAC 58% in tier-2/3 UP and Bihar",
+  "content": "A Series-A telemedicine app spending ₹22L/month on Meta and Google ran polished English-first ads — 'Consult a doctor in 60 seconds' — at tier-2/3 towns in Uttar Pradesh, Bihar and MP. CTR was a weak 0.7%, install-to-first-consult sat at 9%, and blended CAC had ballooned to ₹940 per paying user. Support logs told the real story: users in Gorakhpur and Rewa distrusted an app that 'spoke English' for something as personal as a doctor visit, and a 40MB Play Store download was a cold first ask on a budget phone. We rebuilt creative in Hindi and Bhojpuri-flavoured Hindi with a real MBBS doctor — 'Ghar baithe doctor se baat karein, ab apni bhasha mein' — and routed every ad to a WhatsApp click-to-chat flow instead of the store link, so the first touch was a familiar Hindi conversation, not an install. We added vernacular voice notes and Hindi prescription reassurance. In 11 weeks WhatsApp CTR hit 2.4%, chat-to-consult reached 31%, CAC fell to ₹395, and 60-day repeat-consult rose from 18% to 41%. We tracked chat quality, not just volume, so cheaper leads stayed real.",
+  "lesson": "In tier-2/3 India language is a trust signal, not a translation task — and the app store is a cold first ask. Move the first conversion into WhatsApp in the user's mother tongue, then guard against vanity leads by measuring chat-to-consult and repeat rate, not just CTR. Trust falls first; CAC follows it down.",
+  "metrics": { "monthly_spend_inr": 2200000, "ctr_before": 0.007, "ctr_after": 0.024, "first_consult_conv_before": 0.09, "chat_to_consult_after": 0.31, "cac_before": 940, "cac_after": 395, "cac_reduction": 0.58, "repeat_consult_60d_before": 0.18, "repeat_consult_60d_after": 0.41 },
+  "provenance": "reconstructed"
+}

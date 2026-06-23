@@ -1,0 +1,27 @@
+{
+  "ref": "case_0020",
+  "kind": "campaign_case",
+  "category": "Retention (D2C fresh pet food — trust-gated, subscription)",
+  "channels": ["WhatsApp", "Meta", "Amazon.in", "Instagram", "Google"],
+  "stage": "Growth (~₹3 Cr ARR D2C brand, scaling retention)",
+  "budget_band": "₹3-8 lakh/month marketing spend",
+  "title": "Pune fresh dog-food brand lifted repeat rate 22% to 41% by buying vet trust, not louder Meta ads",
+  "content": "SITUATION: A Pune D2C fresh dog-food brand burned ₹6L/month on Meta at a ₹540 CAC, but repeat rate stalled at 22% and 90-day churn was brutal — pet parents tried one pack, saw no vet endorsement, and bounced to Drools or Pedigree on Amazon.in. The killer was a trust gap, not the recipe: a first-time buyer of fresh food has no third-party signal it is safe for their dog. ACTION: Two moves. One, we signed 40 small-clinic vets across Pune, PCMC and Nagpur (tier-2) on a flat ₹2,000/month retainer plus ₹80 per verified referral, each given a QR-coded WhatsApp link; vets recommended us chairside, and the WhatsApp line ran a breed-and-weight feeding-plan flow plus a Day-25 reorder nudge timed to the 30-day pack. Two, we shifted 30% of Meta budget into that WhatsApp retention engine — portion reminders, vet Q&A, and a subscribe-and-save plan (12% off, free next-day Pune delivery on our own cold-chain). OUTCOME: Over four months repeat rate rose 22% to 41%, subscription AOV held at ₹1,450, and 90-day LTV climbed ₹1,180 to ₹2,640. Vet referrals drove 18% of new orders at a ₹150 effective CAC; with cold spend concentrated on the best cohorts, paid CAC fell to ₹470, pulling blended CAC to ₹412. WhatsApp reorders became 34% of monthly revenue.",
+  "lesson": "In trust-gated categories — pet food, supplements, baby, health — retention is bought with a credible third-party voice at the point of decision, not a louder ad. A ₹2,000 vet retainer plus a per-referral bounty plants a human endorsement exactly where the buying doubt lives, then a WhatsApp reorder flow owns the repeat moment paid acquisition can never pay back. Spend on cheaper trust in and stickier reorders out — once the product works, channel economics beat creative every time.",
+  "metrics": {
+    "repeat_rate_before_pct": 22,
+    "repeat_rate_after_pct": 41,
+    "ltv_90d_before_inr": 1180,
+    "ltv_90d_after_inr": 2640,
+    "cac_blended_before_inr": 540,
+    "cac_blended_after_inr": 412,
+    "cac_paid_after_inr": 470,
+    "cac_vet_referral_inr": 150,
+    "vet_referral_share_new_orders_pct": 18,
+    "whatsapp_share_revenue_pct": 34,
+    "subscription_aov_inr": 1450,
+    "vet_retainer_inr_month": 2000,
+    "vets_signed": 40
+  },
+  "provenance": "reconstructed"
+}

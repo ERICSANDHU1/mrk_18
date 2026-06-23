@@ -7,7 +7,7 @@ const CARDS = [
 
 export default function Contact() {
   return (
-    <section id="waitlist" className="relative px-6 py-36">
+    <section id="waitlist" className="relative px-6 py-24">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <span className="inline-flex items-center gap-2.5 rounded-full border border-stroke px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-muted">
@@ -18,11 +18,11 @@ export default function Contact() {
 
         <Reveal delay={0.1}>
           <a
-            href="mailto:mrk18ai@gmail.com"
-            data-text="JOIN THE WAITLIST"
+            href="/sign-up"
+            data-text="GET STARTED"
             className="fill-on-hover mt-10 block text-[clamp(2.6rem,8.5vw,7.5rem)] font-extrabold leading-[1.02] tracking-[-0.03em]"
           >
-            JOIN THE WAITLIST
+            GET STARTED
           </a>
         </Reveal>
 

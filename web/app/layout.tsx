@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
-import { Sora } from "next/font/google";
+import { Sora, Space_Grotesk, JetBrains_Mono, Fraunces, Hanken_Grotesk } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
+// Clash Display (headlines) is self-hosted via @font-face in globals.css
+// (/public/fonts/*) — next/font/local mis-compiles in this Next build.
 
 const sora = Sora({
   variable: "--font-sora",
@@ -8,24 +11,50 @@ const sora = Sora({
   weight: ["300", "400", "500", "600", "800"],
 });
 
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+});
+const jbMono = JetBrains_Mono({
+  variable: "--font-jbmono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+// Landing page ("Warm sand" theme) — display serif + warm humanist body.
+// Scoped to .theme-sand in globals.css so the dark console/dashboard is unaffected.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  axes: ["opsz"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-fraunces",
+});
+const hanken = Hanken_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-hanken",
+});
+
 const description =
   "The marketing brain founders can't afford to hire — yet. mrk18 reads your real numbers, flags what's leaking money, and hands you the next move in plain language.";
 
 export const metadata: Metadata = {
-  title: "mrk18 — your AI CMO",
+  title: "mrk18 — CMO in your pocket",
   description,
   metadataBase: new URL("https://mrk18.com"),
   openGraph: {
-    title: "mrk18 — your AI CMO",
+    title: "mrk18 — CMO in your pocket",
     description,
     url: "https://mrk18.com",
     siteName: "mrk18",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "mrk18 — your AI CMO" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "mrk18 — CMO in your pocket" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "mrk18 — your AI CMO",
+    title: "mrk18 — CMO in your pocket",
     description,
   },
 };
@@ -36,8 +65,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sora.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-bg text-ink">{children}</body>
-    </html>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: "#b4532a",
+          colorBackground: "#ffffff",
+          borderRadius: "0.6rem",
+          fontFamily: "var(--font-hanken), system-ui, sans-serif",
+        },
+        elements: {
+          card: "bg-surface border border-stroke-2 shadow-xl",
+          headerTitle: "tracking-tight",
+          socialButtonsBlockButton: "border-stroke-2",
+          formButtonPrimary: "bg-molten text-white font-bold hover:opacity-90",
+          footerActionLink: "text-molten hover:underline",
+        },
+      }}
+    >
+      <html
+        lang="en"
+        className={`${sora.variable} ${spaceGrotesk.variable} ${jbMono.variable} ${fraunces.variable} ${hanken.variable} h-full antialiased`}
+      >
+        <body className="theme-sand min-h-full flex flex-col bg-bg text-ink">{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }

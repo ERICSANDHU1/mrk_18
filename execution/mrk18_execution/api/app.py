@@ -23,6 +23,7 @@ from .intake import router as intake_router
 from .privacy import router as privacy_router
 from .review import router as review_router
 from .runs import router as runs_router
+from .webhooks import router as webhooks_router
 
 if sys.platform == "win32":
     # psycopg async (LangGraph checkpointer) needs the selector loop on
@@ -33,6 +34,29 @@ if sys.platform == "win32":
 def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     settings = get_settings()
 
+    # A1 — fail closed: in production, refuse to boot without the crypto keys
+    # that keep auth, the token vault, and the publish gate from silently
+    # degrading to fail-open. No-op in dev/test (APP_ENV unset → "dev").
+    from ..security.startup import require_production_secrets
+
+    require_production_secrets(settings)
+
+    # C4 — Sentry (optional): absent DSN or absent sentry-sdk → no-op.
+    if settings.sentry_dsn:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.init(
+                dsn=settings.sentry_dsn,
+                environment=settings.app_env,
+                release=settings.app_version,
+                traces_sample_rate=0.0,
+            )
+        except Exception as exc:  # noqa: BLE001 — observability must never block boot
+            import logging
+
+            logging.getLogger("mrk18.execution").warning("sentry init skipped: %s", exc)
+
     if engine is None:
         if not settings.database_url:
             raise RuntimeError("DATABASE_URL is not configured — fill execution/.env")
@@ -42,27 +66,94 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     async def lifespan(app: FastAPI):
         # re-apply scrubbing now that uvicorn has installed its handlers
         install_secret_scrubbing(exact_secrets=getattr(app.state, "secret_values", []))
+        # C5 — warn loudly (never block) if the DB is behind its migrations.
+        try:
+            from ..db.schema_health import check_schema
+
+            health = await check_schema(app.state.engine)
+            if not health["ok"]:
+                import logging
+
+                logging.getLogger("mrk18.execution").critical(
+                    "DB schema is BEHIND migrations — missing %s. Apply migrations before serving.",
+                    health["missing"],
+                )
+        except Exception as exc:  # noqa: BLE001 — the health check must never block boot
+            import logging
+
+            logging.getLogger("mrk18.execution").warning("schema health check skipped: %s", exc)
+        # Live CMO voice call — a SEPARATE, latency-first socket: always the fast
+        # Groq path (never the cold-start Brain on a live call), and independent of
+        # the analysis graph so the call works even if the checkpointer is down.
+        app.state.voice_socket = None
+        if settings.groq_api_key:
+            try:
+                from ..llm.socket import LLMSocket, default_registry
+
+                app.state.voice_socket = LLMSocket(default_registry(settings.groq_api_key))
+            except Exception as exc:  # noqa: BLE001 — voice is optional, never blocks boot
+                import logging
+
+                logging.getLogger("mrk18.execution").warning(
+                    "CMO voice socket unavailable: %s", exc
+                )
         pool = None
         if graph is not None:
             app.state.graph = graph
-        elif settings.checkpointer_dsn and settings.groq_api_key:
-            from ..graph.analysis import build_analysis_graph
-            from ..graph.checkpointer import open_checkpointer
-            from ..llm.images import SupabaseMediaStore, pick_engine
-            from ..llm.socket import LLMSocket, default_registry
+        elif settings.checkpointer_dsn and (settings.groq_api_key or settings.brain_base_url):
+            # The analysis pipeline must never take down auth/intake/webhooks: if
+            # the checkpointer DB is unreachable at boot, degrade to graph=None
+            # (runs answer 503) instead of crashing the whole API.
+            try:
+                from ..graph.analysis import build_analysis_graph
+                from ..graph.checkpointer import open_checkpointer
+                from ..llm.images import SupabaseMediaStore, pick_engine
+                from ..llm.socket import LLMSocket, brain_registry, default_registry
 
-            pool, saver = await open_checkpointer(settings.checkpointer_dsn)
-            socket = LLMSocket(default_registry(settings.groq_api_key))
-            app.state.llm_socket = socket  # Slice 3.4 — Comment Agent drafts here
-            engine = pick_engine(settings)  # Cloudflare free > fal > none
-            store = (
-                SupabaseMediaStore(settings.supabase_url, settings.supabase_service_key)
-                if settings.supabase_url and settings.supabase_service_key
-                else None
-            )
-            app.state.graph = build_analysis_graph(
-                socket, saver, image_engine=engine, media_store=store
-            )
+                pool, saver = await open_checkpointer(settings.checkpointer_dsn)
+                # Phase 4 seam: Brain when configured, else the Groq pilot.
+                registry = (
+                    brain_registry(
+                        settings.brain_base_url,
+                        settings.brain_api_key,
+                        settings.brain_base_model,
+                    )
+                    if settings.brain_base_url
+                    else default_registry(settings.groq_api_key)
+                )
+                socket = LLMSocket(registry)
+                app.state.llm_socket = socket  # Slice 3.4 — Comment Agent drafts here
+                engine = pick_engine(settings)  # Cloudflare free > fal > none
+                store = (
+                    SupabaseMediaStore(settings.supabase_url, settings.supabase_service_key)
+                    if settings.supabase_url and settings.supabase_service_key
+                    else None
+                )
+                # Web-search grounding (Tavily) — None when no key → runs proceed
+                # with no web context, exactly as before.
+                researcher = None
+                if settings.tavily_api_key:
+                    from ..research.web import TavilyResearcher
+
+                    researcher = TavilyResearcher(settings.tavily_api_key)
+                app.state.graph = build_analysis_graph(
+                    socket, saver, image_engine=engine, media_store=store, researcher=researcher
+                )
+            except Exception as exc:  # noqa: BLE001 — any boot failure degrades, never crashes
+                import logging
+
+                logging.getLogger("mrk18.execution").warning(
+                    "analysis graph unavailable at startup — runs will answer 503 until the "
+                    "checkpointer DB is reachable: %s",
+                    exc,
+                )
+                if pool is not None:
+                    try:
+                        await pool.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    pool = None
+                app.state.graph = None
         else:
             app.state.graph = None  # runs endpoints respond 503 with a clear message
         yield
@@ -73,6 +164,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = build_session_factory(engine)
     app.state.background_tasks = set()
+    app.state.is_prod = settings.is_prod  # A1 — publish endpoint goes strict in prod
 
     # S3 — scrub secrets from every log line (last line of defense). Called
     # again in the lifespan once uvicorn has configured its own handlers.
@@ -88,15 +180,23 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         settings.cf_api_token,
         settings.together_api_key,
         settings.langsmith_api_key,
+        settings.clerk_webhook_secret,
+        settings.brain_api_key,
+        settings.tavily_api_key,
     ]
     install_secret_scrubbing(exact_secrets=app.state.secret_values)
 
     # S1 — verify Supabase JWTs against the project JWKS. Unconfigured = fail
     # CLOSED: founder endpoints answer 503, never serve data unauthenticated.
-    if settings.supabase_jwks_url:
+    jwks_url = settings.auth_jwks_url or settings.supabase_jwks_url
+    if jwks_url:
         from ..security.auth import JWTVerifier
 
-        app.state.jwt_verifier = JWTVerifier(settings.supabase_jwks_url)
+        app.state.jwt_verifier = JWTVerifier(
+            jwks_url,
+            audience=settings.auth_audience or None,
+            issuer=settings.auth_issuer or None,
+        )
     else:
         app.state.jwt_verifier = None
     # S1 — run-scoped review links (the review page can't carry a Bearer header)
@@ -104,6 +204,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     # Slice 2.3 — same key signs ApprovalEvents + per-step publish tokens
     app.state.approval_signing_key = settings.approval_signing_key or None
     app.state.maintenance_key = settings.maintenance_key or None
+    app.state.clerk_webhook_secret = settings.clerk_webhook_secret or None
 
     # S2 — token vault + OAuth providers (providers filled at go-live or by tests)
     if settings.token_vault_key:
@@ -190,7 +291,8 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict:
-        return {"status": "ok"}
+        # liveness only — deliberately cheap (no DB). Readiness is /readyz.
+        return {"status": "ok", "version": settings.app_version}
 
     # Slice 3.1 — Eagle-View automated sources (filled at go-live; tests inject)
     app.state.signal_sources = {}
@@ -211,16 +313,40 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     else:
         app.state.embedding_engine = None
 
+    from .analytics import router as analytics_router
+    from .cmo import router as cmo_router
     from .comments import router as comments_router
     from .knowledge import router as knowledge_router
+    from .meta import router as meta_router
+    from .ops import router as ops_router
     from .signals import router as signals_router
 
     app.include_router(intake_router)
     app.include_router(runs_router)
+    app.include_router(meta_router)
+    app.include_router(ops_router)
     app.include_router(review_router)
     app.include_router(connections_router)
     app.include_router(privacy_router)
     app.include_router(signals_router)
     app.include_router(knowledge_router)
+    app.include_router(analytics_router)
     app.include_router(comments_router)
+    app.include_router(cmo_router)
+    app.include_router(webhooks_router)
+
+    # CORS — added last so it's the OUTERMOST middleware (handles browser
+    # preflight cleanly, before rate limiting). Empty origins → no CORS, so
+    # server-to-server stays locked down by default.
+    origins = [o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()]
+    if origins:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     return app

@@ -1,0 +1,70 @@
+# C2 — Render Blueprint: API (web) + ARQ worker + Redis, one Docker image.
+#
+# Assumes this file + the Dockerfile are at the service root (the `execution/`
+# dir). On Render: New → Blueprint → connect the repo → set this dir as root.
+# Secret values (sync:false) are entered in the Render dashboard, NEVER committed.
+#
+# Free-tier note: Render web free spins down on idle; background WORKERS have no
+# free tier. For always-on, use `starter`. Redis: Render Key Value `free` works
+# for the pilot, or point REDIS_URL at Upstash instead and drop the redis service.
+
+envVarGroups:
+  - name: mrk18-shared
+    envVars:
+      - { key: APP_ENV, value: prod }
+      - { key: DATABASE_URL, sync: false }
+      - { key: CHECKPOINTER_DSN, sync: false }
+      - { key: SUPABASE_URL, sync: false }
+      - { key: SUPABASE_SERVICE_KEY, sync: false }
+      - { key: AUTH_JWKS_URL, sync: false }
+      - { key: AUTH_ISSUER, sync: false }
+      - { key: GROQ_API_KEY, sync: false }
+      - { key: TOGETHER_API_KEY, sync: false }
+      - { key: CF_ACCOUNT_ID, sync: false }
+      - { key: CF_API_TOKEN, sync: false }
+      - { key: FAL_KEY, sync: false }
+      - { key: APPROVAL_SIGNING_KEY, sync: false }
+      - { key: TOKEN_VAULT_KEY, sync: false }
+      - { key: MAINTENANCE_KEY, sync: false }
+      - { key: CLERK_WEBHOOK_SECRET, sync: false }
+      - { key: SENTRY_DSN, sync: false }
+      - { key: ALERT_WEBHOOK_URL, sync: false }
+
+services:
+  - type: web
+    name: mrk18-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - fromGroup: mrk18-shared
+      - { key: TRUST_PROXY_HEADERS, value: "true" }   # behind Render's proxy
+      - { key: CORS_ALLOW_ORIGINS, sync: false }       # your app origin(s)
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: mrk18-redis, property: connectionString }
+
+  - type: worker
+    name: mrk18-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    dockerCommand: python -m mrk18_execution.worker
+    autoDeploy: true
+    envVars:
+      - fromGroup: mrk18-shared
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: mrk18-redis, property: connectionString }
+
+  - type: keyvalue
+    name: mrk18-redis
+    plan: free
+    maxmemoryPolicy: noeviction
+    ipAllowList: []   # reachable only from this blueprint's services
+
+# Migrations: apply Supabase SQL (supabase/migrations/) via `supabase db push`
+# in your deploy/CI step BEFORE the new image serves — the API's startup
+# schema-health check (C5) logs CRITICAL if the DB is behind.

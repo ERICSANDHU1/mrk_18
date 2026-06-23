@@ -36,7 +36,7 @@ export default function ActivityResultsChart({
         <ComposedChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: -22 }}>
           <CartesianGrid
             vertical={false}
-            stroke="rgba(255,255,255,0.05)"
+            stroke="rgba(27,24,21,0.06)"
             strokeDasharray="3 6"
           />
           <XAxis
@@ -52,7 +52,7 @@ export default function ActivityResultsChart({
             tickLine={false}
             width={34}
           />
-          <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+          <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(27,24,21,0.04)" }} />
           <Bar
             name="Activity shipped"
             dataKey="activity"

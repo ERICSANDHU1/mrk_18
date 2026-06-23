@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from ..audit.recorder import record
-from ..db.models import ContentItemRow, PublishResultRow, RunRow
+from ..db.models import ConnectedAccountRow, ContentItemRow, PublishResultRow, RunRow
 from ..schemas.content import can_transition
 from ..schemas.enums import AuditEventType, ContentStatus, Platform
 from ..security.manifests import PermissionViolation, require_permission
@@ -36,6 +36,34 @@ PLATFORM_ADAPTERS = {
     Platform.X.value: XApiAdapter,
     Platform.INSTAGRAM.value: InstagramOpsAdapter,
 }
+
+
+async def _live_adapter(session, vault, item, signing_key, transport):
+    """Build the LIVE adapter for one item: the real access token (from the
+    vault) + the connected account's author ref. Instagram has no live API in
+    the pilot, so it stays the human-ops queue. Returns None when the account
+    isn't connected — the caller skips the item rather than failing it."""
+    platform = item.platform
+    if platform == Platform.INSTAGRAM.value:
+        return InstagramOpsAdapter(signing_key=signing_key)
+    account = (
+        await session.execute(
+            select(ConnectedAccountRow).where(
+                ConnectedAccountRow.founder_id == item.founder_id,
+                ConnectedAccountRow.platform == platform,
+            )
+        )
+    ).scalar_one_or_none()
+    if account is None or account.status != "connected":
+        return None
+    token = await vault.get_access_token(session, item.founder_id, platform)
+    return PLATFORM_ADAPTERS[platform](
+        stub=False,
+        signing_key=signing_key,
+        access_token=token,
+        author_ref=account.external_ref,
+        transport=transport,
+    )
 
 
 def _result_row(item: ContentItemRow, adapter_name: str, result, payload: dict) -> PublishResultRow:
@@ -64,9 +92,27 @@ async def publish_run(
     mode: str = "export",
     export_dir: str = "exports",
     signing_key: str | None = None,
+    strict: bool = False,
+    vault=None,
+    transport=None,
 ) -> list[dict]:
     """Publish/export every publishable item of a run. Returns a summary per
-    item — including the refusals, which are the system working, not failing."""
+    item — including the refusals, which are the system working, not failing.
+
+    A1 — ``strict=True`` (production) refuses the whole batch when ``signing_key``
+    is unset: without it ``verify_approval`` can't check signatures and no step
+    token is minted, so publishing would proceed unguarded. Fail closed, loudly,
+    rather than ship past a disabled gate."""
+    if strict and not signing_key:
+        raise ValueError(
+            "publish blocked: APPROVAL_SIGNING_KEY is required in production — "
+            "the publish gate fails closed rather than shipping unguarded"
+        )
+    if mode == "live" and vault is None:
+        raise ValueError(
+            "live publish needs the token vault (TOKEN_VAULT_KEY) to fetch access tokens"
+        )
+
     from ..security.tenant import tenant_session
 
     # Resolve the owner + validate the run on a privileged probe: we need the
@@ -100,7 +146,14 @@ async def publish_run(
 
             if mode == "export":
                 adapter = ExportAdapter(export_dir, signing_key=signing_key)
-            else:
+            elif mode == "live":
+                adapter = await _live_adapter(session, vault, item, signing_key, transport)
+                if adapter is None:
+                    summary.append(
+                        {**entry, "status": "skipped", "skipped": "account not connected"}
+                    )
+                    continue
+            else:  # stub — shapes proven, nothing actually leaves the building
                 adapter = PLATFORM_ADAPTERS[item.platform](signing_key=signing_key)
 
             # ── idempotency: one result per item × adapter, ever ──────────
@@ -204,8 +257,14 @@ async def publish_run(
                 ContentStatus(item.status), ContentStatus.EXPORTED
             ):
                 item.status = "exported"
-            # stub 'published' results do NOT mark the item published (no lie
-            # in the data); IG queued_manual completes via complete_ops_task
+            elif (
+                mode == "live"
+                and result.status.value == "published"
+                and can_transition(ContentStatus(item.status), ContentStatus.PUBLISHED)
+            ):
+                item.status = "published"  # a LIVE publish really shipped — mark it
+            # stub 'published' results do NOT mark the item published (no lie in
+            # the data); IG queued_manual completes via complete_ops_task
 
             audit_event = (
                 AuditEventType.EXPORT

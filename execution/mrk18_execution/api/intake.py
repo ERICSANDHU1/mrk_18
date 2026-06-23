@@ -15,10 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..audit.recorder import record
 from ..db import repositories as repo
 from ..db.models import FounderRow
+from ..intake_quality import heuristic_problems
 from ..schemas.enums import AuditEventType
 from ..schemas.founder import FounderProfile
 from ..schemas.intake import IntakeDraft, IntakeStatus
-from .deps import founder_scope, get_session, get_verified_claims
+from .deps import current_founder, founder_scope, get_session, get_verified_claims
 
 router = APIRouter(tags=["intake"])
 
@@ -46,6 +47,17 @@ class IntakeView(IntakeStatus):
     profile: dict | None = None
 
 
+class Me(BaseModel):
+    founder_id: UUID
+    email: str
+
+
+@router.get("/me", response_model=Me)
+async def whoami(founder: FounderRow = Depends(current_founder)) -> Me:
+    """Resolve the verified caller to their founder id — the frontend's 'who am I'."""
+    return Me(founder_id=founder.id, email=founder.email)
+
+
 def evaluate_draft(
     founder_id: UUID, draft: dict
 ) -> tuple[FounderProfile | None, list[str], list[str]]:
@@ -65,7 +77,7 @@ def evaluate_draft(
     candidate["founder_id"] = str(founder_id)
 
     try:
-        return FounderProfile.model_validate(candidate), [], []
+        profile = FounderProfile.model_validate(candidate)
     except ValidationError as exc:
         missing: list[str] = []
         problems: list[str] = []
@@ -79,6 +91,13 @@ def evaluate_draft(
             missing.remove("consent")
             missing.extend(["consent_given", "consent_text_version"])
         return None, missing, problems
+
+    # Structure is valid — now the Layer-1 semantic gate (deterministic, free):
+    # reject keyboard-mashing / gibberish before it becomes the company memory.
+    quality = heuristic_problems(draft)
+    if quality:
+        return None, [], quality
+    return profile, [], []
 
 
 def _status_view(row, founder_id: UUID) -> IntakeView:
@@ -108,9 +127,8 @@ async def create_founder(
     session: AsyncSession = Depends(get_session),
 ) -> FounderCreated:
     # identity comes from the VERIFIED token, never from the request body
-    try:
-        auth_user_id = UUID(str(claims["sub"]))
-    except (ValueError, KeyError):
+    auth_user_id = str(claims.get("sub") or "").strip()
+    if not auth_user_id:
         raise HTTPException(status_code=401, detail="token has no usable subject claim")
     email = claims.get("email") or body.email
     if not email:
@@ -181,7 +199,15 @@ async def complete_intake(
     if row.status == "ready_for_analysis":
         raise HTTPException(status_code=409, detail="intake already completed")
 
+    # Layer 0 (structure) + Layer 1 (deterministic gibberish heuristics) — the
+    # BLOCKING gate. Layer 1 instantly catches keyboard-mashing.
+    #
+    # Layer 2 (AI coherence) is deliberately NOT run here: against the trained
+    # Brain it adds a multi-minute cold start + false-positive risk to every
+    # onboarding submit — spurious friction for a real founder. coherence_problems
+    # stays in intake_quality for later use behind a fast, dedicated model.
     profile_obj, missing, problems = evaluate_draft(founder_id, row.draft or {})
+
     if profile_obj is None:
         await record(
             session,

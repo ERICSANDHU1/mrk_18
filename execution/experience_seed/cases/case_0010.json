@@ -1,0 +1,13 @@
+{
+  "ref": "case_0010",
+  "kind": "campaign_case",
+  "category": "D2C jewelry (high-AOV silver + lab-grown)",
+  "channels": ["Meta ads", "WhatsApp", "Instagram"],
+  "stage": "scaling D2C (~₹1.2 Cr/month revenue)",
+  "budget_band": "₹18-22L/month ad spend",
+  "title": "High-AOV jewelry brand cut returns 24% → 9% and doubled Meta ROAS by selling certainty, not the algorithm",
+  "content": "A Jaipur D2C silver and lab-grown jewelry brand (AOV ₹6,800) was burning ₹20L/month on Meta but barely breaking even. Prospecting ROAS sat at 1.9, and the real leak was a 24% return rate — almost all of it 'looked different in person' and 'unsure buying jewelry online at this price'. After reverse-shipping and restocking, net contribution in tier-2 metros like Lucknow, Indore and Surat was near zero. We fixed buying risk, not targeting. One: a free 5-piece try-at-home box (refundable ₹500 hold via WhatsApp, COD-friendly) shown only to warm retargeting audiences who'd viewed a PDP twice. Two: we killed static carousels for UGC try-on Reels plus a 40-second 'real weight, BIS hallmark, lab-grown certificate' proof video. Three: a WhatsApp flow with a human stylist for sizing, plus a 7-day no-questions return promise pinned on every PDP. Over 90 days: returns fell 24% → 9%, prospecting ROAS rose 1.9 → 3.4, blended ROAS hit 4.1, try-at-home converted at 31%, CAC dropped ₹1,950 → ₹1,280, and net contribution margin moved from ~2% to 21% — on the same ad budget.",
+  "lesson": "At high AOV the conversion blocker is rarely the creative hook — it's unresolved buying risk. Engineer risk-reversal (try-at-home, proof-of-authenticity video, a human on WhatsApp) before you touch targeting, and the same Meta spend prints double the ROAS while returns collapse. Returns are a trust problem wearing a logistics costume.",
+  "metrics": { "return_rate_before": 0.24, "return_rate_after": 0.09, "meta_prospecting_roas_before": 1.9, "meta_prospecting_roas_after": 3.4, "blended_roas_after": 4.1, "try_at_home_conversion_rate": 0.31, "cac_before_inr": 1950, "cac_after_inr": 1280, "net_contribution_margin_after": 0.21, "monthly_meta_spend_inr": 2000000 },
+  "provenance": "reconstructed"
+}

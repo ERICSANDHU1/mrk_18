@@ -8,10 +8,11 @@ database is run-state truth — a dropped client changes nothing.
 import asyncio
 import hmac
 import logging
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,7 @@ from ..graph import lifecycle
 from ..security.reviewtoken import DEFAULT_TTL_S, mint_review_token, verify_review_token
 from .deps import (
     current_founder,
+    founder_scope,
     get_session,
     get_verified_claims,
     record_denial,
@@ -139,6 +141,8 @@ async def start_analysis_run(
         run = await lifecycle.start_run(factory, founder_id)
     except LookupError:
         raise HTTPException(status_code=404, detail="founder not found")
+    except lifecycle.CostCapExceeded as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     _spawn(
@@ -156,6 +160,94 @@ async def start_analysis_run(
 @router.get("/runs/{run_id}", response_model=RunView)
 async def get_run(row: RunRow = Depends(require_run)) -> RunView:
     return _view(row)
+
+
+# B4 — lightweight polling contract -------------------------------------------
+_PHASE_LABEL = {
+    "generating": "Researching your market, audience & strategy",
+    "awaiting_gate1": "Waiting for your Gate 1 review",
+    "generating_content": "Writing platform-native content",
+    "awaiting_gate2": "Waiting for your content approval",
+    "publishing": "Publishing your approved content",
+    "done": "Complete",
+    "failed": "This run hit a snag",
+}
+_RUN_TERMINAL = {"done", "failed"}
+_AWAITING = {"awaiting_gate1": "gate1", "awaiting_gate2": "gate2"}
+
+
+class RunProgress(BaseModel):
+    run_id: UUID
+    status: str
+    phase: str
+    terminal: bool
+    awaiting: str | None  # "gate1" | "gate2" | None — what the founder must act on
+    cost_inr: float
+    updated_at: datetime
+    error: str | None
+
+
+@router.get("/runs/{run_id}/progress", response_model=RunProgress)
+async def run_progress(row: RunRow = Depends(require_run)) -> RunProgress:
+    """B4 — a cheap polling target: status + a human phase label, the terminal
+    flag, and what (if anything) the founder must act on. No report blob, so the
+    dashboard can poll it every few seconds without shipping the whole report."""
+    return RunProgress(
+        run_id=row.run_id,
+        status=row.status,
+        phase=_PHASE_LABEL.get(row.status, row.status),
+        terminal=row.status in _RUN_TERMINAL,
+        awaiting=_AWAITING.get(row.status),
+        cost_inr=float(row.cost_inr),
+        updated_at=row.updated_at,
+        error=row.error,
+    )
+
+
+class RunSummary(BaseModel):
+    run_id: UUID
+    status: str
+    cost_inr: float
+    tokens_in: int
+    tokens_out: int
+    started_at: datetime
+    finished_at: datetime | None
+
+
+@router.get("/founders/{founder_id}/runs", response_model=list[RunSummary])
+async def list_founder_runs(
+    founder_id: UUID,
+    _founder: FounderRow = Depends(founder_scope),  # owner check + RLS
+    session: AsyncSession = Depends(get_session),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> list[RunSummary]:
+    """B2 — a founder's run history, newest first (paginated)."""
+    rows = (
+        (
+            await session.execute(
+                select(RunRow)
+                .where(RunRow.founder_id == founder_id)
+                .order_by(RunRow.started_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        RunSummary(
+            run_id=r.run_id,
+            status=r.status,
+            cost_inr=float(r.cost_inr),
+            tokens_in=r.tokens_in,
+            tokens_out=r.tokens_out,
+            started_at=r.started_at,
+            finished_at=r.finished_at,
+        )
+        for r in rows
+    ]
 
 
 @router.get("/runs/{run_id}/review-link", response_model=dict)
@@ -274,7 +366,7 @@ async def decide_gate2(
 class PublishBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    mode: Literal["export", "stub"] = "export"
+    mode: Literal["export", "stub", "live"] = "export"
 
 
 class OpsCompleteBody(BaseModel):
@@ -299,6 +391,9 @@ async def publish_run_endpoint(
             run_id,
             mode=body.mode,
             signing_key=getattr(request.app.state, "approval_signing_key", None),
+            strict=getattr(request.app.state, "is_prod", False),
+            vault=getattr(request.app.state, "vault", None),
+            transport=getattr(request.app.state, "oauth_transport", None),
         )
     except LookupError:
         raise HTTPException(status_code=404, detail="run not found")

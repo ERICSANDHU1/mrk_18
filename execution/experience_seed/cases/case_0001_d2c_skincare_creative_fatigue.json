@@ -1,0 +1,13 @@
+{
+  "ref": "case_0001",
+  "kind": "campaign_case",
+  "category": "D2C skincare",
+  "channels": ["Meta ads", "WhatsApp"],
+  "stage": "scaling past ₹50L/month",
+  "budget_band": "₹2-5L/month",
+  "title": "Skincare brand's ROAS halved in 6 weeks — the real disease was retention, not creative",
+  "content": "A Bengaluru D2C skincare brand was scaling Meta ads at ₹3-4L/month when ROAS slid from 2.8 to 1.4 over six weeks on the same winning creatives. The founder's instinct was to cut spend and assume the product had peaked. On inspection, ad frequency had crept past 3.2 and the catalogue had run only four creatives for two months — classic creative fatigue. But the deeper issue surfaced in the numbers: 71% of revenue came from first-time buyers and repeat rate sat at 14%, so every rupee of growth had to be bought again through paid. They did two things: shipped 8 fresh creatives a week (UGC + before/after, not studio shoots) to reset frequency, and stood up a WhatsApp reorder + replenishment-reminder flow timed to each product's run-out window. Paid CAC recovered from ₹910 to ₹520 within the new creatives, but the durable win was the WhatsApp flow lifting repeat rate from 14% to 27% in 90 days — which is what actually fixed blended CAC.",
+  "lesson": "Falling ROAS on tired creative is the symptom; weak retention is usually the disease. Fix the creative to stop the bleed, but the leverage is a retention loop (WhatsApp reorder) that stops you re-buying the same customer.",
+  "metrics": { "roas_before": 2.8, "roas_after": 1.4, "cac_before": 910, "cac_after": 520, "repeat_rate_before": 0.14, "repeat_rate_after": 0.27 },
+  "provenance": "reconstructed"
+}

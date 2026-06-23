@@ -26,7 +26,7 @@ const ROWS = [
 
 export default function Pricing() {
   return (
-    <section id="pricing" className="relative px-6 py-32">
+    <section id="pricing" className="relative px-6 py-20">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
@@ -49,7 +49,7 @@ export default function Pricing() {
                   <span
                     className={`justify-self-start rounded-full px-5 py-2 text-[13px] font-semibold md:justify-self-end ${
                       row.highlight
-                        ? "text-[#0a0a0b]"
+                        ? "text-white"
                         : "border border-stroke text-ink"
                     }`}
                     style={row.highlight ? { background: "var(--gradient-brand)" } : undefined}

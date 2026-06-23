@@ -33,11 +33,18 @@ class JWTVerifier:
         *,
         static_jwks: dict | None = None,
         cache_ttl_s: float = 600.0,
+        audience: str | None = AUDIENCE,
+        issuer: str | None = None,
     ) -> None:
         if not jwks_url and static_jwks is None:
             raise ValueError("JWTVerifier needs a jwks_url or a static JWKS")
         self._url = jwks_url
         self._ttl = cache_ttl_s
+        # audience/issuer are configurable so non-Supabase IdPs (e.g. Clerk) work:
+        # an empty audience skips the aud check (Clerk session tokens omit it);
+        # set the issuer to pin tokens to your Clerk/Supabase instance.
+        self._audience = audience or None
+        self._issuer = issuer or None
         self._keys: dict[str, jwt.PyJWK] = {}
         self._fetched_at = 0.0
         self._last_attempt = 0.0
@@ -88,13 +95,17 @@ class JWTVerifier:
         if header.get("alg") not in ALLOWED_ALGORITHMS:
             raise AuthError("token algorithm not allowed")
         key = await self._key_for(header.get("kid", ""))
+        options = {"require": ["exp", "sub"], "verify_aud": self._audience is not None}
+        decode_kwargs: dict = {
+            "key": key.key,
+            "algorithms": ALLOWED_ALGORITHMS,
+            "options": options,
+        }
+        if self._audience is not None:
+            decode_kwargs["audience"] = self._audience
+        if self._issuer is not None:
+            decode_kwargs["issuer"] = self._issuer
         try:
-            return jwt.decode(
-                token,
-                key=key.key,
-                algorithms=ALLOWED_ALGORITHMS,
-                audience=AUDIENCE,
-                options={"require": ["exp", "sub"]},
-            )
+            return jwt.decode(token, **decode_kwargs)
         except jwt.InvalidTokenError as exc:
             raise AuthError(str(exc) or "invalid token") from exc

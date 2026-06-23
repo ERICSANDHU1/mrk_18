@@ -19,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    TypeDecorator,
     UniqueConstraint,
     Uuid,
 )
@@ -26,6 +27,20 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 JSONType = JSON().with_variant(JSONB(), "postgresql")
+
+
+class AuthSubject(TypeDecorator):
+    """Text column for an OIDC subject that always stores the string form.
+
+    Supabase subjects are UUIDs, Clerk's are "user_xxx". Coercing on bind keeps
+    a single text column robust whether a UUID object or a plain string arrives.
+    """
+
+    impl = Text
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):  # noqa: ANN001, ANN201
+        return None if value is None else str(value)
 
 
 def _utcnow() -> datetime:
@@ -40,9 +55,10 @@ class FounderRow(Base):
     __tablename__ = "founders"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    # Supabase auth.users.id (the JWT `sub` claim) — the verified identity that
-    # owns this row. NULL = not reachable through the API until linked.
-    auth_user_id: Mapped[UUID | None] = mapped_column(Uuid, unique=True, nullable=True)
+    # OIDC subject (the JWT `sub` claim) — the verified identity that owns this
+    # row. Text, not UUID: Supabase uses a UUID, Clerk uses "user_xxx". NULL =
+    # not reachable through the API until linked.
+    auth_user_id: Mapped[str | None] = mapped_column(AuthSubject, unique=True, nullable=True)
     email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -282,6 +298,52 @@ class KnowledgeChunkRow(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list] = mapped_column(JSONType, nullable=False)
     embedding_model: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ExperienceChunkRow(Base):
+    """The shared 'Experience Brain' (RAG roadmap, Tier 1/2): curated Indian
+    campaign case studies + benchmarks that EVERY founder's analysis can draw
+    from — the '20 years of real cases' layer. Unlike KnowledgeChunkRow this is
+    SHARED (no founder_id, no RLS): system-seeded, read-only to founders. One
+    case = one chunk; rich metadata lets retrieval filter to relevant cases.
+    Same BGE-M3 embedding + JSON column + exact cosine as the Company Brain."""
+
+    __tablename__ = "experience_chunks"
+
+    experience_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    ref: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)  # case_0042 — idempotent re-seed
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)  # campaign_case | benchmark | playbook | framework
+    category: Mapped[str | None] = mapped_column(String(120), nullable=True)  # "D2C skincare"
+    stage: Mapped[str | None] = mapped_column(String(120), nullable=True)  # "scaling past ₹50L/month"
+    budget_band: Mapped[str | None] = mapped_column(String(80), nullable=True)  # "₹2-5L/month"
+    channels: Mapped[list | None] = mapped_column(JSONType, nullable=True)  # ["Meta ads", "WhatsApp"]
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)  # the full narrative (embedded)
+    lesson: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metrics: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    provenance: Mapped[str | None] = mapped_column(String(40), nullable=True)  # internal | public | reconstructed
+    embedding: Mapped[list] = mapped_column(JSONType, nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class AnalyticsDiagnosisRow(Base):
+    """A stored ad-performance snapshot + the analytics adapter's diagnosis.
+    Source-agnostic: `source` records where the metrics came from (manual paste,
+    csv, or later a live meta/google connector) — the row and the dashboard never
+    change when the source does. Tenant-scoped (RLS)."""
+
+    __tablename__ = "analytics_diagnoses"
+
+    diagnosis_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    founder_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("founders.id", ondelete="CASCADE"), nullable=False
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    period: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    metrics: Mapped[dict] = mapped_column(JSONType, nullable=False)  # raw metrics in
+    diagnosis: Mapped[dict] = mapped_column(JSONType, nullable=False)  # AdDiagnosis out
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 

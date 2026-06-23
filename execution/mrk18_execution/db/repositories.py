@@ -13,7 +13,7 @@ async def create_founder(
     session: AsyncSession,
     email: str,
     display_name: str | None,
-    auth_user_id: UUID | None = None,
+    auth_user_id: str | None = None,
 ) -> FounderRow:
     founder = FounderRow(
         email=email.strip().lower(), display_name=display_name, auth_user_id=auth_user_id
@@ -26,13 +26,12 @@ async def create_founder(
 
 
 async def get_founder_by_auth_user(session: AsyncSession, sub: str) -> FounderRow | None:
-    """Resolve a verified JWT `sub` claim to its founder. Unparseable sub → None."""
-    try:
-        auth_user_id = UUID(str(sub))
-    except (ValueError, TypeError):
+    """Resolve a verified JWT `sub` (Supabase UUID or Clerk user id) to its founder."""
+    sub = (sub or "").strip()
+    if not sub:
         return None
     result = await session.execute(
-        select(FounderRow).where(FounderRow.auth_user_id == auth_user_id)
+        select(FounderRow).where(FounderRow.auth_user_id == sub)
     )
     return result.scalar_one_or_none()
 

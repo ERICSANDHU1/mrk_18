@@ -22,12 +22,16 @@ from ..db.models import (
     ApprovalEventRow,
     AuditRow,
     ConnectedAccountRow,
+    AnalyticsDiagnosisRow,
     ContentItemRow,
     FounderProfileRow,
     FounderRow,
+    KnowledgeChunkRow,
     OAuthStateRow,
+    PostCommentRow,
     PublishResultRow,
     RunRow,
+    SignalRow,
 )
 from ..schemas.enums import AuditEventType
 
@@ -48,8 +52,12 @@ _ERASE_ORDER = [
     ConnectedAccountRow,
     PublishResultRow,
     ApprovalEventRow,
+    SignalRow,  # FK → content_items: must precede ContentItemRow
+    PostCommentRow,  # FK → content_items: must precede ContentItemRow
     ContentItemRow,
     RunRow,
+    KnowledgeChunkRow,  # the Company Brain corpus — FK → founders only
+    AnalyticsDiagnosisRow,  # stored ad-performance diagnoses — FK → founders only
     FounderProfileRow,
     FounderRow,
 ]
@@ -293,13 +301,23 @@ async def withdraw_consent(session_factory: async_sessionmaker, founder_id: UUID
 async def purge_audit_older_than(
     session_factory: async_sessionmaker, days: int = AUDIT_RETENTION_DAYS
 ) -> int:
-    """Retention: drop audit rows past the 24-month window (privileged op)."""
+    """Retention past the 24-month window: REDACT in place, never hard-delete.
+
+    The audit log is a tamper-evident hash chain. Deleting old rows would punch
+    gaps that a later row's prev_hash can no longer resolve — lawful retention
+    would then be indistinguishable from history being rewritten, and
+    verify_audit_chain would (correctly) flag a break. So we blank the content
+    and set redacted=True while leaving prev_hash/row_hash intact: the personal
+    data goes, the chain still verifies (redacted rows skip the content
+    recompute — the same rule erasure follows). Returns rows newly redacted."""
     cutoff = _utcnow() - timedelta(days=days)
     async with session_factory() as session:
         async with session.begin():  # rollback restores triggers on any error
             await _toggle_append_only_triggers(session, enable=False)
             result = await session.execute(
-                delete(AuditRow).where(AuditRow.created_at < cutoff)
+                update(AuditRow)
+                .where(AuditRow.created_at < cutoff, AuditRow.redacted.is_(False))
+                .values(outcome="redacted", detail={"redacted": True}, redacted=True)
             )
             await _toggle_append_only_triggers(session, enable=True)  # before commit
         return result.rowcount or 0

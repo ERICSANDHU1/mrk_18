@@ -23,6 +23,7 @@ from collections.abc import AsyncIterator
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import repositories as repo
@@ -32,6 +33,15 @@ from ..security.tenant import apply_tenant_scope
 
 AUTH_AGENT = "system:auth"
 
+# B1 — declare the Bearer JWT as an OpenAPI security scheme so /docs shows an
+# Authorize button and generated clients know auth is required. auto_error=False
+# keeps get_verified_claims the single source of the 401/503 semantics below.
+bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="BearerJWT",
+    description="Clerk/Supabase session JWT — send as `Authorization: Bearer <token>`.",
+)
+
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     factory = request.app.state.session_factory
@@ -40,7 +50,10 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         # uncommitted work is rolled back when the session closes
 
 
-async def get_verified_claims(request: Request) -> dict:
+async def get_verified_claims(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> dict:
     """Verify the Bearer JWT and return its claims. 401 without proof, 503 unconfigured."""
     verifier = getattr(request.app.state, "jwt_verifier", None)
     if verifier is None:
@@ -48,15 +61,22 @@ async def get_verified_claims(request: Request) -> dict:
             status_code=503,
             detail="auth not configured (SUPABASE_JWKS_URL) — refusing to serve data unauthenticated",
         )
-    scheme, _, token = request.headers.get("authorization", "").partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
+    # Via FastAPI DI, `credentials` is the parsed Bearer header (or None). When
+    # called directly (e.g. _authorize_gate passes only `request`), the default
+    # Depends marker arrives instead — fall back to parsing the header ourselves.
+    if isinstance(credentials, HTTPAuthorizationCredentials):
+        token = (credentials.credentials or "").strip()
+    else:
+        scheme, _, raw = request.headers.get("authorization", "").partition(" ")
+        token = raw.strip() if scheme.lower() == "bearer" else ""
+    if not token:
         raise HTTPException(
             status_code=401,
             detail="missing bearer token",
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        return await verifier.verify(token.strip())
+        return await verifier.verify(token)
     except AuthError as exc:
         raise HTTPException(
             status_code=401,

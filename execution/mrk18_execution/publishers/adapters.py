@@ -19,12 +19,38 @@ from uuid import uuid4
 import httpx
 
 from ..schemas.enums import PublishStatus
-from ..schemas.publishing import PublishRequest, PublishResult
+from ..schemas.publishing import PublishError, PublishRequest, PublishResult
 from ..security.steptokens import require_publish_token
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class PublishTransportError(Exception):
+    """A live transport could not even be attempted (e.g. no access token)."""
+
+
+def _http_error(request: PublishRequest, platform: str, resp: "httpx.Response") -> PublishResult:
+    """Map a non-2xx platform response to a structured PublishResult. 401 = token
+    expired (reconnect); 429/5xx = retryable; everything else = a hard failure."""
+    expired = resp.status_code == 401
+    retryable = expired or resp.status_code in (429, 500, 502, 503, 504)
+    retry_after = None
+    if (ra := resp.headers.get("retry-after")) and ra.isdigit():
+        retry_after = int(ra)
+    body = (resp.text or "")[:500]
+    return PublishResult(
+        request_id=request.request_id,
+        status=PublishStatus.RETRYABLE if retryable else PublishStatus.FAILED,
+        raw_response={"http_status": resp.status_code, "body": body},
+        error=PublishError(
+            code=f"{platform}_http_{resp.status_code}",
+            message=body or f"{platform} returned {resp.status_code}",
+            is_token_expired=expired,
+            retry_after_seconds=retry_after,
+        ),
+    )
 
 
 class LinkedInApiAdapter:
@@ -35,14 +61,33 @@ class LinkedInApiAdapter:
 
     name = "linkedin_api"
     LINKEDIN_VERSION = "202605"
+    POSTS_URL = "https://api.linkedin.com/rest/posts"
 
-    def __init__(self, stub: bool = True, signing_key: str | None = None):
+    def __init__(
+        self,
+        stub: bool = True,
+        signing_key: str | None = None,
+        access_token: str | None = None,
+        author_ref: str | None = None,
+        transport=None,
+    ):
         self.stub = stub
         self.signing_key = signing_key
+        self.access_token = access_token
+        self.author_ref = author_ref  # the connected account's member id (external_ref)
+        self._transport = transport  # tests inject httpx.MockTransport; prod = None (real net)
+
+    def _author_urn(self, request: PublishRequest) -> str:
+        # live: the real member URN from the connected account; stub: a placeholder
+        return (
+            f"urn:li:person:{self.author_ref}"
+            if self.author_ref
+            else f"urn:li:person:{{member_id:{request.account_ref}}}"
+        )
 
     def build_payload(self, request: PublishRequest) -> dict:
         payload = {
-            "author": f"urn:li:person:{{member_id:{request.account_ref}}}",
+            "author": self._author_urn(request),
             "commentary": request.body,
             "visibility": request.visibility.value,
             "distribution": {
@@ -82,7 +127,54 @@ class LinkedInApiAdapter:
                     "first_comment_call": bool(request.first_comment),
                 },
             )
-        raise NotImplementedError("live LinkedIn transport lands at go-live (needs OAuth app)")
+        return await self._send(request, payload)
+
+    async def _send(self, request: PublishRequest, payload: dict) -> PublishResult:
+        if not self.access_token:
+            raise PublishTransportError("linkedin: no access token (account not connected)")
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "LinkedIn-Version": self.LINKEDIN_VERSION,
+            "X-Restli-Protocol-Version": "2.0.0",
+            "Content-Type": "application/json",
+        }
+        async with httpx.AsyncClient(transport=self._transport, timeout=30.0) as client:
+            resp = await client.post(self.POSTS_URL, json=payload, headers=headers)
+            if resp.status_code not in (200, 201):
+                return _http_error(request, "linkedin", resp)
+            urn = resp.headers.get("x-restli-id") or resp.headers.get("x-linkedin-id") or ""
+            commented = await self._post_comment(
+                client, headers, urn, self._author_urn(request), request.first_comment
+            )
+        return PublishResult(
+            request_id=request.request_id,
+            status=PublishStatus.PUBLISHED,
+            platform_post_id=urn,
+            public_url=f"https://www.linkedin.com/feed/update/{urn}/" if urn else None,
+            published_at=_now(),
+            raw_response={
+                "http_status": resp.status_code,
+                "urn": urn,
+                "first_comment_posted": commented,
+            },
+        )
+
+    @staticmethod
+    async def _post_comment(client, headers, urn, author_urn, text) -> bool:
+        """Best-effort: the link rides in the first comment. A comment failure
+        never fails the post itself — it has already shipped."""
+        if not text or not urn:
+            return False
+        from urllib.parse import quote
+
+        url = f"https://api.linkedin.com/rest/socialActions/{quote(urn, safe='')}/comments"
+        try:
+            r = await client.post(
+                url, json={"actor": author_urn, "message": {"text": text}}, headers=headers
+            )
+            return r.status_code in (200, 201)
+        except Exception:  # noqa: BLE001 — secondary call; the post is already live
+            return False
 
 
 class XApiAdapter:
@@ -91,10 +183,21 @@ class XApiAdapter:
     in the text (the 13× research finding, surfaced per request)."""
 
     name = "x_api"
+    TWEETS_URL = "https://api.twitter.com/2/tweets"
 
-    def __init__(self, stub: bool = True, signing_key: str | None = None):
+    def __init__(
+        self,
+        stub: bool = True,
+        signing_key: str | None = None,
+        access_token: str | None = None,
+        author_ref: str | None = None,
+        transport=None,
+    ):
         self.stub = stub
         self.signing_key = signing_key
+        self.access_token = access_token
+        self.author_ref = author_ref
+        self._transport = transport
 
     def build_payloads(self, request: PublishRequest) -> list[dict]:
         segments = request.thread or [request.body]
@@ -125,7 +228,41 @@ class XApiAdapter:
                 cost_estimate_usd=self.estimate_cost_usd(request),
                 raw_response={"stub": True, "would_send": payloads},
             )
-        raise NotImplementedError("live X transport lands at go-live (needs paid console key)")
+        return await self._send(request, payloads)
+
+    async def _send(self, request: PublishRequest, payloads: list[dict]) -> PublishResult:
+        if not self.access_token:
+            raise PublishTransportError("x: no access token (account not connected)")
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        ids: list[str] = []
+        async with httpx.AsyncClient(transport=self._transport, timeout=30.0) as client:
+            prev_id: str | None = None
+            for seg in payloads:
+                payload: dict = {"text": seg["text"]}
+                if prev_id is not None:  # chain each reply onto the previous tweet
+                    payload["reply"] = {"in_reply_to_tweet_id": prev_id}
+                resp = await client.post(self.TWEETS_URL, json=payload, headers=headers)
+                if resp.status_code not in (200, 201):
+                    result = _http_error(request, "x", resp)
+                    if ids:  # a later segment failed — record the partial thread
+                        result.platform_post_id = ids[0]
+                        result.thread_ids = ids
+                    return result
+                prev_id = str((resp.json().get("data") or {}).get("id") or "")
+                ids.append(prev_id)
+        return PublishResult(
+            request_id=request.request_id,
+            status=PublishStatus.PUBLISHED,
+            platform_post_id=ids[0] if ids else None,
+            thread_ids=ids,
+            public_url=f"https://x.com/i/web/status/{ids[0]}" if ids else None,
+            published_at=_now(),
+            cost_estimate_usd=self.estimate_cost_usd(request),
+            raw_response={"http_status": 201, "tweet_ids": ids},
+        )
 
 
 class InstagramOpsAdapter:

@@ -41,7 +41,7 @@ export default function SlideOver({
           <motion.button
             aria-label="Close panel"
             tabIndex={-1}
-            className="absolute inset-0 h-full w-full bg-black/60 backdrop-blur-[2px]"
+            className="absolute inset-0 h-full w-full bg-[var(--backdrop)] backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -68,7 +68,7 @@ export default function SlideOver({
                 ref={closeRef}
                 onClick={onClose}
                 aria-label="Close"
-                className="rounded-lg border border-stroke-2 p-1.5 text-muted transition-colors duration-200 hover:bg-white/5 hover:text-ink"
+                className="rounded-lg border border-stroke-2 p-1.5 text-muted transition-colors duration-200 hover:bg-[var(--overlay-subtle)] hover:text-ink"
               >
                 <X size={16} aria-hidden />
               </button>

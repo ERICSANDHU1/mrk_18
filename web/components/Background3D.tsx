@@ -19,11 +19,10 @@ export default function Background3D() {
 
   if (!supported) return null;
 
+  // The objects float over the light page backdrop — no dark vignette anymore.
   return (
     <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
       <Scene />
-      {/* vignette keeps the canvas ~90% black so orange reads expensive */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(10,10,11,0.78)_75%)]" />
     </div>
   );
 }

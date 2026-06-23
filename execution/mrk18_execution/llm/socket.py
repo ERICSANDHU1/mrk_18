@@ -45,8 +45,28 @@ def _is_transient(exc: BaseException) -> bool:
 PRICES_USD_PER_M = {
     "openai/gpt-oss-120b": (0.15, 0.60),
     "llama-3.1-8b-instant": (0.05, 0.08),
+    # Together (the Phase-4 stand-in / paid fallback)
+    "Qwen/Qwen3-235B-A22B-Instruct-2507-tput": (0.20, 0.60),
+    # the trained Brain on self-hosted vLLM is compute-amortised — set its
+    # effective per-token rate here at go-live.
 }
+# A5 — an UNKNOWN model must never silently meter ₹0 (that hid real spend and
+# made the cost caps toothless). Price it conservatively instead, so dashboards
+# and the per-run/daily caps stay honest the moment a new model appears.
+DEFAULT_PRICE_USD_PER_M = (0.50, 1.50)
 USD_TO_INR = 88.0
+
+
+def price_for(model: str) -> tuple[float, float]:
+    return PRICES_USD_PER_M.get(model, DEFAULT_PRICE_USD_PER_M)
+
+
+def cost_inr_for(model: str, tokens_in: int, tokens_out: int) -> float:
+    """Metered (would-be) INR cost of one model call — the single source of
+    truth for cost, used by Usage and by the run-cost roll-up in graph/lifecycle."""
+    p_in, p_out = price_for(model)
+    usd = (tokens_in * p_in + tokens_out * p_out) / 1_000_000
+    return round(usd * USD_TO_INR, 4)
 
 
 class AgentRole(str, Enum):
@@ -57,6 +77,7 @@ class AgentRole(str, Enum):
     CONTENT = "content"  # adapter #7's future seat (ad copywriter)
     TRIAGE = "triage"
     COMMENT = "comment"  # Slice 3.4 — drafts replies to comments AS the founder
+    ANALYTICS = "analytics"  # reads connected ad/marketing metrics -> diagnosis
 
 
 @dataclass
@@ -78,9 +99,7 @@ class Usage:
 
     @property
     def cost_inr(self) -> float:
-        p_in, p_out = PRICES_USD_PER_M.get(self.model, (0.0, 0.0))
-        usd = (self.tokens_in * p_in + self.tokens_out * p_out) / 1_000_000
-        return round(usd * USD_TO_INR, 4)
+        return cost_inr_for(self.model, self.tokens_in, self.tokens_out)
 
 
 def default_registry(groq_api_key: str) -> dict[AgentRole, ModelSeat]:
@@ -98,9 +117,49 @@ def default_registry(groq_api_key: str) -> dict[AgentRole, ModelSeat]:
         AgentRole.SYNTHESIS: ModelSeat(**big, max_tokens=2200),
         AgentRole.CONTENT: ModelSeat(**big, max_tokens=1800, temperature=0.6),
         AgentRole.COMMENT: ModelSeat(**big, max_tokens=400, temperature=0.5),
+        AgentRole.ANALYTICS: ModelSeat(**big, max_tokens=1600),
         AgentRole.TRIAGE: ModelSeat(
             base_url=GROQ_BASE_URL, api_key=groq_api_key, model="llama-3.1-8b-instant"
         ),
+    }
+
+
+# Phase 4 — role -> served adapter name on the Brain's vLLM multi-LoRA endpoint.
+# The 5-adapter spec (Production Readiness Plan): Personality, Brand Analysis,
+# Funnel, Ad Copy, Analytics Interpreter. TRIAGE has no dedicated adapter -> the
+# base model. CONFIRM the exact served `--lora-modules` names at integration.
+BRAIN_ADAPTERS: dict[AgentRole, str] = {
+    AgentRole.MARKET_INTEL: "brand_analysis",
+    AgentRole.AUDIENCE: "brand_analysis",
+    AgentRole.STRATEGY: "funnel",
+    AgentRole.SYNTHESIS: "personality",
+    AgentRole.CONTENT: "ad_copy",
+    AgentRole.COMMENT: "personality",
+    AgentRole.ANALYTICS: "analytics",  # reads ad/marketing metrics -> CMO diagnosis
+    # AgentRole.TRIAGE -> base model (cheap classification, no adapter)
+}
+
+
+def brain_registry(
+    base_url: str, api_key: str, base_model: str = "qwen3-32b"
+) -> dict[AgentRole, ModelSeat]:
+    """Phase 4: every role served by the trained Brain on one OpenAI-compatible
+    vLLM multi-LoRA endpoint. `model` is the served adapter name (TRIAGE uses the
+    base). Flip one role at a time by editing BRAIN_ADAPTERS; the rest fall back
+    to the base model. Same agent code, same socket — only the registry changes."""
+    per_role = {
+        AgentRole.SYNTHESIS: dict(max_tokens=2200),
+        AgentRole.CONTENT: dict(max_tokens=1800, temperature=0.6),
+        AgentRole.COMMENT: dict(max_tokens=400, temperature=0.5),
+    }
+    return {
+        role: ModelSeat(
+            base_url=base_url,
+            api_key=api_key,
+            model=BRAIN_ADAPTERS.get(role, base_model),
+            **per_role.get(role, {}),
+        )
+        for role in AgentRole
     }
 
 
@@ -187,3 +246,44 @@ class LLMSocket:
         raise RuntimeError(
             f"{role.value}: model output failed schema validation after retries: {last_error}"
         )
+
+    @retry(
+        retry=retry_if_exception(_is_transient),
+        wait=wait_exponential_jitter(initial=2, max=20),
+        stop=stop_after_attempt(4),
+        reraise=True,
+    )
+    async def _chat_call(
+        self, seat: ModelSeat, messages: list[dict], max_tokens: int, temperature: float
+    ) -> tuple[str, int, int]:
+        resp = await self._client(seat).chat.completions.create(
+            model=seat.model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            extra_body=seat.extra or None,
+        )
+        usage = resp.usage
+        return (
+            resp.choices[0].message.content or "",
+            usage.prompt_tokens if usage else 0,
+            usage.completion_tokens if usage else 0,
+        )
+
+    async def chat(
+        self,
+        role: AgentRole,
+        system: str,
+        messages: list[dict],
+        *,
+        max_tokens: int = 220,
+        temperature: float = 0.6,
+    ) -> tuple[str, Usage]:
+        """Plain-text conversational turn (NO JSON schema) — for the live CMO
+        voice call. `messages` is the running [{role, content}] history. This is
+        user-initiated and endpoint-authorised, so it deliberately skips the
+        agent-sandbox manifest gate that guards autonomous pipeline agents."""
+        seat = self._registry[role]
+        convo: list[dict] = [{"role": "system", "content": system}, *messages]
+        text, t_in, t_out = await self._chat_call(seat, convo, max_tokens, temperature)
+        return text.strip(), Usage(role.value, seat.model, t_in, t_out)

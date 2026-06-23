@@ -1,0 +1,21 @@
+# keep the image small + secret-free
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.env.*
+!.env.example
+tests/
+scripts/
+exports/
+*.md
+*.pdf
+*.docx
+.DS_Store

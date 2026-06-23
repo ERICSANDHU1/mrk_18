@@ -55,7 +55,7 @@ export default function MobileTabBar() {
             <motion.button
               aria-label="Close menu"
               tabIndex={-1}
-              className="absolute inset-0 h-full w-full bg-black/60 backdrop-blur-[2px]"
+              className="absolute inset-0 h-full w-full bg-[var(--backdrop)] backdrop-blur-[2px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -88,7 +88,7 @@ export default function MobileTabBar() {
                         onClick={() => setMoreOpen(false)}
                         aria-current={active ? "page" : undefined}
                         className={`flex items-center gap-2.5 rounded-xl border border-stroke-2 px-3 py-3 text-[13px] font-semibold ${
-                          active ? "bg-white/[0.04] text-amber" : "bg-surface text-ink"
+                          active ? "bg-[var(--overlay-subtle)] text-amber" : "bg-surface text-ink"
                         }`}
                       >
                         <Icon size={16} aria-hidden />

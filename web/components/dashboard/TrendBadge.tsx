@@ -13,7 +13,7 @@ export default function TrendBadge({
 }) {
   const flat = pct === 0;
   const good = flat ? null : lowerIsBetter ? pct < 0 : pct > 0;
-  const cls = flat ? "text-muted bg-white/5" : good ? "text-good bg-good/10" : "text-bad bg-bad/10";
+  const cls = flat ? "text-muted bg-[var(--overlay-subtle)]" : good ? "text-good bg-good/10" : "text-bad bg-bad/10";
   const Icon = flat ? Minus : pct > 0 ? ArrowUpRight : ArrowDownRight;
   return (
     <span className="inline-flex items-center gap-1.5">

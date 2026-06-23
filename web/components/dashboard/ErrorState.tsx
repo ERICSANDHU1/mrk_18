@@ -19,7 +19,7 @@ export default function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg border border-stroke-2 bg-surface-2 px-4 py-2 text-[13px] font-semibold transition-colors duration-200 hover:bg-white/5"
+          className="mt-5 inline-flex items-center gap-2 rounded-lg border border-stroke-2 bg-surface-2 px-4 py-2 text-[13px] font-semibold transition-colors duration-200 hover:bg-[var(--overlay-subtle)]"
         >
           <RotateCcw size={14} aria-hidden />
           Retry

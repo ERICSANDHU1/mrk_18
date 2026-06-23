@@ -39,7 +39,7 @@ export default function MagneticButton({
     >
       <a
         href={href}
-        className="group relative inline-flex items-center gap-2 overflow-hidden rounded-2xl px-7 py-4 text-[15px] font-semibold text-[#0a0a0b] shadow-[0_12px_44px_rgba(255,106,0,0.35)] transition-shadow duration-300 hover:shadow-[0_16px_56px_rgba(255,106,0,0.5)]"
+        className="group relative inline-flex items-center gap-2 overflow-hidden rounded-2xl px-7 py-4 text-[15px] font-semibold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_12px_44px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow duration-300 hover:shadow-[0_16px_56px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
         style={{ background: "var(--gradient-brand)" }}
       >
         {/* sheen sweep */}

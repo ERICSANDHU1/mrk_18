@@ -16,6 +16,13 @@ async def open_checkpointer(dsn: str) -> tuple[AsyncConnectionPool, AsyncPostgre
         min_size=1,
         max_size=5,
         open=False,
+        # Long runs (Brain cold-start can take minutes) leave a pooled connection
+        # idle; Supabase's pooler then closes it, and without a check the pool would
+        # hand out the DEAD connection -> "server closed the connection unexpectedly".
+        # `check` validates (and silently replaces) a connection on checkout;
+        # `max_idle` recycles connections before the pooler reaps them.
+        check=AsyncConnectionPool.check_connection,
+        max_idle=120.0,
         kwargs={"autocommit": True, "row_factory": dict_row},
     )
     await pool.open()

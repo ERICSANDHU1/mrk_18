@@ -1,0 +1,30 @@
+{
+  "ref": "case_0021",
+  "kind": "campaign_case",
+  "category": "Trust & Community Building (D2C baby-care, safety-anxious)",
+  "channels": ["WhatsApp", "Instagram", "Amazon.in", "Meta", "YouTube"],
+  "stage": "Early Growth (Series A / 12-24 months post-launch)",
+  "budget_band": "₹8-12 lakh/month marketing spend",
+  "title": "How a D2C baby-care brand turned anxious moms into a 14,000-member trust engine and grew ₹38L → ₹71L/month",
+  "content": "SITUATION: A D2C baby-care brand (toxin-free wipes, baby lotion) was stuck at ₹38L/month at a 2.9% Meta CVR, ₹740 CAC and 1.8 ROAS. Worse, 41% of COD orders bounced as RTO — moms ordered on impulse, then refused at the door at the 'is this safe for my newborn?' second-guess. Amazon.in reviews sat under 60, and in this category one ingredient rumour can sink a brand. ACTION: We stopped claiming 'safe' in ad copy and built visible proof instead. We seeded a closed WhatsApp 'Mom Circle' moderated by a real pediatric nurse, with a free dermatologist Q&A every Tuesday, and shipped sample sachets to 2,200 moms in Indore, Jaipur and Lucknow in exchange for honest UGC reels. We ran 30 nano-mom-creators (8k-40k followers) at ₹4,000-6,000 each — not celebrities — and pushed COD orders toward prepaid with a 5% community coupon to kill the door-step reflex. OUTCOME: Over 5 months the Mom Circle hit 14,300 members, Amazon.in reviews crossed 1,900 (4.6 stars), Meta CVR rose to 5.1%, RTO fell to 23%, CAC dropped to ₹430, ROAS climbed to 3.4, repeat rate doubled to 38%, and revenue reached ₹71L/month.",
+  "lesson": "In safety-anxious categories, trust is borrowed from peers, not bought from ads. Replace 'we are safe' claims with visible third-party proof — a real nurse, weekly dermatologist Q&As, and hundreds of ordinary-mom reviews — plus a peer community where buyers de-risk the decision for each other. Nano-creators and a moderated WhatsApp group out-convert celebrity spend because anxious buyers trust people who look like them; and converting COD to prepaid at the trust moment is what actually kills RTO.",
+  "metrics": {
+    "revenue_before_inr_lakh": 38,
+    "revenue_after_inr_lakh": 71,
+    "meta_cvr_before_pct": 2.9,
+    "meta_cvr_after_pct": 5.1,
+    "rto_before_pct": 41,
+    "rto_after_pct": 23,
+    "cac_before_inr": 740,
+    "cac_after_inr": 430,
+    "roas_before": 1.8,
+    "roas_after": 3.4,
+    "whatsapp_community_members": 14300,
+    "amazon_reviews_after": 1900,
+    "amazon_rating_after": 4.6,
+    "nano_creators": 30,
+    "sample_sachets_seeded": 2200,
+    "repeat_purchase_rate_after_pct": 38
+  },
+  "provenance": "reconstructed"
+}

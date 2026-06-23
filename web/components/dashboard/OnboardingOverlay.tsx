@@ -61,7 +61,7 @@ export default function OnboardingOverlay() {
           role="dialog"
           aria-modal="true"
           aria-label="Setting up your AI CMO"
-          className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[60] grid place-items-center bg-[var(--backdrop)] p-4 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -73,7 +73,7 @@ export default function OnboardingOverlay() {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             className="w-full max-w-md rounded-2xl border border-stroke-2 bg-surface p-7"
           >
-            <span aria-hidden className="mb-5 grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-molten via-amber to-ember text-base font-extrabold text-black">
+            <span aria-hidden className="mb-5 grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-molten via-amber to-ember text-base font-extrabold text-white">
               m
             </span>
             <h2 className="text-xl font-extrabold tracking-tight">
@@ -117,7 +117,7 @@ export default function OnboardingOverlay() {
               disabled={!ready}
               className={`mt-7 w-full rounded-lg px-4 py-2.5 text-[13px] font-bold transition-all duration-300 ${
                 ready
-                  ? "bg-gradient-to-r from-molten via-amber to-ember text-black hover:opacity-90"
+                  ? "bg-gradient-to-r from-molten via-amber to-ember text-white hover:opacity-90"
                   : "cursor-not-allowed border border-stroke-2 bg-surface-2 text-muted"
               }`}
             >

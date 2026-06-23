@@ -92,9 +92,11 @@ class TestFounderProfile:
         with pytest.raises(ValidationError):
             make_profile(top_competitors=["a", "b", "c", "d"])
 
-    def test_blank_competitors_rejected(self):
-        with pytest.raises(ValidationError, match="competitor"):
-            make_profile(top_competitors=["   "])
+    def test_blank_competitors_now_optional(self):
+        # Competitors are optional — MRK18 discovers them via web search at run
+        # time. Blank/empty is accepted and normalized to an empty list.
+        assert make_profile(top_competitors=["   "]).top_competitors == []
+        assert make_profile(top_competitors=[]).top_competitors == []
 
     def test_at_least_one_platform(self):
         with pytest.raises(ValidationError):

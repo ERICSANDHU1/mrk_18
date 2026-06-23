@@ -192,7 +192,7 @@ function FragmentRow({
   return (
     <>
       <tr
-        className={`border-b border-stroke-2 transition-colors duration-150 last:border-0 hover:bg-white/[0.02] ${ROW_TINT[r.verdict]}`}
+        className={`border-b border-stroke-2 transition-colors duration-150 last:border-0 hover:bg-[var(--overlay-subtle)] ${ROW_TINT[r.verdict]}`}
       >
         {row.getVisibleCells().map((cell) => (
           <td key={cell.id} className="px-4 py-3.5 text-[13px]">
@@ -204,7 +204,7 @@ function FragmentRow({
             onClick={row.getToggleExpandedHandler()}
             aria-expanded={open}
             aria-label={`${open ? "Hide" : "Show"} why and fix for ${r.channel}`}
-            className="rounded-lg border border-stroke-2 p-1.5 text-muted transition-all duration-200 hover:bg-white/5 hover:text-ink"
+            className="rounded-lg border border-stroke-2 p-1.5 text-muted transition-all duration-200 hover:bg-[var(--overlay-subtle)] hover:text-ink"
           >
             <ChevronDown
               size={14}
@@ -237,7 +237,7 @@ function ExpandedContent({ row: r }: { row: LeakRow }) {
         <p className="mt-1.5 text-[13px] leading-relaxed text-ink/90">{r.fix}</p>
         {r.verdict !== "healthy" && (
           <Link
-            href="/execute"
+            href="/console"
             className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-bold text-amber transition-opacity duration-200 hover:opacity-80"
           >
             Send to Execute board

@@ -1,0 +1,31 @@
+{
+  "ref": "case_0027",
+  "kind": "campaign_case",
+  "category": "Seasonality & demand smoothing (gourmet chocolate D2C)",
+  "channels": ["Meta", "WhatsApp", "Amazon.in", "Instagram", "Zepto", "Blinkit"],
+  "stage": "Growth (unfunded D2C, ~₹9 Cr ARR)",
+  "budget_band": "₹12-18 lakh/month ad spend",
+  "title": "Mumbai gourmet-chocolate D2C cut peak-season dependence 64% to 49% by manufacturing year-round consumption occasions",
+  "content": "SITUATION: A Mumbai gourmet-chocolate D2C booked 64% of its ₹9.2 Cr annual revenue in just three gifting months — October (Diwali), December and February (Valentine's). June-August averaged ₹38L/month against ₹1.9 Cr in October. Cash froze in lean months while we burned ₹14L/month retargeting a tapped-out gifting audience on Meta at a punishing ₹640 CAC. The trap was occasion, not product: nobody buys a ₹899 gift box for themselves on a Tuesday. ACTION: We stopped fighting for gifting share and built non-gifting demand. We launched a ₹349 'self-treat' 6-piece pack and listed it on Zepto and Blinkit across Mumbai, Pune and Bengaluru for impulse buying. We ran a ₹599/month 'chocolate of the month' WhatsApp subscription to 41,000 past buyers, and rebuilt Meta Advantage+ around micro-occasions — 'monsoon comfort', Rakhi, Friendship Day — instead of two mega-festivals. OUTCOME: Over 7 months lean-month revenue rose ₹38L to ₹71L (+87%). Quick-commerce reached 22% of revenue. The subscription converted 7.6% of past buyers — 3,100 recurring members at ₹18.5L MRR. Blended CAC fell ₹640 to ₹410, and peak three-month concentration dropped 64% to 49%.",
+  "lesson": "For a seasonal product, don't widen the funnel — change the occasion. Seasonality is a positioning problem, not a media-spend problem: retargeting a gifting audience in June just bids up CAC against demand that isn't there. Manufacture small, frequent, low-ticket consumption moments — a sub-₹400 self-treat pack, a WhatsApp subscription, quick-commerce impulse on Zepto and Blinkit — so revenue stops being hostage to two calendar dates you can't move.",
+  "metrics": {
+    "annual_revenue_inr": 92000000,
+    "peak_3month_concentration_before_pct": 64,
+    "peak_3month_concentration_after_pct": 49,
+    "lean_month_revenue_before_inr": 3800000,
+    "lean_month_revenue_after_inr": 7100000,
+    "lean_month_revenue_lift_pct": 87,
+    "peak_month_revenue_inr": 19000000,
+    "cac_blended_before_inr": 640,
+    "cac_blended_after_inr": 410,
+    "self_treat_price_inr": 349,
+    "gift_box_price_inr": 899,
+    "subscription_price_inr": 599,
+    "past_buyers_targeted": 41000,
+    "subscription_conversion_rate_pct": 7.6,
+    "subscription_members": 3100,
+    "subscription_mrr_inr": 1850000,
+    "quick_commerce_revenue_share_pct": 22
+  },
+  "provenance": "reconstructed"
+}

@@ -1,0 +1,13 @@
+{
+  "ref": "case_0005",
+  "kind": "campaign_case",
+  "category": "D2C fintech (UPI-based personal lending)",
+  "channels": ["Google Search", "Google UAC", "WhatsApp", "YouTube", "LinkedIn"],
+  "stage": "Series A, scaling acquisition",
+  "budget_band": "₹12-18L/month ad spend",
+  "title": "RBI-regulated UPI lender cut CAC 41% by trading paid social for Google intent and trust proof",
+  "content": "A Bengaluru UPI-based lending app (RBI-registered NBFC partner) was spending ₹14L/month, 70% on Meta. Blended CAC for a funded borrower had climbed to ₹2,950, and the Play Store sat at 3.6 stars with 'is this a scam?' reviews. Meta CTR looked healthy, but loan-funding conversion was only 1.1%, and tier-2 users in Jaipur, Indore and Coimbatore bounced at the KYC step. We cut Meta to 30% and moved budget to Google Search on high-intent terms ('instant personal loan RBI approved', 'UPI loan without agent call'). We rebuilt the landing page to lead with proof: the NBFC registration number, a 'no hidden charges' APR table, the RBI Sachet grievance link, and real disbursal screenshots. A WhatsApp flow on a verified green-tick number drove KYC nudges and EMI reminders. Over 4 months, blended CAC fell to ₹1,740 (-41%), Search funding-conversion hit 3.4%, WhatsApp recovered 22% of dropped KYC applications, CAC-to-first-EMI payback dropped from 5.2 to 3.1 months, and the Play Store rose to 4.2. For sensitive, regulated products, trust signals are conversion infrastructure, not branding.",
+  "lesson": "For low-trust, RBI-regulated products, lead with verifiable proof — registration numbers, real disbursal screenshots, the RBI Sachet grievance link — and buy intent on Google instead of interrupting on paid social. Trust signals are conversion infrastructure that lowers CAC, not decoration.",
+  "metrics": { "blended_cac_before_inr": 2950, "blended_cac_after_inr": 1740, "cac_reduction_pct": 41, "meta_funding_conversion_pct": 1.1, "search_funding_conversion_pct": 3.4, "whatsapp_kyc_recovery_pct": 22, "cac_payback_months_before": 5.2, "cac_payback_months_after": 3.1, "play_store_rating_before": 3.6, "play_store_rating_after": 4.2 },
+  "provenance": "reconstructed"
+}

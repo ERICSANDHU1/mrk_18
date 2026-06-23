@@ -18,6 +18,13 @@
   --watch: #ff9e2c;
   --bad: #f87171;
   --stroke-2: rgba(255, 255, 255, 0.07);
+  /* app shell (console) tokens — spec §0 */
+  --line: #26262a;
+  --line-soft: #1e1e22;
+  --mute-2: #565049;
+  /* film fonts (spec §3.6) */
+  --font-clash: "Clash Display", var(--font-sora), system-ui, sans-serif;
+  --font-grotesk: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -35,8 +42,31 @@
   --color-watch: var(--watch);
   --color-bad: var(--bad);
   --color-stroke-2: var(--stroke-2);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-mute-2: var(--mute-2);
   --font-sans: var(--font-sora);
   --font-mono: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
+}
+
+/* Clash Display (headlines) — self-hosted (spec §3.6) */
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/clash-500.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/clash-600.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Clash Display";
+  src: url("/fonts/clash-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
 }
 
 html {
@@ -53,7 +83,7 @@ body {
 
 ::selection {
   background: var(--molten);
-  color: #0a0a0b;
+  color: #ffffff;
 }
 
 /* hide native cursor only when the custom cursor is mounted on a fine pointer */
@@ -202,19 +232,43 @@ body {
 /* thin dark scrollbars for long-session panels */
 .dash-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: rgba(27, 24, 21, 0.18) transparent;
 }
 .dash-scroll::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .dash-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(27, 24, 21, 0.18);
   border-radius: 8px;
 }
 .dash-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ---------- app shell (console) ---------- */
+.app-scope {
+  font-family: var(--font-hanken), system-ui, sans-serif;
+}
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  letter-spacing: -0.005em;
+}
+.font-data {
+  font-family: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
+}
+
+/* live voice orb + connecting ring */
+@keyframes orb {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+.orb { animation: orb 1.8s ease-in-out infinite; }
+@keyframes ring {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.85); opacity: 0; }
+}
+.ring { animation: ring 1.6s ease-out infinite; }
 
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
@@ -227,5 +281,172 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- "Warm sand" light theme ----------
+   Applied to <body> so it themes the WHOLE product (landing + auth + console +
+   cowork) through the shared CSS tokens. Hardcoded-dark stragglers are swept
+   per-component in later phases. */
+.theme-sand {
+  color: #1b1815;
+  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-weight: 400;
+  --font-sans: var(--font-hanken);
+  --font-display: var(--font-fraunces);
+  /* flip the ink/muted tokens to the warm-sand palette so `text-ink` / `text-muted`
+     resolve dark on the light page — including opacity variants (e.g. text-ink/90)
+     that never matched the explicit `.theme-sand .text-ink` rule below */
+  --ink: #1b1815;
+  --muted: #6b6357;
+  /* solid terracotta accent replaces the orange brand gradient */
+  --molten: #b4532a;
+  --amber: #b4532a;
+  --ember: #b4532a;
+  --gold: #c47a3c;
+  --gradient-brand: #b4532a;
+  /* surfaces + borders on light */
+  --stroke: rgba(27, 24, 21, 0.12);
+  --glass: rgba(255, 255, 255, 0.66);
+  /* CTA on the terracotta fill → light label + softer terracotta glow */
+  --cta-ink: #ffffff;
+  --cta-glow: rgba(180, 83, 42, 0.28);
+  --cta-glow-strong: rgba(180, 83, 42, 0.42);
+  /* full surface / status / line set — completes the map for the app shell */
+  --bg: #f3ecdc;
+  --surface: #ffffff;
+  --surface-2: #faf6ee;
+  --stroke-2: rgba(27, 24, 21, 0.1);
+  --good: #0f9d63;
+  --watch: #b4781f;
+  --bad: #c8483f;
+  --line: #e7ded0;
+  --line-soft: #efe7d9;
+  --mute-2: #8a8276;
+  --sidebar: #faf6ee;
+  --overlay-subtle: rgba(27, 24, 21, 0.04);
+  --shadow-color: rgba(27, 24, 21, 0.14);
+  --backdrop: rgba(27, 24, 21, 0.45);
+}
+.theme-sand .text-ink {
+  color: #1b1815;
+}
+.theme-sand .text-muted {
+  /* darkened sibling of the palette muted (#877F73 → ~4:1) for ~5.9:1 AA on white */
+  color: #6b6357;
+}
+.theme-sand .glass {
+  background: rgba(255, 255, 255, 0.66);
+  border-color: rgba(27, 24, 21, 0.12);
+}
+.theme-sand .border-stroke {
+  border-color: rgba(27, 24, 21, 0.12);
+}
+.theme-sand .text-outline {
+  -webkit-text-stroke: 1.5px rgba(27, 24, 21, 0.62);
+}
+.theme-sand .fill-on-hover {
+  -webkit-text-stroke: 1px rgba(27, 24, 21, 0.22);
+}
+
+/* ---------- editorial type system (marketing page only) ----------
+   Fraunces (variable serif, optical sizing) carries the whole display tier;
+   Hanken Grotesk (--font-sans) carries body/UI; JetBrains Mono = --font-mono.
+   Scoped to .theme-sand so the dashboard route stays a clean sans.
+   These rules are unlayered, so they beat Tailwind's `font-extrabold` /
+   `tracking-[-0.03em]` utilities — display weight relaxes to 600 and the tight
+   tracking opens up (high-contrast serifs need air). */
+.theme-sand h1,
+.theme-sand h2,
+.theme-sand h3 {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  font-optical-sizing: auto;
+}
+.theme-sand .text-outline,
+.theme-sand .fill-on-hover {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 700;
+}
+
+/* ---------- liquid glass (How it works cards) ----------
+   Universal CSS material on every card; the lead card is progressively enhanced
+   with real SVG feDisplacementMap refraction in Chromium (gated by .liquid-on). */
+.theme-sand .liquid-glass {
+  /* NOTE: no `position` here — the Tailwind `sticky` class must win so the
+     cards keep stacking on scroll. `sticky` is itself a positioned value, so
+     it still anchors the ::before sheen. */
+  isolation: isolate;
+  border-radius: 1.5rem;
+  /* clear "water" glass — barely any fill + minimal blur so the background reads
+     through; the bright glossy rim + edge refraction carry the glass look */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.03));
+  -webkit-backdrop-filter: blur(2px) saturate(140%) brightness(1.06);
+  backdrop-filter: blur(2px) saturate(140%) brightness(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 22px 55px rgba(27, 24, 21, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 3px rgba(255, 255, 255, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+.theme-sand .liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(115% 75% at 18% 0%, rgba(255, 255, 255, 0.4), transparent 48%);
+}
+.theme-sand .liquid-glass > * {
+  position: relative;
+  z-index: 1;
+}
+/* lead card refraction — enabled by the Chromium JS gate once the map is ready */
+.liquid-on .theme-sand .liquid-glass--lead {
+  -webkit-backdrop-filter: blur(2px) saturate(140%) brightness(1.06);
+  backdrop-filter: url(#mrk-liquid) blur(2px) saturate(140%) brightness(1.06);
+}
+/* fallbacks — the frosted card is the floor (zero regression) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .theme-sand .liquid-glass {
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .theme-sand .liquid-glass {
+    background: rgba(255, 255, 255, 0.93);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ---------- features cards — same cream liquid glass as "How it works" ---------- */
+.feature-glass {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+  -webkit-backdrop-filter: blur(3px) saturate(150%) brightness(1.05);
+  backdrop-filter: blur(3px) saturate(150%) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  box-shadow:
+    0 22px 55px rgba(27, 24, 21, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.92),
+    inset 0 -1px 3px rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .feature-glass {
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .feature-glass {
+    background: rgba(255, 255, 255, 0.9);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

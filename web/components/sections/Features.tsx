@@ -1,79 +1,70 @@
 import Reveal from "../ui/Reveal";
 import TiltCard from "../ui/TiltCard";
-import Marquee from "../Marquee";
 
-const FEATURES = [
-  {
-    num: "01",
-    title: "Reads your real numbers",
-    pills: ["GA4", "ad platforms", "CRM", "email"],
-  },
-  {
-    num: "02",
-    title: "Tells the bitter truth",
-    pills: ["weekly", "honest", "actionable"],
-  },
-  {
-    num: "03",
-    title: "A decision, not a chart",
-    pills: ["1 move/week", "plain English"],
-  },
-  {
-    num: "04",
-    title: "Built India-first",
-    pills: ["solo-founder", "budget-aware"],
-  },
+type Feat = { num: string; title: string; pills: string[] };
+
+const FEATURES: Feat[] = [
+  { num: "01", title: "Always listening", pills: ["wakes on speech", "zero setup", "no button to press"] },
+  { num: "02", title: "Corrects you live", pills: ["someone asks, you know", "in your ear", "never caught off-guard"] },
+  { num: "03", title: "The Handshake", pills: ["finds the room", "asks you both", "makes the intro"] },
+  { num: "04", title: "Tells the bitter truth", pills: ["what really happened", "honest", "no sugar-coating"] },
+  { num: "05", title: "Knows your context", pills: ["your company", "your goals", "advice that fits you"] },
+  { num: "06", title: "Pocket-sized", pills: ["wear it all day", "barely there", "clips on"] },
 ];
 
-const INTEGRATIONS = [
-  "Google Ads",
-  "Meta",
-  "LinkedIn",
-  "GA4",
-  "HubSpot",
-  "Mailchimp",
-  "Stripe",
-  "Notion",
-];
+const BIG: Feat = {
+  num: "07",
+  title: "Built India-first",
+  pills: ["priced for founders", "sourced locally", "made for the market"],
+};
+
+function FeatureCard({ feat, big }: { feat: Feat; big?: boolean }) {
+  return (
+    <TiltCard className={`feature-glass rounded-3xl ${big ? "p-10 md:p-14" : "p-8 md:p-9"}`} max={big ? 4 : 7}>
+      <div className="relative z-10">
+        <span className="text-gradient text-sm font-extrabold tracking-[0.3em]">{feat.num}</span>
+        <h3 className={`mt-3 font-extrabold tracking-tight ${big ? "text-3xl md:text-[2.6rem]" : "text-2xl md:text-[1.7rem]"}`}>
+          {feat.title}
+        </h3>
+        <div className="mt-5 flex flex-wrap gap-2.5">
+          {feat.pills.map((p) => (
+            <span
+              key={p}
+              className="rounded-full border border-[rgba(27,24,21,0.18)] px-4 py-1.5 text-[12.5px] text-muted"
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      </div>
+    </TiltCard>
+  );
+}
 
 export default function Features() {
   return (
-    <section id="features" className="relative py-32">
-      <div className="mx-auto max-w-6xl px-6">
+    <section id="features" className="relative px-6 py-20">
+      <div className="mx-auto max-w-6xl">
         <Reveal>
-          <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
-            03 — Features
-          </span>
+          <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">03 — Features</span>
           <h2 className="mt-6 text-[clamp(2.2rem,5.5vw,4rem)] font-extrabold leading-[1.05] tracking-[-0.03em]">
-            Built to find <span className="text-gradient">leaking money.</span>
+            Everything <span className="text-gradient">it does.</span>
           </h2>
         </Reveal>
 
         <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-2">
           {FEATURES.map((f, i) => (
-            <Reveal key={f.num} delay={i * 0.08}>
-              <TiltCard className="p-9">
-                <span className="text-gradient text-sm font-extrabold tracking-[0.3em]">{f.num}</span>
-                <h3 className="mt-4 text-2xl font-extrabold tracking-tight md:text-3xl">{f.title}</h3>
-                <div className="mt-6 flex flex-wrap gap-2.5">
-                  {f.pills.map((pill) => (
-                    <span
-                      key={pill}
-                      className="rounded-full border border-stroke px-4 py-1.5 text-[12.5px] text-muted"
-                    >
-                      {pill}
-                    </span>
-                  ))}
-                </div>
-              </TiltCard>
+            <Reveal key={f.num} delay={(i % 2) * 0.08}>
+              <FeatureCard feat={f} />
             </Reveal>
           ))}
         </div>
-      </div>
 
-      {/* integrations marquee */}
-      <div className="mt-20">
-        <Marquee items={INTEGRATIONS} variant="subtle" />
+        <Reveal delay={0.1}>
+          <div className="mt-6">
+            <FeatureCard feat={BIG} big />
+          </div>
+        </Reveal>
       </div>
     </section>
   );

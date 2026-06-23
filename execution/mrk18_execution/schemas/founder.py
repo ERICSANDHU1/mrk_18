@@ -43,9 +43,24 @@ class FounderProfile(BaseModel):
     website: str = Field(min_length=4, max_length=500)
     product_description: str = Field(min_length=10, max_length=2000)
     icp: str = Field(min_length=10, max_length=2000, description="Who they sell to, geography, stage")
-    top_competitors: list[str] = Field(min_length=1, max_length=3)
+    top_competitors: list[str] = Field(
+        default_factory=list,
+        max_length=3,
+        description="Optional — MRK18 discovers competitors via web search at run time when empty.",
+    )
     tone: str = Field(min_length=2, max_length=500)
     primary_goal: str = Field(min_length=2, max_length=500)
+    do_not_claim: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Claims the brand must never make (e.g. 'guaranteed returns', "
+        "'clinically proven'). Enforced post-generation by the content guardrails (A4).",
+    )
+    words_to_avoid: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Words/phrases the brand never uses. Enforced post-generation (A4).",
+    )
     monthly_spend_inr: int = Field(ge=0)
     target_platforms: list[Platform] = Field(min_length=1)
     consent: ConsentRecord
@@ -53,11 +68,10 @@ class FounderProfile(BaseModel):
 
     @field_validator("top_competitors")
     @classmethod
-    def competitors_non_empty(cls, v: list[str]) -> list[str]:
-        cleaned = [c.strip() for c in v if c.strip()]
-        if not cleaned:
-            raise ValueError("at least one named competitor required")
-        return cleaned
+    def clean_competitors(cls, v: list[str]) -> list[str]:
+        # Optional now — empty is fine; the analysis discovers competitors via
+        # web search at run time. Just normalize whatever the founder did give.
+        return [c.strip() for c in v if c.strip()]
 
     @field_validator("target_platforms")
     @classmethod

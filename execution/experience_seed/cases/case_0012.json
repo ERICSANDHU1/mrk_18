@@ -1,0 +1,13 @@
+{
+  "ref": "case_0012",
+  "kind": "campaign_case",
+  "category": "D2C specialty coffee",
+  "channels": ["Blinkit", "Zepto", "WhatsApp", "Instagram", "Meta ads", "Amazon.in"],
+  "stage": "Early growth (Series A, ~₹4 Cr ARR)",
+  "budget_band": "₹8-12L/month",
+  "title": "Specialty coffee was renting its audience on Blinkit — a QR in every box turned trial buyers into ₹1,399/month subscribers",
+  "content": "A Bengaluru specialty-coffee brand (single-origin South Indian beans, ₹549 per 250g) was doing 62% of its ₹38L monthly revenue on Blinkit and Zepto across Bengaluru, Mumbai and Pune. Discovery was strong but the buyers were invisible: no email, no phone, only ~9% reordered next month, and platform commission plus ad fees ate 31% of MRP. The founder wanted to scale quick-commerce spend; the real problem was that none of it built an asset. Three moves: every order shipped a QR insert giving 20% off the first direct subscription plus a free ceramic dripper on the website; a WhatsApp replenishment flow nudged at day 22, when a 250g bag runs out for a daily drinker; and ₹1.8L/month of Meta retargeting was aimed only at the pin codes where quick-commerce orders spiked. Over five months ~13% of quick-commerce buyers scanned the QR and 41% of scanners subscribed at ₹1,399/month (two bags), adding ~2,150 subscribers. Direct revenue went from 12% to 29% of total, blended CAC fell from ₹690 to ₹430, and 6-month subscriber retention hit 68%.",
+  "lesson": "Quick-commerce is paid discovery, not a customer base — Blinkit and Zepto own the buyer, you just rent the shelf. Put a concrete reason-to-leave-the-platform (a real discount plus a one-time gift) in every physical box, then own the predictable replenishment moment on WhatsApp. The box is your cheapest acquisition channel and the run-out date is your conversion trigger.",
+  "metrics": { "monthly_revenue_inr": 3800000, "quick_commerce_revenue_share_before": 0.62, "next_month_reorder_before": 0.09, "platform_take_rate": 0.31, "qr_scan_rate": 0.13, "scan_to_subscribe": 0.41, "new_subscribers": 2150, "subscription_price_inr": 1399, "direct_revenue_share_before": 0.12, "direct_revenue_share_after": 0.29, "blended_cac_inr_before": 690, "blended_cac_inr_after": 430, "subscriber_6mo_retention": 0.68 },
+  "provenance": "reconstructed"
+}

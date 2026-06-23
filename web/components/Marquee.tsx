@@ -12,7 +12,7 @@ export default function Marquee({
       {items.map((item, i) => (
         <span key={i} className="flex items-center gap-6 px-6 text-[13px] font-semibold uppercase tracking-[0.22em] whitespace-nowrap">
           {item}
-          <span aria-hidden className={variant === "gradient" ? "text-[#0a0a0b]/60" : "text-gradient"}>
+          <span aria-hidden className={variant === "gradient" ? "text-white/55" : "text-gradient"}>
             ◆
           </span>
         </span>
@@ -25,13 +25,13 @@ export default function Marquee({
       <div
         className={`marquee overflow-hidden border-y ${
           variant === "gradient"
-            ? "border-transparent text-[#0a0a0b]"
+            ? "border-transparent text-white"
             : "border-stroke text-muted"
         } py-3.5`}
         style={
           variant === "gradient"
             ? { background: "var(--gradient-brand)" }
-            : { background: "rgba(20,20,22,0.5)" }
+            : { background: "rgba(27,24,21,0.04)" }
         }
       >
         <div className="marquee-track">

@@ -1,0 +1,45 @@
+name: execution-ci
+
+# Assumes a monorepo with the backend under execution/. If execution/ IS the repo
+# root, remove the `execution/` path prefixes and the `working-directory` below.
+on:
+  push:
+    paths: ["execution/**", ".github/workflows/execution-ci.yml"]
+  pull_request:
+    paths: ["execution/**", ".github/workflows/execution-ci.yml"]
+
+defaults:
+  run:
+    working-directory: execution
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      # Provisioned so RLS/tenant tests can run on real Postgres (the default
+      # suite runs on SQLite; point the conftest at TEST_DATABASE_URL to use PG).
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mrk18_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/mrk18_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install ".[dev]"
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Test + coverage gate (>=75%)
+        run: pytest -q --cov=mrk18_execution --cov-report=term-missing --cov-fail-under=75

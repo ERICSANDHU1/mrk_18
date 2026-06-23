@@ -73,6 +73,28 @@ async def make_item(
         return run.run_id, item.item_id, founder.id
 
 
+async def test_strict_mode_refuses_publish_without_signing_key(factory):
+    """A1: production (strict) refuses the whole batch when the signing key is
+    unset — a hard stop beats shipping past a disabled publish gate."""
+    run_id, _, _ = await make_item(factory)
+    with pytest.raises(ValueError, match="APPROVAL_SIGNING_KEY"):
+        await publish_run(factory, run_id, mode="export", signing_key=None, strict=True)
+
+
+async def test_strict_mode_with_signing_key_does_not_short_circuit(factory, tmp_path):
+    """strict + a key present skips the A1 stop and runs the normal pipeline."""
+    run_id, _, _ = await make_item(factory)
+    summary = await publish_run(
+        factory,
+        run_id,
+        mode="export",
+        export_dir=tmp_path,
+        signing_key="prod-signing-key",
+        strict=True,
+    )
+    assert len(summary) == 1  # the batch executed (the A1 guard did not block it)
+
+
 async def test_export_creates_kit_and_flips_status(factory, tmp_path):
     run_id, item_id, _ = await make_item(factory)
     summary = await publish_run(factory, run_id, mode="export", export_dir=tmp_path)

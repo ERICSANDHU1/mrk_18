@@ -105,7 +105,7 @@ export default function SettingsView() {
               <label
                 key={v.id}
                 className={`cursor-pointer rounded-xl border p-3.5 transition-colors duration-200 ${
-                  voice === v.id ? "border-amber/40 bg-amber/[0.05]" : "border-stroke-2 hover:bg-white/[0.02]"
+                  voice === v.id ? "border-amber/40 bg-amber/[0.05]" : "border-stroke-2 hover:bg-[var(--overlay-subtle)]"
                 }`}
               >
                 <input
@@ -150,7 +150,7 @@ export default function SettingsView() {
       </Panel>
 
       <Panel eyebrow="Notifications" title="When to interrupt you" delay={3}>
-        <div className="divide-y divide-[rgba(255,255,255,0.07)]">
+        <div className="divide-y divide-[rgba(27,24,21,0.1)]">
           <Toggle
             label="Leak alerts"
             hint="The moment a channel starts draining money."
@@ -174,7 +174,7 @@ export default function SettingsView() {
 
       <Panel eyebrow="Data" title="Yours, always" delay={4}>
         <div className="flex flex-wrap gap-2.5">
-          <button className="rounded-lg border border-stroke-2 px-3.5 py-2 text-[12px] font-semibold transition-colors duration-200 hover:bg-white/5">
+          <button className="rounded-lg border border-stroke-2 px-3.5 py-2 text-[12px] font-semibold transition-colors duration-200 hover:bg-[var(--overlay-subtle)]">
             Export everything (CSV)
           </button>
           <button className="rounded-lg border border-bad/25 px-3.5 py-2 text-[12px] font-semibold text-bad transition-colors duration-200 hover:bg-bad/10">
@@ -190,7 +190,7 @@ export default function SettingsView() {
       <div className="flex items-center gap-3">
         <button
           onClick={save}
-          className="rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-black transition-opacity duration-200 hover:opacity-90"
+          className="rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
         >
           Save changes
         </button>
