@@ -199,7 +199,11 @@ export default function CmoPanel() {
   const attachHandlers = useCallback(
     (rec: SpeechRecognitionLike) => {
       rec.onresult = (e: SREvent) => {
-        if (speakingRef.current) return; // ignore our own voice echoing back
+        // ignore our own voice echoing back (speaking), AND any late/buffered
+        // result that arrives after a turn was already submitted (listening is
+        // false once handleFounderTurn → stopListening runs). Without the second
+        // guard, that stray result fires the same turn twice → double reply.
+        if (speakingRef.current || !listeningRef.current) return;
         let interimText = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];

@@ -1,39 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronsLeft, ChevronsRight, ChevronsUpDown, LayoutDashboard, PenTool } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
-import { tenants } from "@/lib/mock/console";
+import { ChevronsLeft, ChevronsRight, LayoutDashboard, PenTool } from "lucide-react";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 const SECTIONS = [
   { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/cowork", label: "Cowork", icon: PenTool, exact: false },
 ];
 
+type Workspace = { name: string; initial: string };
+
 /** Section-switcher rail — collapses to icons, expands to a labelled nav. */
 export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
-  const [tenant, setTenant] = useState(tenants[0]);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
+  // Real workspace identity = the founder's own company (from their profile).
+  // No multi-tenant switching exists yet, so this is a label, not a dropdown.
   useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
+    let active = true;
+    fetch("/api/me/profile", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!active || !d) return;
+        const name: string =
+          d?.profile?.company_name ||
+          (typeof d?.email === "string" ? d.email.split("@")[0] : "") ||
+          "Your workspace";
+        setWorkspace({ name, initial: (name.trim()[0] || "·").toUpperCase() });
+      })
+      .catch(() => {});
     return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
+      active = false;
     };
-  }, [open]);
+  }, []);
+
+  const { user } = useUser();
+  const userLabel =
+    user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
 
   return (
     <aside className="flex h-full w-full flex-col border-r border-line bg-[var(--sidebar)] py-3">
@@ -77,69 +85,23 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         })}
       </nav>
 
-      {/* footer — tenant switcher + account */}
-      <div className={`mt-2 flex flex-col gap-2 ${collapsed ? "items-center" : "px-2"}`}>
-        <div ref={ref} className="relative w-full">
-          <button
-            onClick={() => setOpen((v) => !v)}
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            title={tenant.name}
-            className={`flex items-center ${
-              collapsed
-                ? "flex-col gap-0.5"
-                : "w-full gap-2.5 rounded-xl border border-line bg-surface px-2.5 py-2"
-            }`}
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-surface text-[13px] font-bold text-amber">
-              {tenant.initial}
-            </span>
-            {!collapsed && (
-              <span className="flex-1 truncate text-left text-[13px] font-semibold text-ink">{tenant.name}</span>
-            )}
-            <ChevronsUpDown size={collapsed ? 11 : 14} className="shrink-0 text-mute-2" aria-hidden />
-          </button>
-          <AnimatePresence>
-            {open && (
-              <motion.ul
-                role="listbox"
-                aria-label="Workspace"
-                initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                transition={{ duration: 0.16 }}
-                className={`absolute z-50 overflow-hidden rounded-xl border border-line bg-surface-2 p-1.5 shadow-2xl ${
-                  collapsed ? "bottom-0 left-full ml-2 w-56" : "bottom-full left-0 mb-2 w-full"
-                }`}
-              >
-                <li className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-mute-2">
-                  Workspace
-                </li>
-                {tenants.map((t) => (
-                  <li key={t.id}>
-                    <button
-                      role="option"
-                      aria-selected={t.id === tenant.id}
-                      onClick={() => {
-                        setTenant(t);
-                        setOpen(false);
-                      }}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors duration-150 hover:bg-[var(--overlay-subtle)]"
-                    >
-                      <span className="grid h-6 w-6 place-items-center rounded-md border border-line bg-surface text-[11px] font-bold text-amber">
-                        {t.initial}
-                      </span>
-                      <span className="flex-1">{t.name}</span>
-                      {t.id === tenant.id && <Check size={14} className="text-molten" aria-hidden />}
-                    </button>
-                  </li>
-                ))}
-              </motion.ul>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className={collapsed ? "" : "px-1"}>
-          <UserButton appearance={{ elements: { avatarBox: "h-8 w-8 rounded-xl border border-line" } }} />
+      {/* footer — one clean block: avatar + workspace (company) + your name */}
+      <div className={`mt-2 ${collapsed ? "flex justify-center" : "px-2"}`}>
+        <div
+          title={`${workspace?.name ?? "Your workspace"}${userLabel ? ` · ${userLabel}` : ""}`}
+          className={`flex items-center ${
+            collapsed ? "" : "w-full gap-2.5 rounded-xl border border-line bg-surface px-2 py-1.5"
+          }`}
+        >
+          <UserButton appearance={{ elements: { avatarBox: "h-9 w-9 rounded-xl border border-line" } }} />
+          {!collapsed && (
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-[13px] font-semibold text-ink">
+                {workspace?.name ?? "Your workspace"}
+              </p>
+              {userLabel && <p className="truncate text-[11px] text-mute-2">{userLabel}</p>}
+            </div>
+          )}
         </div>
       </div>
     </aside>

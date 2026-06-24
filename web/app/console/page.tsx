@@ -1,6 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Clock, FileText, Loader2, Plug, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  Brain,
+  Check,
+  Clock,
+  FileText,
+  Loader2,
+  MessageSquare,
+  Plug,
+  Search,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
 import DashboardFrame from "@/components/app/dashboard/DashboardFrame";
 import { backendFetch, getFounderId } from "@/lib/server/backend";
 
@@ -26,12 +38,36 @@ const STATUS_LABEL: Record<string, string> = {
 };
 const PLATFORM: Record<string, string> = { linkedin: "LinkedIn", x: "X", instagram: "Instagram" };
 
-async function load(): Promise<{ ok: boolean; founderId: string | null; runs: Run[]; pending: Item[] }> {
+type Profile = {
+  company_name?: string;
+  product_description?: string;
+  icp?: string;
+  tone?: string;
+  primary_goal?: string;
+  website?: string;
+} | null;
+
+type Loaded = {
+  ok: boolean;
+  founderId: string | null;
+  runs: Run[];
+  pending: Item[];
+  profile: Profile;
+};
+
+async function load(): Promise<Loaded> {
   try {
     const founderId = await getFounderId();
-    if (!founderId) return { ok: true, founderId: null, runs: [], pending: [] };
+    if (!founderId) return { ok: true, founderId: null, runs: [], pending: [], profile: null };
+
     const runsRes = await backendFetch(`/founders/${founderId}/runs?limit=10`);
     const runs: Run[] = runsRes.ok ? await runsRes.json().catch(() => []) : [];
+
+    // The Brain = the founder's real company memory (the validated intake profile).
+    const intakeRes = await backendFetch(`/founders/${founderId}/intake`);
+    const intake = intakeRes.ok ? await intakeRes.json().catch(() => null) : null;
+    const profile: Profile = intake?.profile ?? null;
+
     const pending: Item[] = [];
     for (const run of runs.filter((r) => r.status === "awaiting_gate2")) {
       const itemsRes = await backendFetch(`/runs/${run.run_id}/items`);
@@ -40,10 +76,10 @@ async function load(): Promise<{ ok: boolean; founderId: string | null; runs: Ru
         ...items.filter((i) => i.status === "awaiting_approval").map((i) => ({ ...i, run_id: run.run_id })),
       );
     }
-    return { ok: true, founderId, runs, pending };
+    return { ok: true, founderId, runs, pending, profile };
   } catch {
     // backend unreachable (e.g. API not running) — degrade, never crash the page
-    return { ok: false, founderId: null, runs: [], pending: [] };
+    return { ok: false, founderId: null, runs: [], pending: [], profile: null };
   }
 }
 
@@ -55,9 +91,27 @@ function fmtDate(s: string): string {
   }
 }
 
+/** product_description is a multi-part blob (one-liner + USP + problem). Show the
+ *  first meaningful line, trimmed, for the compact Brain card. */
+function firstLine(s?: string): string {
+  if (!s) return "—";
+  const line = s.split("\n").find((l) => l.trim()) ?? s;
+  const t = line.trim();
+  return t.length > 200 ? `${t.slice(0, 200).trim()}…` : t;
+}
+
+function BrainRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-mute-2">{label}</dt>
+      <dd className="mt-0.5 text-[13px] leading-relaxed text-ink/90">{value?.trim() || "—"}</dd>
+    </div>
+  );
+}
+
 /** This Week — the real operational feed: what needs the founder, and recent runs. */
 export default async function ConsoleDashboard() {
-  const { ok, founderId, runs, pending } = await load();
+  const { ok, founderId, runs, pending, profile } = await load();
   const hasRuns = !!founderId && runs.length > 0;
 
   return (
@@ -78,20 +132,33 @@ export default async function ConsoleDashboard() {
           </p>
         </div>
       ) : !hasRuns ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface px-6 py-14 text-center">
-          <span className="mb-4 rounded-xl border border-line bg-surface-2 p-3 text-mute">
-            <FileText size={20} aria-hidden />
+        <div className="rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center">
+          <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border border-line bg-surface-2 text-molten">
+            <Sparkles size={22} aria-hidden />
           </span>
-          <h3 className="text-[15px] font-bold">No runs yet</h3>
-          <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-mute">
-            Start a run and your CMO will research your market and draft a week of content for your
-            approval.
+          <h3 className="font-display text-xl">Your CMO is ready</h3>
+          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
+            Start your first run — your CMO researches your market, then drafts a week of
+            platform-native posts for your approval.
           </p>
+          <div className="mx-auto mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-3">
+            {[
+              { icon: Search, title: "Researches", desc: "your market, audience & angle" },
+              { icon: FileText, title: "Drafts", desc: "a week of posts + visuals" },
+              { icon: Check, title: "You approve", desc: "nothing publishes without you" },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="rounded-xl border border-line bg-surface-2 p-3.5">
+                <Icon size={16} className="text-molten" aria-hidden />
+                <p className="mt-2 text-[13px] font-bold">{title}</p>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-mute">{desc}</p>
+              </div>
+            ))}
+          </div>
           <Link
             href="/cowork"
-            className="mt-5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+            className="mt-7 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
           >
-            Start a run
+            Start your first run <ArrowRight size={14} aria-hidden />
           </Link>
         </div>
       ) : (
@@ -127,7 +194,7 @@ export default async function ConsoleDashboard() {
           </section>
 
           {/* Recent runs — real */}
-          <section className="rounded-2xl border border-line bg-surface p-5">
+          <section id="runs" className="rounded-2xl border border-line bg-surface p-5">
             <h2 className="text-[14px] font-bold">Recent runs</h2>
             <ul className="mt-3 space-y-2">
               {runs.map((r) => {
@@ -160,6 +227,38 @@ export default async function ConsoleDashboard() {
           </section>
         </>
       )}
+
+      {/* The Brain — REAL: the company memory your CMO reasons from */}
+      {profile && (
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="flex items-center gap-2 text-[14px] font-bold">
+            <Brain size={15} className="text-molten" aria-hidden /> The Brain — what your CMO knows
+          </h2>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <BrainRow label="What you do" value={firstLine(profile.product_description)} />
+            <BrainRow label="Who it's for" value={profile.icp} />
+            <BrainRow label="Voice" value={profile.tone} />
+            <BrainRow label="Goal right now" value={profile.primary_goal} />
+          </dl>
+          <Link
+            href="/console/settings"
+            className="mt-4 inline-flex items-center gap-1.5 text-[12px] font-bold text-molten transition-opacity duration-200 hover:opacity-80"
+          >
+            Edit memory in Settings <ArrowRight size={13} aria-hidden />
+          </Link>
+        </section>
+      )}
+
+      {/* Comments — honest: real drafted replies appear once posts are live */}
+      <section className="rounded-2xl border border-dashed border-line bg-surface p-5">
+        <h2 className="flex items-center gap-2 text-[14px] font-bold">
+          <MessageSquare size={15} className="text-mute-2" aria-hidden /> Comments
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-mute">
+          Your CMO drafts replies to comments on your posts — you approve before anything sends. They
+          appear here once your posts are live and people start engaging.
+        </p>
+      </section>
 
       {/* Marketing analytics — honest: real only once data is connected */}
       <section className="rounded-2xl border border-dashed border-line bg-surface p-5">
