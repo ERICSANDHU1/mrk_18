@@ -211,21 +211,24 @@ async def export_founder_data(session_factory: async_sessionmaker, founder_id: U
             .scalars()
             .all()
         )
-    return {
-        "founder": {"id": str(founder.id), "email": founder.email, "name": founder.display_name},
-        "profile": (profile.profile if profile else None),
-        "runs": [{"run_id": str(r.run_id), "status": r.status} for r in runs],
-        "content_items": [
-            {"item_id": str(i.item_id), "platform": i.platform, "status": i.status, "body": i.body}
-            for i in items
-        ],
-        "connected_accounts": [
-            {"platform": a.platform, "status": a.status, "token": "present, encrypted"}
-            if a.token_ciphertext
-            else {"platform": a.platform, "status": a.status, "token": None}
-            for a in accounts
-        ],
-    }
+        # Build the result WHILE the session is still open — these rows detach
+        # the moment the tenant_session block exits, and reading their columns
+        # after that raises DetachedInstanceError.
+        return {
+            "founder": {"id": str(founder.id), "email": founder.email, "name": founder.display_name},
+            "profile": (profile.profile if profile else None),
+            "runs": [{"run_id": str(r.run_id), "status": r.status} for r in runs],
+            "content_items": [
+                {"item_id": str(i.item_id), "platform": i.platform, "status": i.status, "body": i.body}
+                for i in items
+            ],
+            "connected_accounts": [
+                {"platform": a.platform, "status": a.status, "token": "present, encrypted"}
+                if a.token_ciphertext
+                else {"platform": a.platform, "status": a.status, "token": None}
+                for a in accounts
+            ],
+        }
 
 
 async def withdraw_consent(session_factory: async_sessionmaker, founder_id: UUID) -> dict:
