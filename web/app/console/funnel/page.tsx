@@ -13,7 +13,7 @@ export default function FunnelPage() {
         title="Funnel"
         sub="Stage-by-stage conversion, stitched from GA4, UTM and Stripe."
       />
-      <ConnectDataState metric="Your conversion funnel" sources="GA4, UTM and Stripe" />
+      <ConnectDataState metric="Your conversion funnel" />
     </DashboardFrame>
   );
 }

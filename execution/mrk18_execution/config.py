@@ -54,6 +54,23 @@ class Settings(BaseSettings):
     cf_api_token: str = ""
     fal_key: str = ""
 
+    # Meta (Facebook) Marketing API — read-only ad-data connector (ads_read).
+    # Unset → the "Connect Meta" provider is simply not registered and the start
+    # endpoint answers 503, so the whole feature ships dormant until you paste
+    # your Meta app credentials. App Review only matters for non-tester users.
+    meta_app_id: str = ""
+    meta_app_secret: str = ""
+    meta_api_version: str = "v23.0"  # pin a version; bump deliberately
+    # Public base URL of THIS backend — used to build the OAuth redirect_uri Meta
+    # calls back (must match a Valid OAuth Redirect URI in the Meta app):
+    # https://mrk18.onrender.com → redirect_uri https://mrk18.onrender.com/oauth/callback.
+    # Defaulted so you don't have to set it in Render; override via env if the
+    # backend ever moves.
+    oauth_redirect_base: str = "https://mrk18.onrender.com"
+    # Where the callback sends the browser after a successful connect. e.g.
+    # https://app.mrk18.com — unset keeps the legacy JSON response (tests rely on it).
+    web_base_url: str = ""
+
     # Observability
     langsmith_tracing: bool = False
     langsmith_api_key: str = ""

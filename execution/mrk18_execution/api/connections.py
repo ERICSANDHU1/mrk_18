@@ -5,12 +5,16 @@ the reconnect nudge only. Providers are config: real platforms at go-live,
 a mock in tests — same code path.
 """
 
+import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
+from ..config import get_settings
 from ..db.models import ConnectedAccountRow, FounderRow
 from ..security import oauth as oauth_flow
 from ..security.scopes import ScopeViolation, default_scopes
@@ -18,7 +22,36 @@ from ..security.tenant import tenant_session
 from ..security.vault import needs_reconnect, revoke_account
 from .deps import require_founder
 
+log = logging.getLogger("mrk18.connections")
+
 router = APIRouter(tags=["connections"])
+
+
+def _schedule_meta_pull(request: Request, founder_id: UUID) -> None:
+    """Fire-and-forget: PULL the founder's Meta ad data right after connect so it's
+    ready for them to review. Best-effort — never blocks the redirect, never raises
+    into the request. NO analysis runs here: the data is stored as a pending
+    snapshot and the founder approves before the CMO diagnoses it. No-op without a
+    vault."""
+    vault = getattr(request.app.state, "vault", None)
+    if vault is None:
+        return
+    factory = request.app.state.session_factory
+    transport = getattr(request.app.state, "meta_transport", None)
+    tasks: set = request.app.state.background_tasks
+
+    async def _run() -> None:
+        from ..integrations import meta_ads
+
+        try:
+            async with tenant_session(factory, founder_id) as session:
+                await meta_ads.pull_founder(session, vault, founder_id, transport=transport)
+        except Exception:  # noqa: BLE001 — the pull must never crash anything
+            log.exception("meta pull failed for founder %s", founder_id)
+
+    task = asyncio.create_task(_run())
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
 
 
 def _vault_or_503(request: Request):
@@ -119,6 +152,21 @@ async def oauth_callback(state: str, code: str, request: Request) -> dict:
         except oauth_flow.OAuthError as exc:
             raise HTTPException(status_code=502, detail=str(exc))
 
+        # Meta quirk: the code exchange returns a SHORT-lived token and no ad
+        # account. Swap it for a ~60-day token and link the primary ad account
+        # before anything is stored.
+        if pending.platform == "meta":
+            from ..integrations import meta_ads
+
+            meta_transport = getattr(request.app.state, "meta_transport", None)
+            try:
+                finalized = await meta_ads.finalize_oauth(
+                    provider, tokens["access_token"], transport=meta_transport
+                )
+            except meta_ads.MetaError as exc:
+                raise HTTPException(status_code=502, detail=str(exc))
+            tokens = {**tokens, **finalized}  # long-lived access_token, expires_in, external_ref
+
         expires_at = None
         if tokens.get("expires_in"):
             expires_at = datetime.now(timezone.utc) + timedelta(
@@ -139,6 +187,17 @@ async def oauth_callback(state: str, code: str, request: Request) -> dict:
             raise HTTPException(status_code=422, detail=str(exc))
         await session.commit()
 
+    # auto-pull the founder's ad data so it's ready for review — analysis waits
+    # for their explicit approval (no auto-diagnosis on connect)
+    if pending.platform == "meta":
+        _schedule_meta_pull(request, pending.founder_id)
+
+    # Browser redirect back to the app when configured; else legacy JSON (tests).
+    web = (get_settings().web_base_url or "").rstrip("/")
+    if web:
+        return RedirectResponse(
+            url=f"{web}/console/leaks?connected={pending.platform}", status_code=303
+        )
     return {"platform": pending.platform, "status": "connected"}
 
 

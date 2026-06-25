@@ -19,6 +19,10 @@ create table if not exists analytics_diagnoses (
 
 create index if not exists analytics_founder_idx on analytics_diagnoses (founder_id, created_at desc);
 
+-- Explicit tenant grant (don't rely on ALTER DEFAULT PRIVILEGES timing): the app
+-- reads/writes this table as the mrk18_tenant role, scoped by the RLS policy below.
+grant select, insert, update, delete on analytics_diagnoses to mrk18_tenant;
+
 alter table analytics_diagnoses enable row level security;
 
 drop policy if exists tenant_isolation_analytics on analytics_diagnoses;

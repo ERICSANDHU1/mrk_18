@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Anton, Archivo, DM_Mono } from "next/font/google";
 import AppShell from "@/components/app/AppShell";
+import CmoPanel from "@/components/app/CmoPanel";
 
 const anton = Anton({ variable: "--font-anton", subsets: ["latin"], weight: "400" });
 const archivo = Archivo({
@@ -22,6 +23,7 @@ export default function CoworkLayout({ children }: { children: React.ReactNode }
       className={`${anton.variable} ${archivo.variable} ${dmMono.variable} app-scope h-dvh overflow-hidden bg-bg text-ink`}
     >
       <AppShell>{children}</AppShell>
+      <CmoPanel />
     </div>
   );
 }

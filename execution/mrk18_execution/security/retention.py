@@ -100,7 +100,24 @@ async def erase_founder(
                 ).scalars()
             )
             await _toggle_append_only_triggers(session, enable=False)
+            # Schema-drift guard: erasure is a legal obligation and must never be
+            # blocked by a table that exists in the models but not (yet) in this DB.
+            # A missing table has nothing to erase — skip it (CI / schema_drift.py
+            # surface the drift; a single delete must not abort the whole erasure).
+            existing: set[str] | None = None
+            if _is_pg(session):
+                existing = set(
+                    (
+                        await session.execute(
+                            text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+                        )
+                    ).scalars()
+                )
             for model in _ERASE_ORDER:
+                if existing is not None and model.__tablename__ not in existing:
+                    log.warning("erase: table %s absent (schema drift) — skipping", model.__tablename__)
+                    counts[model.__tablename__] = 0
+                    continue
                 key_col = model.id if model is FounderRow else model.founder_id
                 result = await session.execute(delete(model).where(key_col == founder_id))
                 counts[model.__tablename__] = result.rowcount or 0

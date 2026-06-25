@@ -139,6 +139,54 @@ async def diagnose(
     }
 
 
+@router.post("/founders/{founder_id}/analytics/sync-meta", response_model=dict)
+async def sync_meta(
+    founder_id: UUID,
+    request: Request,
+    founder: FounderRow = Depends(founder_scope),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """PULL the founder's latest Meta ad data (manual refresh + the scheduler call
+    this). Stores it as a pending snapshot — runs NO analysis. The founder reviews
+    the numbers and approves via /run-analysis before the CMO diagnoses them."""
+    vault = getattr(request.app.state, "vault", None)
+    if vault is None:
+        raise HTTPException(status_code=503, detail="token vault not configured (TOKEN_VAULT_KEY)")
+    from ..integrations import meta_ads
+
+    transport = getattr(request.app.state, "meta_transport", None)
+    try:
+        pulled = await meta_ads.pull_founder(session, vault, founder.id, transport=transport)
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))  # Meta not connected
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))  # no ad account linked
+    except meta_ads.MetaError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"pulled": pulled}
+
+
+@router.post("/founders/{founder_id}/analytics/run-analysis", response_model=dict)
+async def run_analysis(
+    founder_id: UUID,
+    request: Request,
+    founder: FounderRow = Depends(founder_scope),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """The approval gate: run the CMO diagnosis on the latest PENDING ad-data pull.
+    Nothing analyses automatically — the founder triggers this explicitly."""
+    socket = _socket_or_503(request)
+    from ..integrations import meta_ads
+
+    try:
+        result = await meta_ads.analyze_pending(session, socket, founder.id)
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))  # nothing pending
+    except Exception as exc:  # noqa: BLE001 — engine failures → 502, never 500
+        raise HTTPException(status_code=502, detail=f"analytics engine error: {exc}")
+    return result
+
+
 @router.get("/founders/{founder_id}/analytics/latest", response_model=dict)
 async def latest(
     founder_id: UUID,

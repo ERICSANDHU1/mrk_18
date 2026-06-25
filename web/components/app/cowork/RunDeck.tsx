@@ -48,7 +48,8 @@ type DeckSlide =
   | { kind: "verdict"; synthesis: string; flags: string[] }
   | { kind: "section"; n: number; title: string; icon: LucideIcon; section: Section }
   | { kind: "post"; item: Item; index: number; total: number }
-  | { kind: "image"; item: Item; index: number; total: number };
+  | { kind: "image"; item: Item; index: number; total: number }
+  | { kind: "summary"; count: number };
 
 /** The whole finished run as a swipeable deck: analysis → each post → each image. */
 export default function RunDeck({ report, runId }: { report: Report | null; runId: string }) {
@@ -74,6 +75,7 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
       s.push({ kind: "post", item: it, index: i + 1, total: approved.length });
       if ((it.media && it.media.length > 0) || it.image_prompt) s.push({ kind: "image", item: it, index: i + 1, total: approved.length });
     });
+    if (approved.length > 0) s.push({ kind: "summary", count: approved.length });
     return s;
   }, [report, items]);
 
@@ -172,6 +174,7 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
               <PostSlide item={slide.item} index={slide.index} total={slide.total} copied={copied === slide.item.item_id} onCopy={() => copy(slide.item)} />
             )}
             {slide.kind === "image" && <ImageSlide item={slide.item} index={slide.index} total={slide.total} />}
+            {slide.kind === "summary" && <SummarySlide count={slide.count} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -213,6 +216,26 @@ function VerdictSlide({ synthesis, flags }: { synthesis: string; flags: string[]
             Re-worked around your {flags.length} flagged point{flags.length > 1 ? "s" : ""}.
           </p>
         )}
+      </motion.div>
+    </div>
+  );
+}
+
+function SummarySlide({ count }: { count: number }) {
+  return (
+    <div className="dash-scroll flex h-full w-full items-center justify-center overflow-y-auto px-6 py-10">
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mx-auto max-w-lg text-center">
+        <span className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-molten/30 bg-molten/10 text-molten">
+          <Sparkles size={30} aria-hidden />
+        </span>
+        <h1 className="font-display text-[40px] leading-[1.05] sm:text-[52px]">Your campaign is ready</h1>
+        <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-mute sm:text-[16px]">
+          {count} {count === 1 ? "post is" : "posts are"} approved and ready to ship — copy any one from
+          its slide, or come back to publish when you connect your channels.
+        </p>
+        <Link href="/cowork" className="mt-7 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-molten via-amber to-ember px-6 py-3 text-[14px] font-bold text-white transition hover:opacity-90">
+          <ArrowLeft size={15} aria-hidden /> Back to workspace
+        </Link>
       </motion.div>
     </div>
   );

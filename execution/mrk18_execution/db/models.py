@@ -343,7 +343,9 @@ class AnalyticsDiagnosisRow(Base):
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
     period: Mapped[str | None] = mapped_column(String(80), nullable=True)
     metrics: Mapped[dict] = mapped_column(JSONType, nullable=False)  # raw metrics in
-    diagnosis: Mapped[dict] = mapped_column(JSONType, nullable=False)  # AdDiagnosis out
+    # NULL = pulled but not yet analyzed (awaiting the founder's approval to run
+    # the CMO diagnosis). Filled in once they approve.
+    diagnosis: Mapped[dict | None] = mapped_column(JSONType, nullable=True)  # AdDiagnosis out
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 

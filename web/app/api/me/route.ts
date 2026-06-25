@@ -26,7 +26,21 @@ export async function DELETE() {
   const founderId = await getFounderId();
   if (!founderId) return NextResponse.json({ error: "no founder record" }, { status: 400 });
 
-  const res = await backendFetch(`/founders/${founderId}`, { method: "DELETE" });
-  const data = await res.json().catch(() => ({}));
-  return NextResponse.json(data, { status: res.status });
+  let res: Response;
+  try {
+    res = await backendFetch(`/founders/${founderId}`, { method: "DELETE" });
+  } catch {
+    return NextResponse.json({ error: "could not reach the backend" }, { status: 502 });
+  }
+  const text = await res.text();
+  if (!res.ok) {
+    return NextResponse.json(
+      { error: "delete failed", status: res.status, detail: text.slice(0, 500) },
+      { status: 502 },
+    );
+  }
+  return new NextResponse(text || "{}", {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }

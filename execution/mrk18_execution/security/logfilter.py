@@ -19,9 +19,9 @@ _PATTERNS = [
     re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{8,}", ),
     re.compile(
         r"(?i)\b(access_token|refresh_token|api[_-]?key|client_secret|password|"
-        r"code_verifier|code|state|token|secret)\b\s*[=:]\s*[\"']?[A-Za-z0-9._\-]{6,}"
+        r"code_verifier|code|state|[a-z0-9_]*token|[a-z0-9_]*secret)\b\s*[=:]\s*[\"']?[A-Za-z0-9._\-]{6,}"
     ),
-    re.compile(r"(?i)[?&](code|state|access_token)=[^&\s\"']+"),  # OAuth query params
+    re.compile(r"(?i)[?&](code|state|[a-z0-9_]*token)=[^&\s\"']+"),  # OAuth/Graph query params
     re.compile(r"(://[^:@/\s]+:)[^@/\s]+(@)"),  # DSN userinfo password
     re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{16,}\b"),  # fal id:secret
     re.compile(r"\bgsk_[A-Za-z0-9]{20,}\b"),  # Groq key

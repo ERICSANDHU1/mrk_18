@@ -13,6 +13,8 @@ type Wire = { role: "user" | "assistant"; content: string };
 
 const GREETING =
   "Hey — good to actually talk. What's the one marketing thing on your mind right now?";
+const ONBOARDING_PROMPT =
+  "Complete your onboarding first — your CMO activates once your workspace is set up.";
 const RECOGNITION_LANG = "en-IN";
 const SILENCE_MS = 900; // pause this long → treat the founder's turn as finished
 
@@ -81,6 +83,7 @@ export default function CmoPanel() {
   const listeningRef = useRef(false);
   const wireRef = useRef<Wire[]>([]); // running [{role,content}] sent to the backend
   const finalRef = useRef(""); // buffered final words for the current founder turn
+  const noFounderRef = useRef(false); // last askCmo failed because there's no workspace yet
   const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const phaseRef = useRef<Phase>("listening"); // handlers read the latest phase
@@ -116,10 +119,16 @@ export default function CmoPanel() {
         body: JSON.stringify({ messages: history.slice(-20) }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && typeof data.reply === "string") return data.reply;
-      setError(data.error || "The CMO couldn't respond.");
+      if (res.ok && typeof data.reply === "string") {
+        noFounderRef.current = false;
+        return data.reply;
+      }
+      const noFounder = res.status === 400 && /no founder/i.test(data.error || "");
+      noFounderRef.current = noFounder;
+      setError(noFounder ? ONBOARDING_PROMPT : data.error || "The CMO couldn't respond.");
       return null;
     } catch {
+      noFounderRef.current = false;
       setError("Couldn't reach the CMO. Is the backend running?");
       return null;
     }
@@ -186,7 +195,11 @@ export default function CmoPanel() {
       setPhase("thinking");
       askCmo(wireRef.current).then((reply) => {
         if (callRef.current !== "live") return;
-        const say = reply ?? "Sorry — I didn't quite catch that. Say it again?";
+        const say =
+          reply ??
+          (noFounderRef.current
+            ? ONBOARDING_PROMPT
+            : "Sorry — I didn't quite catch that. Say it again?");
         setTranscript((t) => [...t, { who: "cmo", text: say }]);
         wireRef.current = [...wireRef.current, { role: "assistant", content: say }];
         speak(say, startListening);

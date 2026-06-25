@@ -157,6 +157,12 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         else:
             app.state.graph = None  # runs endpoints respond 503 with a clear message
         yield
+        # cancel any in-flight background work (e.g. a Meta backfill) before teardown
+        inflight = list(getattr(app.state, "background_tasks", ()) or ())
+        for t in inflight:
+            t.cancel()
+        if inflight:
+            await asyncio.gather(*inflight, return_exceptions=True)
         if pool is not None:
             await pool.close()
 
@@ -183,6 +189,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         settings.clerk_webhook_secret,
         settings.brain_api_key,
         settings.tavily_api_key,
+        settings.meta_app_secret,
     ]
     install_secret_scrubbing(exact_secrets=app.state.secret_values)
 
@@ -215,6 +222,21 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         app.state.vault = None
     app.state.oauth_providers = {}
     app.state.oauth_transport = None
+    # Meta (Facebook) ad-data connector — registered only when credentials exist,
+    # so the "Connect Meta" button stays dormant (start → 503) until go-live.
+    if settings.meta_app_id and settings.meta_app_secret:
+        from ..security.oauth import ProviderConfig
+
+        ver = settings.meta_api_version
+        redirect_base = (settings.oauth_redirect_base or "").rstrip("/")
+        app.state.oauth_providers["meta"] = ProviderConfig(
+            platform="meta",
+            authorize_url=f"https://www.facebook.com/{ver}/dialog/oauth",
+            token_url=f"https://graph.facebook.com/{ver}/oauth/access_token",
+            client_id=settings.meta_app_id,
+            client_secret=settings.meta_app_secret,
+            redirect_uri=f"{redirect_base}/oauth/callback",
+        )
 
     # Slice 2.4 — perimeter: rate limits + security headers on every response.
     app.state.rate_limiter = (

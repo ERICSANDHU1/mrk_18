@@ -129,7 +129,13 @@ export default function SettingsView() {
     try {
       const res = await fetch("/api/me", { method: "DELETE" });
       if (!res.ok) {
-        setDelErr("Couldn't delete — try again.");
+        const d = await res.json().catch(() => ({}));
+        const detail = d?.detail ?? d?.error;
+        setDelErr(
+          typeof detail === "string" && detail
+            ? `Couldn't delete — ${detail}`
+            : "Couldn't delete — try again in a few seconds (the backend may be waking up).",
+        );
         setDeleting(false);
         return;
       }

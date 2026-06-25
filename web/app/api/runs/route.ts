@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { backendFetch, getFounderId } from "@/lib/server/backend";
 
+/** List the signed-in founder's recent runs (newest first). Degrades to [] so the
+ *  workspace never crashes when the backend is unreachable. */
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json([], { status: 401 });
+  const founderId = await getFounderId();
+  if (!founderId) return NextResponse.json([]);
+  const res = await backendFetch(`/founders/${founderId}/runs?limit=20`);
+  const body = await res.json().catch(() => []);
+  return NextResponse.json(res.ok && Array.isArray(body) ? body : []);
+}
+
 /** Start a new analysis run for the signed-in founder. */
 export async function POST() {
   const { userId } = await auth();

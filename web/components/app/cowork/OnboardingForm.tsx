@@ -8,6 +8,7 @@ import {
   Brain,
   Building2,
   Check,
+  Lock,
   Sparkles,
   Target,
   TrendingUp,
@@ -199,6 +200,7 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [seeded, setSeeded] = useState(false);
   const reduce = useReducedMotion();
 
   const set = <K extends keyof BrainSeed>(k: K, v: BrainSeed[K]) => {
@@ -232,7 +234,7 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
-        onComplete?.(data);
+        setSeeded(true);
         return;
       }
       if (body?.error === "intake_incomplete") {
@@ -272,6 +274,35 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
     ? {}
     : { initial: { opacity: 0, x: 16 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -16 } };
 
+  if (seeded) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 14, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md rounded-2xl border border-line bg-surface p-8 text-center"
+        >
+          <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-molten/30 bg-molten/10 text-molten">
+            <Check size={26} aria-hidden />
+          </span>
+          <h1 className="font-display text-2xl">Your CMO is seeded</h1>
+          <p className="mx-auto mt-2 max-w-sm text-[13.5px] leading-relaxed text-mute">
+            {data.productName ? `${data.productName}'s ` : "Your "}CMO now knows who you are, who you
+            serve, and how you want to sound. Time for your first run.
+          </p>
+          <button
+            type="button"
+            onClick={() => onComplete?.(data)}
+            className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+          >
+            Go to your workspace <ArrowRight size={15} aria-hidden />
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full">
       {/* main form column */}
@@ -287,6 +318,15 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
               actually sounds like you, not generic AI.
             </p>
           </header>
+
+          {/* Why you're here: the dashboard/CMO are gated on completing this. */}
+          <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-molten/30 bg-molten/[0.07] px-4 py-3">
+            <Lock size={15} className="mt-0.5 shrink-0 text-molten" aria-hidden />
+            <p className="text-[12.5px] leading-relaxed text-ink/90">
+              <span className="font-bold">Your dashboard is locked.</span> Fill in your company details below —
+              once your workspace is set up, the Dashboard, your CMO and runs all unlock.
+            </p>
+          </div>
 
           {/* progress */}
           <ol className="mb-7 flex items-center gap-2">

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Brain, Check, Sparkles } from "lucide-react";
-import StartRunButton from "./StartRunButton";
+import { Brain, Check } from "lucide-react";
+import CoworkRuns from "./CoworkRuns";
 
 export interface FounderProfile {
   company_name: string;
@@ -76,19 +76,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
           </p>
         </div>
 
-        <div className="mt-4 rounded-xl border border-dashed border-line bg-surface/40 p-6 text-center">
-          <span className="mb-3 inline-grid h-10 w-10 place-items-center rounded-xl border border-line bg-surface-2 text-molten">
-            <Sparkles size={18} aria-hidden />
-          </span>
-          <h3 className="text-[14px] font-bold tracking-tight">No campaigns yet</h3>
-          <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-relaxed text-mute">
-            Your first strategy run will generate a brief, platform-native posts and a content calendar from
-            your company memory — each one waiting for your approval.
-          </p>
-          <div className="flex justify-center">
-            <StartRunButton />
-          </div>
-        </div>
+        <CoworkRuns />
       </div>
 
       {/* Brain — real profile */}

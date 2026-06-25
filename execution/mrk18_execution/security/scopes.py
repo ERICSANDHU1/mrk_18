@@ -25,6 +25,9 @@ ALLOWED_SCOPES: dict[str, frozenset[str]] = {
         "instagram_business_content_publish",
         "instagram_business_manage_comments",  # read/reply comments (Phase 3)
     }),
+    "meta": frozenset({
+        "ads_read",  # READ ad insights only — never ads_management (no create/edit)
+    }),
 }
 
 # Scopes we refuse on sight, with the reason (defense-in-depth + clear errors).

@@ -11,6 +11,7 @@ class Platform(str, Enum):
     LINKEDIN = "linkedin"
     X = "x"
     INSTAGRAM = "instagram"
+    META = "meta"  # Facebook/Meta ad account — read-only ads_read (analytics, not posting)
 
 
 class ContentFormat(str, Enum):
