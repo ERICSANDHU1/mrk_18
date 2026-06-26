@@ -1,0 +1,19 @@
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import { backendFetch } from "@/lib/server/backend";
+
+/** Stop / cancel a run — marks it terminal so the workspace stops waiting on it. */
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+
+  const { id } = await params;
+  let res: Response;
+  try {
+    res = await backendFetch(`/runs/${id}/cancel`, { method: "POST" });
+  } catch {
+    return NextResponse.json({ error: "could not reach the backend" }, { status: 502 });
+  }
+  const body = await res.json().catch(() => ({}));
+  return NextResponse.json(body, { status: res.status });
+}

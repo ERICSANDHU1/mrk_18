@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Loader2, Square, TriangleAlert } from "lucide-react";
 import Gate2Review from "./Gate2Review";
 import RunDeck from "./RunDeck";
 import ReportStory, { type Report } from "./ReportStory";
@@ -29,6 +29,7 @@ export default function RunFlow({ runId }: { runId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [flagging, setFlagging] = useState(false);
   const [flagText, setFlagText] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -68,6 +69,18 @@ export default function RunFlow({ runId }: { runId: string }) {
     setFlagText("");
     // optimistic — the running poll picks up the real next phase within seconds
     setRun((r) => (r ? { ...r, status: "generating_content", report: null } : r));
+  };
+
+  const cancel = async () => {
+    setCancelling(true);
+    await fetch(`/api/runs/${runId}/cancel`, { method: "POST" }).catch(() => {});
+    setCancelling(false);
+    // stop polling immediately by flipping to a terminal state
+    setRun((r) =>
+      r
+        ? { ...r, status: "failed", error: "Cancelled by you" }
+        : { run_id: runId, status: "failed", cost_inr: 0, tokens_in: 0, tokens_out: 0, report: null, error: "Cancelled by you" },
+    );
   };
 
   const status = run?.status ?? "loading";
@@ -128,6 +141,14 @@ export default function RunFlow({ runId }: { runId: string }) {
           <p className="font-data mt-4 text-[10px] uppercase tracking-[0.14em] text-mute-2">
             this takes a minute or two — you can leave and come back
           </p>
+          <button
+            onClick={cancel}
+            disabled={cancelling}
+            className="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-line px-3.5 py-2 text-[12px] font-semibold text-mute transition-colors hover:border-ember/40 hover:text-ember disabled:opacity-50"
+          >
+            {cancelling ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Square size={12} aria-hidden />}
+            Stop this run
+          </button>
         </div>
       )}
 

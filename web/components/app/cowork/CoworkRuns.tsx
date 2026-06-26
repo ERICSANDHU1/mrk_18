@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Loader2, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowRight, Check, Loader2, Sparkles, Square, TriangleAlert } from "lucide-react";
 import StartRunButton from "./StartRunButton";
 
 type Run = {
@@ -34,6 +34,18 @@ function fmtDate(s: string): string {
 /** Real run history for the workspace — resume a pending run or re-open a finished one. */
 export default function CoworkRuns() {
   const [runs, setRuns] = useState<Run[] | null>(null);
+  const [cancelling, setCancelling] = useState<Set<string>>(new Set());
+
+  const cancel = async (runId: string) => {
+    setCancelling((s) => new Set(s).add(runId));
+    await fetch(`/api/runs/${runId}/cancel`, { method: "POST" }).catch(() => {});
+    setRuns((rs) => (rs ? rs.map((r) => (r.run_id === runId ? { ...r, status: "failed" } : r)) : rs));
+    setCancelling((s) => {
+      const n = new Set(s);
+      n.delete(runId);
+      return n;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -83,10 +95,10 @@ export default function CoworkRuns() {
           const terminal = r.status === "done" || r.status === "failed";
           const needsYou = r.status === "awaiting_gate1" || r.status === "awaiting_gate2";
           return (
-            <li key={r.run_id}>
+            <li key={r.run_id} className="flex items-center gap-2">
               <Link
                 href={`/cowork/run/${r.run_id}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 p-3 transition-colors duration-150 hover:border-molten/30"
+                className="flex flex-1 items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 p-3 transition-colors duration-150 hover:border-molten/30"
               >
                 <span className="flex items-center gap-2.5 text-[13px]">
                   {r.status === "failed" ? (
@@ -108,6 +120,21 @@ export default function CoworkRuns() {
                   <ArrowRight size={14} className="text-mute-2" aria-hidden />
                 </span>
               </Link>
+              {!terminal && (
+                <button
+                  onClick={() => cancel(r.run_id)}
+                  disabled={cancelling.has(r.run_id)}
+                  title="Stop this run"
+                  aria-label="Stop this run"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line text-mute transition-colors hover:border-ember/40 hover:text-ember disabled:opacity-50"
+                >
+                  {cancelling.has(r.run_id) ? (
+                    <Loader2 size={14} className="animate-spin" aria-hidden />
+                  ) : (
+                    <Square size={13} aria-hidden />
+                  )}
+                </button>
+              )}
             </li>
           );
         })}

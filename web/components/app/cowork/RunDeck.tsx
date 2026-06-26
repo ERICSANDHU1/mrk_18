@@ -14,11 +14,19 @@ import {
   Loader2,
   MessageSquare,
   Sparkles,
+  Square,
   Target,
   TrendingUp,
+  Volume2,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import type { Conf, Report, Section } from "./ReportStory";
+import TermText from "@/components/app/narrate/TermText";
+import { useNarrator, type Narrator } from "@/components/app/narrate/useNarrator";
+import type { GlossaryEntry } from "@/lib/glossary";
+
+type TermTap = (entry: GlossaryEntry, sourceId: string) => void;
 
 interface MediaAsset {
   url: string;
@@ -57,6 +65,19 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
   const [items, setItems] = useState<Item[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // CMO narration — speaks a block and highlights the word being spoken; tapping
+  // a jargon term opens a spoken definition.
+  const narrator = useNarrator();
+  const { narrate, stop } = narrator;
+  const [def, setDef] = useState<{ entry: GlossaryEntry } | null>(null);
+  const onTermTap = useCallback<TermTap>(
+    (entry) => {
+      setDef({ entry });
+      narrate(entry.definition, `def:${entry.term}`);
+    },
+    [narrate],
+  );
+
   useEffect(() => {
     fetch(`/api/runs/${runId}/items`, { cache: "no-store" })
       .then((r) => r.json())
@@ -90,10 +111,17 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") paginate(1);
       else if (e.key === "ArrowLeft") paginate(-1);
+      else if (e.key === "Escape") stop();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paginate]);
+  }, [paginate, stop]);
+
+  // changing slides stops any narration and closes an open definition
+  useEffect(() => {
+    stop();
+    setDef(null);
+  }, [index, stop]);
 
   const copy = (it: Item) => {
     const text = it.thread?.length ? it.thread.join("\n\n") : it.body ?? "";
@@ -168,8 +196,8 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
             }}
             className="absolute inset-0"
           >
-            {slide.kind === "verdict" && <VerdictSlide synthesis={slide.synthesis} flags={slide.flags} />}
-            {slide.kind === "section" && <SectionSlide slide={slide} />}
+            {slide.kind === "verdict" && <VerdictSlide synthesis={slide.synthesis} flags={slide.flags} narrator={narrator} onTermTap={onTermTap} />}
+            {slide.kind === "section" && <SectionSlide slide={slide} narrator={narrator} onTermTap={onTermTap} />}
             {slide.kind === "post" && (
               <PostSlide item={slide.item} index={slide.index} total={slide.total} copied={copied === slide.item.item_id} onCopy={() => copy(slide.item)} />
             )}
@@ -178,6 +206,38 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* spoken definition — words highlight as the CMO explains the term */}
+      <AnimatePresence>
+        {def && (
+          <motion.div
+            key="def"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="absolute inset-x-4 bottom-20 z-20 mx-auto max-w-lg rounded-2xl border border-molten/30 bg-surface p-4 shadow-xl shadow-[var(--shadow-color)] sm:inset-x-auto sm:left-1/2 sm:w-[28rem] sm:-translate-x-1/2"
+          >
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="font-data inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-molten">
+                <Volume2 size={13} aria-hidden /> {def.entry.term}
+              </p>
+              <button
+                onClick={() => {
+                  stop();
+                  setDef(null);
+                }}
+                aria-label="Close"
+                className="grid h-6 w-6 place-items-center rounded-md text-mute transition hover:bg-surface-2 hover:text-ink"
+              >
+                <X size={14} aria-hidden />
+              </button>
+            </div>
+            <p className="text-[13.5px] leading-relaxed text-ink/90">
+              <TermText id={`def:${def.entry.term}`} text={def.entry.definition} narrator={narrator} onTermTap={onTermTap} />
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <footer className="relative z-10 flex items-center justify-between px-5 pb-5 sm:px-8">
         <button onClick={() => paginate(-1)} disabled={index === 0} aria-label="Previous" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-mute transition hover:bg-[var(--overlay-subtle)] disabled:opacity-30">
@@ -202,7 +262,31 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
   );
 }
 
-function VerdictSlide({ synthesis, flags }: { synthesis: string; flags: string[] }) {
+/** "Explain this" ⇆ "Stop" — narrates `text` (tagged `id`) and toggles while it
+ *  speaks that block. Hidden where speech synthesis isn't available. */
+function ExplainButton({ narrator, text, id }: { narrator: Narrator; text: string; id: string }) {
+  if (!narrator.supported) return null;
+  const onThis = narrator.speaking && narrator.activeId === id;
+  return (
+    <button
+      type="button"
+      onClick={() => (onThis ? narrator.stop() : narrator.narrate(text, id))}
+      className="inline-flex items-center gap-1.5 rounded-full border border-molten/30 bg-molten/10 px-3.5 py-1.5 text-[12px] font-bold text-molten transition hover:bg-molten/15"
+    >
+      {onThis ? (
+        <>
+          <Square size={12} aria-hidden /> Stop
+        </>
+      ) : (
+        <>
+          <Volume2 size={13} aria-hidden /> Explain this
+        </>
+      )}
+    </button>
+  );
+}
+
+function VerdictSlide({ synthesis, flags, narrator, onTermTap }: { synthesis: string; flags: string[]; narrator: Narrator; onTermTap: TermTap }) {
   return (
     <div className="dash-scroll flex h-full w-full items-center justify-center overflow-y-auto px-6 py-10">
       <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mx-auto max-w-2xl text-center">
@@ -210,7 +294,12 @@ function VerdictSlide({ synthesis, flags }: { synthesis: string; flags: string[]
           <Brain size={13} aria-hidden /> Run complete · your CMO
         </p>
         <h1 className="font-display mt-5 text-[40px] leading-[1.04] sm:text-[56px]">The Verdict</h1>
-        <p className="mt-6 whitespace-pre-line text-left text-[15px] leading-relaxed text-ink/90 sm:text-[17px]">{synthesis}</p>
+        <div className="mt-4 flex justify-center">
+          <ExplainButton narrator={narrator} text={synthesis} id="verdict" />
+        </div>
+        <p className="mt-5 whitespace-pre-line text-left text-[15px] leading-relaxed text-ink/90 sm:text-[17px]">
+          <TermText id="verdict" text={synthesis} narrator={narrator} onTermTap={onTermTap} />
+        </p>
         {flags?.length > 0 && (
           <p className="mt-6 text-[12px] text-mute-2">
             Re-worked around your {flags.length} flagged point{flags.length > 1 ? "s" : ""}.
@@ -241,8 +330,9 @@ function SummarySlide({ count }: { count: number }) {
   );
 }
 
-function SectionSlide({ slide }: { slide: Extract<DeckSlide, { kind: "section" }> }) {
+function SectionSlide({ slide, narrator, onTermTap }: { slide: Extract<DeckSlide, { kind: "section" }>; narrator: Narrator; onTermTap: TermTap }) {
   const Icon = slide.icon;
+  const id = `sec-${slide.n}`;
   return (
     <div className="dash-scroll h-full w-full overflow-y-auto px-6 py-10 sm:px-12">
       <div className="mx-auto max-w-3xl">
@@ -255,7 +345,12 @@ function SectionSlide({ slide }: { slide: Extract<DeckSlide, { kind: "section" }
             <h2 className="font-display mt-1 text-[28px] leading-tight sm:text-[36px]">{slide.title}</h2>
           </div>
         </div>
-        <p className="mt-6 text-[15px] leading-relaxed text-ink/90 sm:text-[16px]">{slide.section.summary}</p>
+        <div className="mt-5">
+          <ExplainButton narrator={narrator} text={slide.section.summary} id={id} />
+        </div>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink/90 sm:text-[16px]">
+          <TermText id={id} text={slide.section.summary} narrator={narrator} onTermTap={onTermTap} />
+        </p>
         <ul className="mt-7 space-y-3">
           {slide.section.claims.map((c, i) => {
             const conf = CONF[c.confidence] ?? CONF.low;
@@ -263,7 +358,7 @@ function SectionSlide({ slide }: { slide: Extract<DeckSlide, { kind: "section" }
               <li key={i} className="flex items-start gap-3 rounded-xl border border-line bg-surface p-3.5">
                 <span className={`mt-0.5 shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${conf.cls}`}>{conf.label}</span>
                 <span className="text-[13.5px] leading-relaxed text-ink/90">
-                  {c.text}
+                  <TermText id={`${id}-c${i}`} text={c.text} narrator={narrator} onTermTap={onTermTap} />
                   {c.source && <span className="font-data ml-1.5 text-[10px] text-mute-2">· {c.source}</span>}
                 </span>
               </li>

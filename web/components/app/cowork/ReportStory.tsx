@@ -10,11 +10,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  Gem,
   type LucideIcon,
   Sparkles,
+  Square,
   Target,
   TrendingUp,
+  Volume2,
+  X,
 } from "lucide-react";
+import TermText from "@/components/app/narrate/TermText";
+import { useNarrator, type Narrator } from "@/components/app/narrate/useNarrator";
+import type { GlossaryEntry } from "@/lib/glossary";
+
+type TermTap = (entry: GlossaryEntry, sourceId: string) => void;
 
 export type Conf = "high" | "medium" | "low";
 export type Claim = { text: string; source: string; confidence: Conf };
@@ -22,6 +31,7 @@ export type Section = { summary: string; claims: Claim[] };
 export type Report = {
   market_intel: Section;
   audience_positioning: Section;
+  usp_positioning?: Section | null;
   content_strategy: Section;
   synthesis: string;
   founder_flags: string[];
@@ -49,19 +59,57 @@ type Decision = {
   onCancelFlag: () => void;
 };
 
+/** "Explain this" ⇆ "Stop" — the CMO reads `text` aloud (tagged `id`) and the
+ *  matching <TermText id> highlights word-by-word. Hidden if narration is absent. */
+function ExplainButton({ narrator, text, id }: { narrator: Narrator; text: string; id: string }) {
+  if (!narrator.supported) return null;
+  const onThis = narrator.speaking && narrator.activeId === id;
+  return (
+    <button
+      type="button"
+      onClick={() => (onThis ? narrator.stop() : narrator.narrate(text, id))}
+      className="inline-flex items-center gap-1.5 rounded-full border border-molten/30 bg-molten/10 px-3.5 py-1.5 text-[12px] font-bold text-molten transition hover:bg-molten/15"
+    >
+      {onThis ? (
+        <>
+          <Square size={12} aria-hidden /> Stop
+        </>
+      ) : (
+        <>
+          <Volume2 size={13} aria-hidden /> Explain this
+        </>
+      )}
+    </button>
+  );
+}
+
 export default function ReportStory({ report, ...decision }: { report: Report } & Decision) {
   const reduce = useReducedMotion();
+  const narrator = useNarrator();
+  const { narrate, stop } = narrator;
+  const [def, setDef] = useState<{ entry: GlossaryEntry } | null>(null);
+  const onTermTap = useCallback<TermTap>(
+    (entry) => {
+      setDef({ entry });
+      narrate(entry.definition, `def:${entry.term}`);
+    },
+    [narrate],
+  );
 
-  const slides: Slide[] = useMemo(
-    () => [
+  const slides: Slide[] = useMemo(() => {
+    const out: Slide[] = [
       { kind: "verdict" },
       { kind: "section", n: 1, title: "Market Intelligence", icon: TrendingUp, section: report.market_intel },
       { kind: "section", n: 2, title: "Audience & Positioning", icon: Target, section: report.audience_positioning },
-      { kind: "section", n: 3, title: "Content Strategy", icon: Sparkles, section: report.content_strategy },
-      { kind: "decision" },
-    ],
-    [report],
-  );
+    ];
+    let n = 3;
+    if (report.usp_positioning) {
+      out.push({ kind: "section", n: n++, title: "USP & Differentiation", icon: Gem, section: report.usp_positioning });
+    }
+    out.push({ kind: "section", n, title: "Content Strategy", icon: Sparkles, section: report.content_strategy });
+    out.push({ kind: "decision" });
+    return out;
+  }, [report]);
 
   const [[index, dir], setState] = useState<[number, number]>([0, 0]);
   const go = useCallback(
@@ -74,10 +122,17 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") paginate(1);
       else if (e.key === "ArrowLeft") paginate(-1);
+      else if (e.key === "Escape") stop();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paginate]);
+  }, [paginate, stop]);
+
+  // changing slides stops narration and closes an open definition
+  useEffect(() => {
+    stop();
+    setDef(null);
+  }, [index, stop]);
 
   const variants = {
     enter: (d: number) => ({ x: d >= 0 ? "100%" : "-100%", opacity: 0 }),
@@ -142,13 +197,45 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
             className="absolute inset-0"
           >
             {slide.kind === "verdict" && (
-              <VerdictSlide synthesis={report.synthesis} flags={report.founder_flags} />
+              <VerdictSlide synthesis={report.synthesis} flags={report.founder_flags} narrator={narrator} onTermTap={onTermTap} />
             )}
-            {slide.kind === "section" && <SectionSlide slide={slide} />}
+            {slide.kind === "section" && <SectionSlide slide={slide} narrator={narrator} onTermTap={onTermTap} />}
             {slide.kind === "decision" && <DecisionSlide {...decision} />}
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* spoken definition — words highlight as the CMO explains the term */}
+      <AnimatePresence>
+        {def && (
+          <motion.div
+            key="def"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="absolute inset-x-4 bottom-20 z-20 mx-auto max-w-lg rounded-2xl border border-molten/30 bg-surface p-4 shadow-xl shadow-[var(--shadow-color)] sm:inset-x-auto sm:left-1/2 sm:w-[28rem] sm:-translate-x-1/2"
+          >
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="font-data inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-molten">
+                <Volume2 size={13} aria-hidden /> {def.entry.term}
+              </p>
+              <button
+                onClick={() => {
+                  stop();
+                  setDef(null);
+                }}
+                aria-label="Close"
+                className="grid h-6 w-6 place-items-center rounded-md text-mute transition hover:bg-surface-2 hover:text-ink"
+              >
+                <X size={14} aria-hidden />
+              </button>
+            </div>
+            <p className="text-[13.5px] leading-relaxed text-ink/90">
+              <TermText id={`def:${def.entry.term}`} text={def.entry.definition} narrator={narrator} onTermTap={onTermTap} />
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* nav */}
       <footer className="relative z-10 flex items-center justify-between px-5 pb-5 sm:px-8">
@@ -189,7 +276,7 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
   );
 }
 
-function VerdictSlide({ synthesis, flags }: { synthesis: string; flags: string[] }) {
+function VerdictSlide({ synthesis, flags, narrator, onTermTap }: { synthesis: string; flags: string[]; narrator: Narrator; onTermTap: TermTap }) {
   return (
     <div className="dash-scroll flex h-full w-full items-center justify-center overflow-y-auto px-6 py-10">
       <motion.div
@@ -202,8 +289,11 @@ function VerdictSlide({ synthesis, flags }: { synthesis: string; flags: string[]
           <Brain size={13} aria-hidden /> MRK18 · Your CMO
         </p>
         <h1 className="font-display mt-5 text-[40px] leading-[1.04] sm:text-[56px]">The Verdict</h1>
-        <p className="mt-6 whitespace-pre-line text-left text-[15px] leading-relaxed text-ink/90 sm:text-[17px]">
-          {synthesis}
+        <div className="mt-4 flex justify-center">
+          <ExplainButton narrator={narrator} text={synthesis} id="verdict" />
+        </div>
+        <p className="mt-5 whitespace-pre-line text-left text-[15px] leading-relaxed text-ink/90 sm:text-[17px]">
+          <TermText id="verdict" text={synthesis} narrator={narrator} onTermTap={onTermTap} />
         </p>
         {flags?.length > 0 && (
           <p className="mt-6 text-[12px] text-mute-2">
@@ -215,8 +305,9 @@ function VerdictSlide({ synthesis, flags }: { synthesis: string; flags: string[]
   );
 }
 
-function SectionSlide({ slide }: { slide: Extract<Slide, { kind: "section" }> }) {
+function SectionSlide({ slide, narrator, onTermTap }: { slide: Extract<Slide, { kind: "section" }>; narrator: Narrator; onTermTap: TermTap }) {
   const Icon = slide.icon;
+  const id = `sec-${slide.n}`;
   return (
     <div className="dash-scroll h-full w-full overflow-y-auto px-6 py-10 sm:px-12">
       <div className="mx-auto max-w-3xl">
@@ -235,13 +326,16 @@ function SectionSlide({ slide }: { slide: Extract<Slide, { kind: "section" }> })
           </div>
         </motion.div>
 
+        <div className="mt-5">
+          <ExplainButton narrator={narrator} text={slide.section.summary} id={id} />
+        </div>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.1 }}
-          className="mt-6 text-[15px] leading-relaxed text-ink/90 sm:text-[16px]"
+          className="mt-3 text-[15px] leading-relaxed text-ink/90 sm:text-[16px]"
         >
-          {slide.section.summary}
+          <TermText id={id} text={slide.section.summary} narrator={narrator} onTermTap={onTermTap} />
         </motion.p>
 
         <ul className="mt-7 space-y-3">
@@ -259,7 +353,7 @@ function SectionSlide({ slide }: { slide: Extract<Slide, { kind: "section" }> })
                 {CONF[c.confidence].label}
               </span>
               <span className="text-[13.5px] leading-relaxed text-ink/90">
-                {c.text}
+                <TermText id={`${id}-c${i}`} text={c.text} narrator={narrator} onTermTap={onTermTap} />
                 <span className="font-data ml-1.5 text-[10px] text-mute-2">· {c.source}</span>
               </span>
             </motion.li>
