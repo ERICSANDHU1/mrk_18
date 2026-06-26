@@ -8,7 +8,7 @@ database is run-state truth — a dropped client changes nothing.
 import asyncio
 import hmac
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
@@ -202,6 +202,25 @@ async def run_progress(row: RunRow = Depends(require_run)) -> RunProgress:
         updated_at=row.updated_at,
         error=row.error,
     )
+
+
+@router.post("/runs/{run_id}/cancel", response_model=RunView)
+async def cancel_run(
+    run: RunRow = Depends(run_scope),  # owner check + RLS
+    session: AsyncSession = Depends(get_session),
+) -> RunView:
+    """Stop a run the founder no longer wants — or one stuck waiting on the brain.
+    Marks it terminal ('failed' + a clear note) so the UI stops polling and a new
+    run can be started. Idempotent: an already-finished run is returned unchanged.
+
+    Note: a background pipeline task may still be mid-flight; it writes the same
+    terminal state when it eventually errors out, so this stays consistent."""
+    if run.status not in _RUN_TERMINAL:
+        run.status = "failed"
+        run.error = "Cancelled by you"
+        run.finished_at = datetime.now(timezone.utc)
+        await session.commit()
+    return _view(run)
 
 
 class RunSummary(BaseModel):

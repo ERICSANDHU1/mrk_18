@@ -73,6 +73,8 @@ class AgentRole(str, Enum):
     MARKET_INTEL = "market_intel"
     AUDIENCE = "audience"
     STRATEGY = "strategy"
+    USP = "usp"  # USP & differentiation — the 4th parallel analysis seat
+    STRUCTURE = "structure"  # base model: turns an adapter's PROSE analysis into JSON claims
     SYNTHESIS = "synthesis"
     CONTENT = "content"  # adapter #7's future seat (ad copywriter)
     TRIAGE = "triage"
@@ -114,6 +116,8 @@ def default_registry(groq_api_key: str) -> dict[AgentRole, ModelSeat]:
         AgentRole.MARKET_INTEL: ModelSeat(**big),
         AgentRole.AUDIENCE: ModelSeat(**big),
         AgentRole.STRATEGY: ModelSeat(**big),
+        AgentRole.USP: ModelSeat(**big),
+        AgentRole.STRUCTURE: ModelSeat(**big),
         AgentRole.SYNTHESIS: ModelSeat(**big, max_tokens=2200),
         AgentRole.CONTENT: ModelSeat(**big, max_tokens=1800, temperature=0.6),
         AgentRole.COMMENT: ModelSeat(**big, max_tokens=400, temperature=0.5),
@@ -136,7 +140,11 @@ BRAIN_ADAPTERS: dict[AgentRole, str] = {
     AgentRole.CONTENT: "ad_copy",
     AgentRole.COMMENT: "personality",
     AgentRole.ANALYTICS: "analytics",  # reads ad/marketing metrics -> CMO diagnosis
-    # AgentRole.TRIAGE -> base model (cheap classification, no adapter)
+    AgentRole.USP: "usp",  # Phase 1: the prose->structure bridge serves usp in its trained
+    # PROSE voice (a chat pass), so the adapter fires on the distribution it saw; the base
+    # STRUCTURE seat then turns that prose into JSON claims.
+    # AgentRole.TRIAGE    -> base model (cheap classification, no adapter)
+    # AgentRole.STRUCTURE -> base model (clean JSON; must NOT carry a prose LoRA)
 }
 
 

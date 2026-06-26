@@ -133,6 +133,11 @@ class CapturingSocket(FakeSocket):
         self.prompts.append((role.value, system, user))
         return await super().complete(role, system, user, schema, max_validation_retries)
 
+    async def chat(self, role, system, messages, *, max_tokens=220, temperature=0.6):
+        user = "\n".join(m["content"] for m in messages)
+        self.prompts.append((role.value, system, user))
+        return await super().chat(role, system, messages, max_tokens=max_tokens, temperature=temperature)
+
 
 PROFILE = {"company_name": "Chai Robotics", "tone": "bold", "target_platforms": ["linkedin"]}
 MEMO_TEXT = f"{MEMO_MARK}:\n- linkedin: avg engagement 6.2%\nLESSONS:\n- front-load the hook"
@@ -154,7 +159,9 @@ async def test_analysis_and_synthesis_prompts_carry_the_memo():
         [],
         performance_memo=MEMO_TEXT,
     )
-    assert len(socket.prompts) == 3
+    # 2 analysis agents × (prose pass + structure pass) + 1 prose verdict = 5 prompts,
+    # and the measured-performance memo must ride in EVERY one of them.
+    assert len(socket.prompts) == 5
     assert all(MEMO_MARK in user for _, _, user in socket.prompts)
     # and without a memo (fresh founder) prompts stay clean
     socket2 = CapturingSocket()

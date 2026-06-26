@@ -38,5 +38,8 @@ class MarketingIntelligenceReport(BaseModel):
     market_intel: ReportSection
     audience_positioning: ReportSection
     content_strategy: ReportSection
+    usp_positioning: ReportSection | None = Field(
+        default=None, description="USP & differentiation — the 4th analysis seat"
+    )
     synthesis: str = Field(min_length=1)
     founder_flags: list[str] = Field(default_factory=list, description="Disagreements raised at Gate 1")

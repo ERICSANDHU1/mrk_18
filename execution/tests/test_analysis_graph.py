@@ -74,6 +74,17 @@ class FakeSocket:
             )
         raise AssertionError(f"unexpected schema requested: {schema}")
 
+    async def chat(self, role, system, messages, *, max_tokens=220, temperature=0.6):
+        # Prose pass — analysis agents speak in their trained voice, the verdict IS prose.
+        self.calls[role.value] += 1
+        usage = Usage(role.value, "openai/gpt-oss-120b", 800, 400)
+        text = (
+            "Bitter truth: your positioning is muddy and you're paying for it. Target "
+            "facility managers in Tier-1 tech parks and lead with a 14-day pilot, not a "
+            "discount. Do this first: ship three founder-POV posts this week."
+        )
+        return text, usage
+
 
 @pytest.fixture
 async def ctx(engine):
@@ -146,10 +157,11 @@ async def test_full_run_pauses_at_gate_then_approve_completes(ctx):
     assert row.gate1["awaiting"] is True
     assert row.gate1["payload"]["report"]["synthesis"]  # report visible at the gate
     assert row.tokens_in > 0 and row.cost_inr > 0  # the meter ran
-    # all three agents ran exactly once, plus one synthesis
+    # all four analysis agents ran exactly once, plus one synthesis
     assert socket.calls["market_intel"] == 1
     assert socket.calls["audience"] == 1
     assert socket.calls["strategy"] == 1
+    assert socket.calls["usp"] == 1  # 4th parallel seat
     assert socket.calls["synthesis"] == 1
 
     await lifecycle.resume_gate1(graph, factory, run.run_id, {"action": "approve"})
@@ -166,6 +178,7 @@ async def test_full_run_pauses_at_gate_then_approve_completes(ctx):
         row = await session.get(RunRow, run.run_id)
     assert row.status == "done"
     assert row.report["market_intel"]["claims"]
+    assert row.report["usp_positioning"]["claims"]  # USP section present in the report
     assert row.finished_at is not None
 
 
@@ -234,6 +247,9 @@ async def test_failed_run_lands_in_db(ctx):
 
     class ExplodingSocket:
         async def complete(self, *a, **k):
+            raise RuntimeError("provider on fire")
+
+        async def chat(self, *a, **k):
             raise RuntimeError("provider on fire")
 
     bad_graph = build_analysis_graph(ExplodingSocket(), InMemorySaver())

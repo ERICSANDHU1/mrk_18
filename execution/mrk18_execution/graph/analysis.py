@@ -38,7 +38,12 @@ def latest_items(entries: list[dict]) -> dict[str, dict]:
 
 MAX_RERUNS = 1
 
-ANALYSIS_AGENTS = (AgentRole.MARKET_INTEL, AgentRole.AUDIENCE, AgentRole.STRATEGY)
+ANALYSIS_AGENTS = (
+    AgentRole.MARKET_INTEL,
+    AgentRole.AUDIENCE,
+    AgentRole.STRATEGY,
+    AgentRole.USP,  # 4th parallel seat — node/edges auto-wired from this tuple
+)
 
 
 class _CompetitorNames(BaseModel):
@@ -151,6 +156,9 @@ def build_analysis_graph(
             market_intel=ReportSection.model_validate(sections["market_intel"]),
             audience_positioning=ReportSection.model_validate(sections["audience"]),
             content_strategy=ReportSection.model_validate(sections["strategy"]),
+            usp_positioning=(
+                ReportSection.model_validate(sections["usp"]) if sections.get("usp") else None
+            ),
             synthesis=synthesis.synthesis,
             founder_flags=state.get("founder_flags", []),
         )
@@ -358,7 +366,7 @@ def build_analysis_graph(
     builder.add_edge(START, "router")
     for role in ANALYSIS_AGENTS:
         builder.add_edge("router", role.value)  # fan-out (parallel superstep)
-        builder.add_edge(role.value, "synthesize")  # fan-in (waits for all 3)
+        builder.add_edge(role.value, "synthesize")  # fan-in (waits for all analysis agents)
     builder.add_edge("synthesize", "gate1")
     builder.add_conditional_edges(
         "gate1", after_gate1, [r.value for r in ANALYSIS_AGENTS] + ["plan_content", END]

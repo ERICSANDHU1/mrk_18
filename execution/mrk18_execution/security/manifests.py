@@ -16,6 +16,8 @@ AGENT_MANIFESTS: dict[str, frozenset[str]] = {
     "agent:market_intel": frozenset({"llm:complete"}),
     "agent:audience": frozenset({"llm:complete"}),
     "agent:strategy": frozenset({"llm:complete"}),
+    "agent:usp": frozenset({"llm:complete"}),
+    "agent:structure": frozenset({"llm:complete"}),
     "agent:synthesis": frozenset({"llm:complete"}),
     "agent:content": frozenset({"llm:complete"}),
     "agent:triage": frozenset({"llm:complete"}),
