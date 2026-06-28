@@ -64,3 +64,23 @@ async def test_cmo_reply_uses_personality_seat_and_short_turns():
     assert sock.seen["max_tokens"] <= 220  # capped to short spoken turns
     assert "Limitless Pendant" in sock.seen["system"]  # grounded in their business
     assert usage.role == AgentRole.SYNTHESIS.value
+
+
+def test_text_mode_prompt_is_fuller_and_writeable():
+    sys = cmo_system_prompt(PROFILE, mode="text")
+    assert "TEXT CHAT" in sys
+    assert "1 to 3 sentences" not in sys  # not clipped to a spoken turn
+    assert "DRAFT it in full" in sys  # can actually write content
+    assert "Limitless Pendant" in sys  # still grounded in their business
+
+
+async def test_text_mode_allows_longer_replies():
+    sock = FakeSocket()
+    await cmo_reply(
+        sock,
+        profile=PROFILE,
+        messages=[{"role": "user", "content": "Write me a LinkedIn post."}],
+        mode="text",
+    )
+    assert sock.seen["max_tokens"] > 220  # roomier than a spoken turn
+    assert sock.seen["role"] == AgentRole.SYNTHESIS  # same CMO seat

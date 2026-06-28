@@ -31,6 +31,9 @@ class VoiceRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     messages: list[VoiceTurn] = Field(min_length=1, max_length=40)
+    # "voice" = short spoken turns (the live call, default); "text" = the full-page
+    # chat — fuller, copy-pasteable, plain-text replies.
+    mode: str = Field(default="voice", pattern="^(voice|text)$")
 
 
 async def _profile(session: AsyncSession, founder_id: UUID) -> dict:
@@ -64,7 +67,9 @@ async def cmo_voice_turn(
     profile = await _profile(session, founder.id)
     messages = [{"role": t.role, "content": t.content} for t in body.messages]
     try:
-        reply, _usage = await cmo_reply(socket, profile=profile, messages=messages)
+        reply, _usage = await cmo_reply(
+            socket, profile=profile, messages=messages, mode=body.mode
+        )
     except Exception as exc:  # noqa: BLE001 — a live call must fail soft, with a clear reason
         raise HTTPException(
             status_code=502, detail=f"the CMO couldn't respond right now: {exc}"

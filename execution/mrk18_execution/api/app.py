@@ -336,6 +336,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         app.state.embedding_engine = None
 
     from .analytics import router as analytics_router
+    from .chats import router as chats_router
     from .cmo import router as cmo_router
     from .comments import router as comments_router
     from .knowledge import router as knowledge_router
@@ -355,6 +356,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     app.include_router(analytics_router)
     app.include_router(comments_router)
     app.include_router(cmo_router)
+    app.include_router(chats_router)
     app.include_router(webhooks_router)
 
     # CORS — added last so it's the OUTERMOST middleware (handles browser

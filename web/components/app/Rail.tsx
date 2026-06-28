@@ -4,12 +4,37 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, LayoutDashboard, PenTool } from "lucide-react";
+import {
+  ChevronsLeft,
+  ChevronsRight,
+  Crown,
+  LayoutDashboard,
+  type LucideIcon,
+  MessageSquare,
+  Plus,
+  Users,
+} from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 
-const SECTIONS = [
-  { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/cowork", label: "Cowork", icon: PenTool, exact: false },
+type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; badge?: string };
+
+// CHIEF sits at the top with its own elevated treatment; Chat + Comrk beneath it,
+// and Dashboard pinned to the bottom of the rail.
+const TOP: NavItem[] = [
+  { href: "/chat", label: "Chat", icon: MessageSquare, exact: false },
+  { href: "/cowork", label: "Comrk", icon: Users, exact: false, badge: "1" },
+];
+const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true };
+
+// Per-tab session lists. Placeholder rows for now — they populate for real once
+// chat / run history is wired; today they show the rail's shape under each tab.
+type Recent = { id: string; title: string };
+
+// Comrk's list is still placeholder (run history comes later); the Chat tab's
+// list is fetched live from /api/chats in the component below.
+const COMRK_RECENTS: Recent[] = [
+  { id: "r1", title: "Cofounder.co · full run" },
+  { id: "r2", title: "Cofounder.co · re-run" },
 ];
 
 type Workspace = { name: string; initial: string };
@@ -43,6 +68,62 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const userLabel =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
 
+  // Which tab's list is showing. Comrk when on a cowork route, Chat otherwise.
+  const activeTab = pathname.startsWith("/cowork") ? "/cowork" : "/chat";
+
+  // The Chat tab's Recents are real, saved chats — fetched live and refreshed
+  // whenever a chat is created/updated (ChatClient fires "mrk18:chats-changed").
+  const [chats, setChats] = useState<Recent[]>([]);
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      fetch("/api/chats", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => {
+          if (active && Array.isArray(d)) setChats(d as Recent[]);
+        })
+        .catch(() => {});
+    };
+    load();
+    const onChange = () => load();
+    window.addEventListener("mrk18:chats-changed", onChange);
+    return () => {
+      active = false;
+      window.removeEventListener("mrk18:chats-changed", onChange);
+    };
+  }, []);
+  const recents = activeTab === "/cowork" ? COMRK_RECENTS : chats;
+
+  const renderRow = (item: NavItem) => {
+    const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={item.label}
+        aria-current={active ? "page" : undefined}
+        className={`group relative flex items-center rounded-xl transition-colors duration-200 ${
+          collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
+        } ${active ? "bg-molten/10 text-molten" : "text-mute-2 hover:bg-surface hover:text-ink"}`}
+      >
+        {active && (
+          <span aria-hidden className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r bg-gradient-to-b from-molten to-ember" />
+        )}
+        <Icon size={18} strokeWidth={active ? 2.4 : 2} aria-hidden />
+        {!collapsed && <span className="flex-1 text-[13.5px] font-semibold">{item.label}</span>}
+        {!collapsed && item.badge && (
+          <span className="rounded-full border border-amber/30 bg-amber/10 px-2 py-0.5 text-[11px] font-bold text-amber">
+            {item.badge}
+          </span>
+        )}
+        {collapsed && item.badge && (
+          <span aria-hidden className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber" />
+        )}
+      </Link>
+    );
+  };
+
   return (
     <aside className="flex h-full w-full flex-col border-r border-line bg-[var(--sidebar)] py-3">
       {/* header — logo (+ wordmark) and collapse toggle */}
@@ -61,28 +142,104 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         </button>
       </div>
 
-      {/* nav — Dashboard / Cowork at the top */}
-      <nav className={`flex flex-1 flex-col gap-1 ${collapsed ? "items-center" : "px-2"}`}>
-        {SECTIONS.map(({ href, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === href : pathname.startsWith(href);
-          return (
+      {/* nav — CHIEF header, then the active tab's list (Chat / Comrk), Dashboard pinned bottom */}
+      <nav className={`flex min-h-0 flex-1 flex-col ${collapsed ? "items-center gap-1" : "px-2"}`}>
+        {/* CHIEF — elevated command-center entry */}
+        <Link
+          href="/chief"
+          title="CHIEF"
+          aria-current={pathname.startsWith("/chief") ? "page" : undefined}
+          className={`group relative rounded-xl border transition-colors duration-200 ${
+            collapsed ? "grid h-11 w-11 place-items-center" : "block px-3.5 py-3"
+          } ${
+            pathname.startsWith("/chief")
+              ? "border-molten/40 bg-molten/[0.08]"
+              : "border-line bg-surface hover:border-molten/40"
+          }`}
+        >
+          {!collapsed && (
+            <span aria-hidden className="absolute inset-x-3.5 top-0 h-[2.5px] rounded-full bg-gradient-to-r from-molten to-ember" />
+          )}
+          {collapsed ? (
+            <Crown size={18} className="text-molten" aria-hidden />
+          ) : (
+            <span className="flex items-center gap-2.5">
+              <Crown size={17} className="text-molten" aria-hidden />
+              <span className="text-[16px] font-extrabold tracking-wide text-ink">CHIEF</span>
+            </span>
+          )}
+        </Link>
+
+        {collapsed ? (
+          /* collapsed — icon-only nav */
+          <>
+            <div aria-hidden className="my-1.5 w-6 self-center border-t border-line" />
+            {TOP.map(renderRow)}
+            <div className="flex-1" />
+            <div aria-hidden className="my-1.5 w-6 self-center border-t border-line" />
+            {renderRow(BOTTOM)}
+          </>
+        ) : (
+          /* expanded — Chat / Comrk tabs + the active tab's session list */
+          <>
+            <div className="mt-3 flex gap-1 rounded-xl border border-line bg-surface p-1">
+              {TOP.map((t) => {
+                const on = activeTab === t.href;
+                const Icon = t.icon;
+                return (
+                  <Link
+                    key={t.href}
+                    href={t.href}
+                    aria-current={on ? "page" : undefined}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12.5px] font-semibold transition-colors ${
+                      on ? "bg-molten/10 text-molten" : "text-mute-2 hover:text-ink"
+                    }`}
+                  >
+                    <Icon size={15} aria-hidden />
+                    {t.label}
+                    {t.badge && (
+                      <span className="ml-0.5 rounded-full bg-amber/15 px-1.5 text-[10px] font-bold text-amber">
+                        {t.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
             <Link
-              key={href}
-              href={href}
-              title={label}
-              aria-current={active ? "page" : undefined}
-              className={`group relative flex items-center rounded-xl transition-colors duration-200 ${
-                collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
-              } ${active ? "bg-molten/10 text-molten" : "text-mute-2 hover:bg-surface hover:text-ink"}`}
+              href={activeTab}
+              className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-molten/40"
             >
-              {active && (
-                <span aria-hidden className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r bg-gradient-to-b from-molten to-ember" />
-              )}
-              <Icon size={18} strokeWidth={active ? 2.4 : 2} aria-hidden />
-              {!collapsed && <span className="text-[13.5px] font-semibold">{label}</span>}
+              <Plus size={15} className="text-molten" aria-hidden />
+              New {activeTab === "/cowork" ? "run" : "chat"}
             </Link>
-          );
-        })}
+
+            <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">Recents</p>
+            <div className="dash-scroll mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
+              {recents.length === 0 ? (
+                <p className="px-2.5 py-2 text-[12.5px] text-mute-2">
+                  {activeTab === "/cowork" ? "No runs yet." : "No chats yet."}
+                </p>
+              ) : (
+                recents.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={activeTab === "/cowork" ? "/cowork" : `/chat?id=${r.id}`}
+                    title={r.title}
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-mute transition-colors hover:bg-surface hover:text-ink"
+                  >
+                    <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full border border-line" />
+                    <span className="truncate">{r.title}</span>
+                  </Link>
+                ))
+              )}
+            </div>
+
+            <div aria-hidden className="mx-1 my-2 border-t border-line" />
+            {renderRow(BOTTOM)}
+          </>
+        )}
       </nav>
 
       {/* footer — one clean block: avatar + workspace (company) + your name */}

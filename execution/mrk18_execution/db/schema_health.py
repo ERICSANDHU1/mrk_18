@@ -17,6 +17,7 @@ EXPECTED_COLUMNS = [
     ("content_items", "media"),  # generated images
     ("connected_accounts", "token_ciphertext"),  # token vault
     ("knowledge_chunks", "embedding"),  # company brain
+    ("chat_sessions", "messages"),  # saved CMO chats (Recents)
 ]
 
 

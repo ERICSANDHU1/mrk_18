@@ -18,10 +18,11 @@ export async function POST(req: Request) {
   if (messages.length === 0) {
     return NextResponse.json({ error: "no messages" }, { status: 400 });
   }
+  const mode = body?.mode === "text" ? "text" : "voice";
 
   const res = await backendFetch(`/founders/${founderId}/cmo/voice`, {
     method: "POST",
-    body: JSON.stringify({ messages: messages.slice(-40) }),
+    body: JSON.stringify({ messages: messages.slice(-40), mode }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
