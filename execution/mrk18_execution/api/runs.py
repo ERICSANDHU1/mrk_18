@@ -343,6 +343,41 @@ async def decide_gate1(
     return {"run_id": str(run_id), "status": "resuming", "decision": body.action}
 
 
+class RefineBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    section: Literal["market_intel", "audience", "strategy", "usp", "verdict"]
+    prompt: str = Field(min_length=1, max_length=1000)
+
+
+@router.post("/runs/{run_id}/refine", status_code=202, response_model=dict)
+async def refine_run(
+    run_id: UUID,
+    body: RefineBody,
+    request: Request,
+    run: RunRow = Depends(run_scope),  # owner check + RLS
+) -> dict:
+    """Per-slide Edit at Gate 1: re-run exactly ONE agent with the founder's tweak and
+    patch just that section of the report — no full re-run. Returns 202; the open review
+    re-renders on its next poll. Only while awaiting Gate 1 — once content is generating
+    the report is frozen (409)."""
+    if run.status != "awaiting_gate1":
+        raise HTTPException(
+            status_code=409,
+            detail=f"editing is only available while reviewing at Gate 1 (status: {run.status})",
+        )
+    graph = _graph_or_503(request)
+    socket = getattr(request.app.state, "llm_socket", None)
+    if socket is None:
+        raise HTTPException(status_code=503, detail="analysis pipeline not configured")
+    factory = request.app.state.session_factory
+    _spawn(
+        request,
+        lifecycle.refine_run_section(graph, socket, factory, run_id, body.section, body.prompt),
+    )
+    return {"run_id": str(run_id), "status": "refining", "section": body.section}
+
+
 @router.post("/runs/{run_id}/gate2", status_code=202, response_model=dict)
 async def decide_gate2(
     run_id: UUID,

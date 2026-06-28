@@ -3,7 +3,8 @@ just restate the summary or each other are dropped. This is the fix for the
 "HIGH means nothing and the cards repeat the summary" problem.
 """
 
-from mrk18_execution.agents.analysis import _derive_confidence, _ground_section
+from mrk18_execution.agents.analysis import _derive_confidence, _ground_section, refine_section
+from mrk18_execution.llm.socket import AgentRole, Usage
 from mrk18_execution.schemas.enums import Confidence
 from mrk18_execution.schemas.report import Claim, ReportSection
 
@@ -68,6 +69,39 @@ def test_claim_that_echoes_the_summary_is_dropped():
     out = _ground(sec)
     assert len(out.claims) == 1  # the echo of the summary was removed
     assert "weekly founder-pov" in out.claims[0].text.lower()  # the distinct claim survives
+
+
+class _RefineStub:
+    """A socket that records nothing but returns a fixed revise (prose + structured)."""
+
+    async def chat(self, role, system, messages, *, max_tokens=220, temperature=0.6):
+        return ("Revised analysis prose.", Usage(role.value, "m", 100, 50))
+
+    async def complete(self, role, system, user, schema, max_validation_retries=2):
+        return (
+            ReportSection.model_validate(
+                {"summary": "Revised.", "claims": [
+                    {"text": "Rivals price at a premium.", "source": "web", "confidence": "low"},
+                ]}
+            ),
+            Usage(role.value, "m", 80, 40),
+        )
+
+
+async def test_refine_section_revises_and_keeps_web_grounding():
+    # the prior section had a web-sourced claim, so the refine should INFER that web
+    # grounding existed and keep the revised web claim HIGH (not downgrade it).
+    prior = {"summary": "old", "claims": [{"text": "A web fact.", "source": "web", "confidence": "high"}]}
+    out, usage = await refine_section(_RefineStub(), AgentRole.MARKET_INTEL, PROFILE, prior, "add a number")
+    assert out.claims[0].confidence == Confidence.HIGH
+    assert usage.tokens_in == 180  # both passes folded into one metered line
+
+
+async def test_refine_section_downgrades_web_when_prior_had_none():
+    # prior had only an intake claim → no web grounding inferred → a fresh web claim is LOW
+    prior = {"summary": "old", "claims": [{"text": "From intake.", "source": "intake:icp", "confidence": "high"}]}
+    out, _ = await refine_section(_RefineStub(), AgentRole.MARKET_INTEL, PROFILE, prior, "tighten it")
+    assert out.claims[0].confidence == Confidence.LOW
 
 
 def test_a_section_is_never_left_empty():

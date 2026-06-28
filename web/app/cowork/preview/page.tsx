@@ -117,6 +117,7 @@ export default function PreviewPage() {
     <>
       <ReportStory
         report={SAMPLE}
+        runId="preview"
         submitting={false}
         flagging={flagging}
         flagText={flagText}

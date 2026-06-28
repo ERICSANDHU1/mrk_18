@@ -92,6 +92,7 @@ export default function RunFlow({ runId }: { runId: string }) {
     return (
       <ReportStory
         report={run.report}
+        runId={runId}
         submitting={submitting}
         flagging={flagging}
         flagText={flagText}

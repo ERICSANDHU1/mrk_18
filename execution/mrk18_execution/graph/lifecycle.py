@@ -547,6 +547,108 @@ async def resume_gate1(
         await fail_run(session_factory, run_id, exc)
 
 
+async def refine_run_section(
+    graph, socket, session_factory: async_sessionmaker, run_id: UUID, section: str, prompt: str
+) -> None:
+    """Per-slide Edit at Gate 1: re-run exactly ONE agent with the founder's tweak and
+    patch just that section of the stored report — no graph replay, no other agents.
+
+    The persisted report uses different keys than the live agents, so we translate
+    explicitly: market_intel->market_intel, audience->audience_positioning,
+    strategy->content_strategy, usp->usp_positioning, verdict->synthesis. Only valid
+    while awaiting_gate1 (the report is mutable there); a refine that races past the
+    gate stands down. A refine failure logs — it never fails the whole run.
+    """
+    from dataclasses import asdict
+
+    from ..agents.analysis import refine_section as _refine
+    from ..agents.analysis import run_synthesis
+    from ..llm.socket import AgentRole
+
+    field_of = {
+        "market_intel": "market_intel",
+        "audience": "audience_positioning",
+        "strategy": "content_strategy",
+        "usp": "usp_positioning",
+    }
+    role_of = {
+        "market_intel": AgentRole.MARKET_INTEL,
+        "audience": AgentRole.AUDIENCE,
+        "strategy": AgentRole.STRATEGY,
+        "usp": AgentRole.USP,
+    }
+    try:
+        async with session_factory() as probe:  # owner for RLS scoping
+            prow = await probe.get(RunRow, run_id)
+            if prow is None:
+                raise LookupError("run not found")
+            founder_id = prow.founder_id
+        profile = await _load_profile(session_factory, founder_id)
+
+        # read the current report under lock; refuse if the gate already passed
+        async with tenant_session(session_factory, founder_id) as session:
+            row = await _lock_run(session, run_id)
+            if row is None or row.status != "awaiting_gate1":
+                log.info("refine skipped for run %s (status %s)", run_id, getattr(row, "status", None))
+                return
+            report = dict(row.report or {})
+
+        # the LLM work — outside the lock (it's the slow part, ~20-30s)
+        if section == "verdict":
+            sections = {
+                "market_intel": report["market_intel"],
+                "audience": report["audience_positioning"],
+                "strategy": report["content_strategy"],
+            }
+            if report.get("usp_positioning"):
+                sections["usp"] = report["usp_positioning"]
+            out, usage = await run_synthesis(socket, profile, sections, [], edit_prompt=prompt)
+            report["synthesis"] = out.synthesis
+        else:
+            prior = report.get(field_of[section])
+            if not prior:
+                return
+            out, usage = await _refine(socket, role_of[section], profile, prior, prompt)
+            report[field_of[section]] = out.model_dump(mode="json")
+
+        # keep the graph's checkpoint in sync so post-approval content uses the EDITED report
+        try:
+            await graph.aupdate_state(
+                {"configurable": {"thread_id": str(run_id)}}, {"report": report}
+            )
+        except Exception:  # noqa: BLE001 — the display patch below still applies
+            log.warning("refine: graph state update skipped for run %s", run_id)
+
+        # re-check under lock, patch the DB report (+ the gate payload), meter, audit
+        async with tenant_session(session_factory, founder_id) as session:
+            row = await _lock_run(session, run_id)
+            if row is None or row.status != "awaiting_gate1":
+                return
+            row.report = report
+            if isinstance(row.gate1, dict) and isinstance(row.gate1.get("payload"), dict):
+                gate1 = dict(row.gate1)
+                gate1["payload"] = {**gate1["payload"], "report": report}
+                row.gate1 = gate1
+            tin, tout, inr = _totals([asdict(usage)])
+            row.tokens_in += tin
+            row.tokens_out += tout
+            row.cost_inr = float(row.cost_inr) + inr
+            await record(
+                session,
+                event_type=AuditEventType.AGENT_ACTION,
+                agent_id="founder",
+                founder_id=founder_id,
+                run_id=run_id,
+                outcome="analysis_refined",
+                detail={"section": section, "edit_prompt": prompt[:500]},
+            )
+            await session.commit()
+    except LookupError:
+        raise
+    except Exception:  # noqa: BLE001 — a refine must never fail the whole run
+        log.exception("refine_run_section failed for run %s", run_id)
+
+
 async def resume_gate2(
     graph,
     session_factory: async_sessionmaker,

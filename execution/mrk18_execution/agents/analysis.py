@@ -440,6 +440,7 @@ async def run_synthesis(
     company_knowledge: str | None = None,
     web_research: str | None = None,
     experience: str | None = None,
+    edit_prompt: str | None = None,
 ) -> tuple[SynthesisOut, Usage]:
     # The Verdict IS prose — the personality adapter's native output. One pass, in its
     # EXACT trained voice (system == training prompt); the merge task rides in the user
@@ -460,6 +461,11 @@ async def run_synthesis(
         "analyses give one. Do NOT restate their inputs. No ellipses, no 'this changes "
         "everything', no wind-up. End on the decision."
     )
+    if edit_prompt:  # per-slide Edit: the founder's tweak rides in the user turn
+        task += (
+            f' The founder asked you to revise this verdict: "{edit_prompt}". Apply their '
+            "request exactly, keeping it grounded in the analyses above."
+        )
     user = (
         f"{_profile_brief(profile, founder_flags, performance_memo, company_knowledge, web_research, experience)}\n\n"
         f"MARKET INTEL:\n{json.dumps(sections['market_intel'], ensure_ascii=False)}\n\n"
@@ -475,3 +481,49 @@ async def run_synthesis(
         temperature=0.5,
     )
     return SynthesisOut(synthesis=verdict.strip() or "No verdict produced."), usage
+
+
+async def refine_section(
+    socket: LLMSocket,
+    role: AgentRole,
+    profile: dict,
+    prior_section: dict,
+    edit_prompt: str,
+) -> tuple[ReportSection, Usage]:
+    """Per-slide Edit: re-run ONE analysis agent to REVISE its existing section per the
+    founder's tweak — no graph replay, no web re-fetch. Grounding flags are inferred from
+    the prior section's sources, so already web/experience-grounded claims keep their
+    earned confidence on the revise."""
+    from ..security.manifests import require_permission
+
+    require_permission(f"agent:{role.value}", "llm:complete")
+    brief = _profile_brief(profile, [])
+    user = (
+        f"{brief}\n\n{SEAT_FOCUS[role]}\n\n"
+        f"Your CURRENT analysis for this founder (JSON):\n{json.dumps(prior_section, ensure_ascii=False)}\n\n"
+        f'The founder asked you to revise it: "{edit_prompt}"\n'
+        "Produce the REVISED analysis — keep what is still right, apply their request, and stay "
+        f"grounded in the same evidence. {_DISCIPLINE}"
+    )
+    prose, u_prose = await socket.chat(
+        role, TRAINING_PROMPTS[role], [{"role": "user", "content": user}],
+        max_tokens=1600, temperature=0.4,
+    )
+    section, u_struct = await socket.complete(
+        AgentRole.STRUCTURE,
+        STRUCTURE_SYSTEM,
+        f"ANALYSIS TO STRUCTURE:\n{prose}\n\nEVIDENCE AVAILABLE (for assigning sources):\n{brief}",
+        ReportSection,
+    )
+    prior_sources = {(c.get("source") or "").strip().lower() for c in prior_section.get("claims", [])}
+    had_web = any(s == "web" or s.startswith(("http", "www.", "web:")) for s in prior_sources)
+    had_exp = any(s.startswith(("experience", "case", "dataset", "precedent")) for s in prior_sources)
+    grounded = _ground_section(
+        section,
+        profile=profile,
+        web_research="prior" if had_web else None,
+        experience="prior" if had_exp else None,
+        company_knowledge=None,
+        performance_memo=None,
+    )
+    return grounded, _sum_usage(role, u_prose, u_struct)

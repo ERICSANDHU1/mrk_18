@@ -11,7 +11,9 @@ import {
   ChevronRight,
   Flag,
   Gem,
+  Loader2,
   type LucideIcon,
+  Pencil,
   Square,
   Target,
   TrendingUp,
@@ -44,8 +46,18 @@ const CONF: Record<Conf, { label: string; cls: string }> = {
 
 type Slide =
   | { kind: "verdict" }
-  | { kind: "section"; n: number; title: string; icon: LucideIcon; section: Section }
+  | { kind: "section"; n: number; title: string; icon: LucideIcon; section: Section; apiSection: string }
   | { kind: "decision" };
+
+type EditorProps = {
+  open: boolean;
+  pending: boolean;
+  text: string;
+  onText: (v: string) => void;
+  onOpen: () => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+};
 
 type Decision = {
   submitting: boolean;
@@ -82,7 +94,59 @@ function ExplainButton({ narrator, text, id }: { narrator: Narrator; text: strin
   );
 }
 
-export default function ReportStory({ report, ...decision }: { report: Report } & Decision) {
+/** Per-slide Edit — opens a small prompt; on Apply only THIS section re-runs. */
+function EditAffordance({ editor, what }: { editor: EditorProps; what: string }) {
+  if (editor.pending) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3.5 py-1.5 text-[12px] font-semibold text-mute">
+        <Loader2 size={12} className="animate-spin" aria-hidden /> Revising…
+      </span>
+    );
+  }
+  if (!editor.open) {
+    return (
+      <button
+        type="button"
+        onClick={editor.onOpen}
+        className="inline-flex items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-[12px] font-semibold text-mute transition hover:border-molten/30 hover:text-ink"
+      >
+        <Pencil size={12} aria-hidden /> Edit
+      </button>
+    );
+  }
+  return (
+    <div className="mt-2 w-full max-w-xl text-left">
+      <textarea
+        value={editor.text}
+        onChange={(e) => editor.onText(e.target.value)}
+        rows={2}
+        autoFocus
+        placeholder={`Ask your CMO to change this ${what} — e.g. "make it shorter", "add a number", "what about pricing?"`}
+        className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3 text-[13px] leading-relaxed text-ink focus:border-molten/40 focus:outline-none"
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={editor.onSubmit}
+          disabled={!editor.text.trim()}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2 text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+        >
+          <Check size={13} aria-hidden /> Apply
+        </button>
+        <button type="button" onClick={editor.onCancel} className="rounded-lg px-3 py-2 text-[12px] font-semibold text-mute-2 hover:text-ink">
+          Cancel
+        </button>
+        <span className="text-[11px] text-mute-2">only this section re-runs (~20–30s)</span>
+      </div>
+    </div>
+  );
+}
+
+export default function ReportStory({
+  report,
+  runId,
+  ...decision
+}: { report: Report; runId: string } & Decision) {
   const reduce = useReducedMotion();
   const narrator = useNarrator();
   const { narrate, stop } = narrator;
@@ -95,17 +159,79 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
     [narrate],
   );
 
+  // ── Per-slide Edit: tweak one section; only that agent re-runs (~20-30s) ──────
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [pending, setPending] = useState<Record<string, string>>({});
+
+  // clear the "Revising…" badge once the refined content lands (its summary changed)
+  useEffect(() => {
+    setPending((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const cur: Record<string, string | undefined> = {
+        market_intel: report.market_intel?.summary,
+        audience: report.audience_positioning?.summary,
+        usp: report.usp_positioning?.summary,
+        verdict: report.synthesis,
+      };
+      const next = { ...prev };
+      let changed = false;
+      for (const k of keys) {
+        if (cur[k] !== undefined && cur[k] !== prev[k]) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [report]);
+
+  const submitEdit = useCallback(
+    async (apiSection: string, baseline: string) => {
+      const prompt = editText.trim();
+      if (!prompt) return;
+      setEditingSection(null);
+      setEditText("");
+      stop();
+      setPending((p) => ({ ...p, [apiSection]: baseline }));
+      await fetch(`/api/runs/${runId}/refine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: apiSection, prompt }),
+      }).catch(() => {});
+    },
+    [editText, runId, stop],
+  );
+
+  const editorFor = (apiSection: string, baseline: string): EditorProps => ({
+    open: editingSection === apiSection,
+    pending: apiSection in pending,
+    text: editText,
+    onText: setEditText,
+    onOpen: () => {
+      stop();
+      setEditingSection(apiSection);
+      setEditText("");
+    },
+    onCancel: () => {
+      setEditingSection(null);
+      setEditText("");
+    },
+    onSubmit: () => submitEdit(apiSection, baseline),
+  });
+
   const slides: Slide[] = useMemo(() => {
     // Gate 1 reviews the INTELLIGENCE only (market intel, audience, USP) + the verdict.
     // Content Strategy is still computed (it feeds the verdict) but shown AFTER approval,
     // as the lead-in to the content phase — not in this pre-gate review.
     const out: Slide[] = [
       { kind: "verdict" },
-      { kind: "section", n: 1, title: "Market Intelligence", icon: TrendingUp, section: report.market_intel },
-      { kind: "section", n: 2, title: "Audience & Positioning", icon: Target, section: report.audience_positioning },
+      { kind: "section", n: 1, title: "Market Intelligence", icon: TrendingUp, section: report.market_intel, apiSection: "market_intel" },
+      { kind: "section", n: 2, title: "Audience & Positioning", icon: Target, section: report.audience_positioning, apiSection: "audience" },
     ];
     if (report.usp_positioning) {
-      out.push({ kind: "section", n: 3, title: "USP & Differentiation", icon: Gem, section: report.usp_positioning });
+      out.push({ kind: "section", n: 3, title: "USP & Differentiation", icon: Gem, section: report.usp_positioning, apiSection: "usp" });
     }
     out.push({ kind: "decision" });
     return out;
@@ -197,9 +323,11 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
             className="absolute inset-0"
           >
             {slide.kind === "verdict" && (
-              <VerdictSlide synthesis={report.synthesis} flags={report.founder_flags} narrator={narrator} onTermTap={onTermTap} />
+              <VerdictSlide synthesis={report.synthesis} flags={report.founder_flags} narrator={narrator} onTermTap={onTermTap} editor={editorFor("verdict", report.synthesis)} />
             )}
-            {slide.kind === "section" && <SectionSlide slide={slide} narrator={narrator} onTermTap={onTermTap} />}
+            {slide.kind === "section" && (
+              <SectionSlide slide={slide} narrator={narrator} onTermTap={onTermTap} editor={editorFor(slide.apiSection, slide.section.summary)} />
+            )}
             {slide.kind === "decision" && <DecisionSlide {...decision} />}
           </motion.div>
         </AnimatePresence>
@@ -276,7 +404,7 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
   );
 }
 
-function VerdictSlide({ synthesis, flags, narrator, onTermTap }: { synthesis: string; flags: string[]; narrator: Narrator; onTermTap: TermTap }) {
+function VerdictSlide({ synthesis, flags, narrator, onTermTap, editor }: { synthesis: string; flags: string[]; narrator: Narrator; onTermTap: TermTap; editor: EditorProps }) {
   return (
     <div className="dash-scroll flex h-full w-full items-center justify-center overflow-y-auto px-6 py-10">
       <motion.div
@@ -289,8 +417,9 @@ function VerdictSlide({ synthesis, flags, narrator, onTermTap }: { synthesis: st
           <Brain size={13} aria-hidden /> MRK18 · Your CMO
         </p>
         <h1 className="font-display mt-5 text-[40px] leading-[1.04] sm:text-[56px]">The Verdict</h1>
-        <div className="mt-4 flex justify-center">
+        <div className="mt-4 flex flex-wrap items-start justify-center gap-2">
           <ExplainButton narrator={narrator} text={synthesis} id="verdict" />
+          <EditAffordance editor={editor} what="verdict" />
         </div>
         <p className="mt-5 whitespace-pre-line text-left text-[15px] leading-relaxed text-ink/90 sm:text-[17px]">
           <TermText id="verdict" text={synthesis} narrator={narrator} onTermTap={onTermTap} />
@@ -305,7 +434,7 @@ function VerdictSlide({ synthesis, flags, narrator, onTermTap }: { synthesis: st
   );
 }
 
-function SectionSlide({ slide, narrator, onTermTap }: { slide: Extract<Slide, { kind: "section" }>; narrator: Narrator; onTermTap: TermTap }) {
+function SectionSlide({ slide, narrator, onTermTap, editor }: { slide: Extract<Slide, { kind: "section" }>; narrator: Narrator; onTermTap: TermTap; editor: EditorProps }) {
   const Icon = slide.icon;
   const id = `sec-${slide.n}`;
   return (
@@ -326,8 +455,9 @@ function SectionSlide({ slide, narrator, onTermTap }: { slide: Extract<Slide, { 
           </div>
         </motion.div>
 
-        <div className="mt-5">
+        <div className="mt-5 flex flex-wrap items-start gap-2">
           <ExplainButton narrator={narrator} text={slide.section.summary} id={id} />
+          <EditAffordance editor={editor} what="section" />
         </div>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
