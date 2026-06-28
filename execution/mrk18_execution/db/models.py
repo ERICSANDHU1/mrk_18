@@ -13,6 +13,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -127,6 +128,16 @@ class ContentItemRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+    __table_args__ = (
+        # Keep the test schema's allowed formats in lock-step with the Postgres CHECK
+        # (migrations/20260628120000_reel_script_format.sql). A new ContentFormat that
+        # forgets its migration now fails the tests instead of production.
+        CheckConstraint(
+            "format in ('linkedin_post', 'x_single', 'x_thread', 'ig_caption', 'reel_script')",
+            name="content_items_format_check",
+        ),
     )
 
 

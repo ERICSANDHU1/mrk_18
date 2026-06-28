@@ -52,7 +52,7 @@ async def seed_published_post(factory, *, sub=None, hours_ago=2.0, platform="lin
             run_id=run.run_id,
             founder_id=founder.id,
             platform=platform,
-            format=f"{platform}_post",
+            format={"x": "x_thread", "instagram": "ig_caption"}.get(platform, "linkedin_post"),
             body="Bitter truth: reach is rented, email lists are owned.",
             status="exported",
         )
