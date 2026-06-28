@@ -378,6 +378,30 @@ async def refine_run(
     return {"run_id": str(run_id), "status": "refining", "section": body.section}
 
 
+@router.post("/runs/{run_id}/retry", status_code=202, response_model=dict)
+async def retry_run(
+    run_id: UUID,
+    request: Request,
+    run: RunRow = Depends(run_scope),  # owner check + RLS
+) -> dict:
+    """Resume a run that FAILED after Gate-1 approval (content generation/save) without
+    re-running the analysis — the content is already in the checkpoint. 409 if it failed
+    before producing a report (nothing to resume — start fresh)."""
+    if run.status != "failed":
+        raise HTTPException(
+            status_code=409, detail=f"run is not in a failed state (status: {run.status})"
+        )
+    if not run.report:
+        raise HTTPException(
+            status_code=409,
+            detail="this run failed before the analysis finished — please start a fresh run",
+        )
+    graph = _graph_or_503(request)
+    factory = request.app.state.session_factory
+    _spawn(request, lifecycle.retry_failed_run(graph, factory, run_id))
+    return {"run_id": str(run_id), "status": "retrying"}
+
+
 @router.post("/runs/{run_id}/gate2", status_code=202, response_model=dict)
 async def decide_gate2(
     run_id: UUID,

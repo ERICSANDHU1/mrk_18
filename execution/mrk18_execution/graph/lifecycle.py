@@ -663,6 +663,37 @@ async def resume_gate2(
     await _drive(graph, session_factory, run_id, Command(resume=resume_map))
 
 
+async def retry_failed_run(graph, session_factory: async_sessionmaker, run_id: UUID) -> None:
+    """Resume a run that FAILED after Gate-1 approval — during content generation or its
+    DB persist — WITHOUT re-running the analysis. The content already lives in the graph
+    checkpoint (the gate-2 interrupt), so re-driving with a None resume just re-persists it
+    and advances to Gate 2. No LLM call, no RunPod cost. Only valid for a failed run that
+    already produced a report; otherwise the caller is told to start fresh."""
+    try:
+        async with session_factory() as probe:
+            prow = await probe.get(RunRow, run_id)
+            if prow is None:
+                raise LookupError("run not found")
+            founder_id = prow.founder_id
+        async with tenant_session(session_factory, founder_id) as session:
+            row = await _lock_run(session, run_id)
+            if row is None:
+                raise LookupError("run not found")
+            if row.status != "failed" or not row.report:
+                log.info("retry skipped for run %s (status %s, report %s)", run_id, getattr(row, "status", None), bool(getattr(row, "report", None)))
+                return
+            row.status = "generating_content"  # transient — _drive sets the real next status
+            row.error = None
+            row.finished_at = None
+            await session.commit()
+        await _drive(graph, session_factory, run_id, None)
+    except LookupError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        log.exception("retry_failed_run failed for run %s", run_id)
+        await fail_run(session_factory, run_id, exc)
+
+
 async def mint_gate2_decisions(
     session_factory: async_sessionmaker,
     run_id: UUID,

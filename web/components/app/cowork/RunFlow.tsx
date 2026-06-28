@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Square, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Loader2, RotateCcw, Square, TriangleAlert } from "lucide-react";
 import Gate2Review from "./Gate2Review";
 import RunDeck from "./RunDeck";
 import ReportStory, { type Report } from "./ReportStory";
@@ -24,12 +24,24 @@ const WORKING_COPY: Record<string, string> = {
   publishing: "Publishing your approved content…",
 };
 
+/** Turn a raw backend error into one calm sentence for the founder. */
+function friendlyError(error: string | null | undefined): string {
+  const e = error ?? "";
+  if (/content_items|CheckViolation|reel_script/i.test(e))
+    return "Your content was generated, but a save step failed. Retrying picks up right where it stopped — no need to run the analysis again.";
+  if (/cost ceiling|cap/i.test(e)) return "This run reached its cost ceiling and stopped.";
+  if (/Cancelled by you/i.test(e)) return "You cancelled this run.";
+  return "Something went wrong during this run.";
+}
+
 export default function RunFlow({ runId }: { runId: string }) {
   const [run, setRun] = useState<RunView | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [flagging, setFlagging] = useState(false);
   const [flagText, setFlagText] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [pollKey, setPollKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -49,7 +61,7 @@ export default function RunFlow({ runId }: { runId: string }) {
       active = false;
       clearTimeout(timeout);
     };
-  }, [runId]);
+  }, [runId, pollKey]);
 
   const decideGate1 = async (action: "approve" | "flag") => {
     const flags =
@@ -81,6 +93,16 @@ export default function RunFlow({ runId }: { runId: string }) {
         ? { ...r, status: "failed", error: "Cancelled by you" }
         : { run_id: runId, status: "failed", cost_inr: 0, tokens_in: 0, tokens_out: 0, report: null, error: "Cancelled by you" },
     );
+  };
+
+  const retry = async () => {
+    setRetrying(true);
+    await fetch(`/api/runs/${runId}/retry`, { method: "POST" }).catch(() => {});
+    setRetrying(false);
+    // optimistic — flip off the terminal 'failed' state and restart the poll loop,
+    // which then picks up the real next phase (Gate 2) within seconds
+    setRun((r) => (r ? { ...r, status: "generating_content", error: null } : r));
+    setPollKey((k) => k + 1);
   };
 
   const status = run?.status ?? "loading";
@@ -165,9 +187,35 @@ export default function RunFlow({ runId }: { runId: string }) {
         <div className="rounded-2xl border border-ember/30 bg-ember/[0.06] p-6 text-center">
           <TriangleAlert size={22} className="mx-auto text-ember" aria-hidden />
           <h1 className="font-display mt-3 text-xl">This run hit a snag</h1>
-          <p className="mt-2 text-[13px] text-mute">
-            {run?.error ?? "Something went wrong."} — start a fresh run from your workspace.
+          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
+            {friendlyError(run?.error)}
           </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            {run?.report && (
+              <button
+                onClick={retry}
+                disabled={retrying}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {retrying ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <RotateCcw size={14} aria-hidden />}
+                Retry from where it stopped
+              </button>
+            )}
+            <Link
+              href="/cowork"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-4 py-2.5 text-[13px] font-semibold text-mute transition-colors hover:text-ink"
+            >
+              Start a fresh run
+            </Link>
+          </div>
+          {run?.error && (
+            <details className="mx-auto mt-4 max-w-md text-left">
+              <summary className="cursor-pointer text-[11px] text-mute-2 hover:text-mute">Technical details</summary>
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-2 p-3 text-[10px] leading-relaxed text-mute-2">
+                {run.error}
+              </pre>
+            </details>
+          )}
         </div>
       )}
     </div>
