@@ -104,7 +104,7 @@ async def test_caps_competitors_at_max():
     profile = {**PROFILE, "top_competitors": ["A", "B", "C", "D", "E"]}
     sr = StubResearcher()
     await gather_market_research(sr, profile, max_competitors=3)
-    assert len(sr.queries) == 4  # 1 brand + 3 competitors
+    assert len(sr.queries) == 5  # 1 brand + 1 market-numbers + 3 competitors
 
 
 async def test_gather_uses_explicit_competitors_over_profile():

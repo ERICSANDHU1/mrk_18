@@ -16,7 +16,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
 from pydantic import BaseModel, Field
 
-from ..agents.analysis import run_analysis_agent, run_synthesis
+from ..agents.analysis import _dedup_across_sections, run_analysis_agent, run_synthesis
 from ..agents.content import IMAGE_FORMATS, PLATFORM_FORMAT, generate_item
 from ..agents.photo_funnel import render_media
 from ..llm.socket import AgentRole, LLMSocket
@@ -140,7 +140,9 @@ def build_analysis_graph(
         return {}
 
     async def synthesize(state: AnalysisState) -> dict:
-        sections = _latest_sections(state)
+        # Cross-section dedup BEFORE the verdict + report: stop the one big idea from
+        # appearing in every section (the "one idea, four hats" tell).
+        sections = _dedup_across_sections(_latest_sections(state))
         synthesis, usage = await run_synthesis(
             socket,
             state["profile"],

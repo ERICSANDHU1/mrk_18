@@ -182,9 +182,23 @@ async def gather_market_research(
         competitors = [c for c in (profile.get("top_competitors") or []) if isinstance(c, str)]
     competitors = [c.strip() for c in competitors if c and c.strip()][:max_competitors]
 
+    desc = (profile.get("product_description") or "").strip()
+    icp = (profile.get("icp") or profile.get("target_customer") or "").strip()
     # (kind, name, query, max_results)
     plan: list[tuple[str, str, str, int]] = [
-        ("brand", company or website, f"{company} {website} India marketing positioning recent news".strip(), 3)
+        ("brand", company or website, f"{company} {website} India marketing positioning recent news".strip(), 3),
+        # Numbers seat — pull real figures so the analysis can quantify instead of staying
+        # bloodless (the #1 "an AI wrote this" tell): market size, ₹ pricing, what the buyer
+        # pays today.
+        (
+            "market",
+            "market",
+            (
+                f"{company} {desc[:80]} India market size, typical pricing in ₹ per month, and "
+                f"what {icp or 'these customers'} currently pay for alternatives — numbers and benchmarks"
+            ).strip(),
+            3,
+        ),
     ]
     for c in competitors:
         plan.append(("competitor", c, f"{c} India product positioning target customers pricing", 2))
@@ -204,7 +218,12 @@ async def gather_market_research(
         body = (res.answer or " ".join(res.snippets[:2])).strip()
         if not body:
             continue
-        label = "Your brand" if kind == "brand" else f"Competitor — {name}"
+        if kind == "brand":
+            label = "Your brand"
+        elif kind == "market":
+            label = "Market & pricing (numbers)"
+        else:
+            label = f"Competitor — {name}"
         blocks.append(f"## {label}\n{_truncate(body, 480)}")
 
     # The founder's OWN website leads the block — it's the most authoritative source
@@ -220,8 +239,11 @@ async def gather_market_research(
     header = (
         "WEB RESEARCH — real, current results retrieved for THIS run; the competitors "
         "below were DISCOVERED via web search (not named by the founder). Ground your "
-        'claims in this and cite anything you use as source "web". You MUST name and '
-        "analyze EACH competitor below — their positioning, who they target, and how "
-        "this founder should differentiate. Do not skip any."
+        'claims in this and cite anything you use as source "web". USE the specific NUMBERS '
+        "in this block (market size, ₹ prices, benchmarks) — quote them in your claims; a "
+        "claim with a real figure beats one without. You MUST name and analyze EACH "
+        "competitor below — their positioning, who they target, and how this founder should "
+        "differentiate — and name the buyer's CURRENT alternative (what they pay for today), "
+        "not only who is NOT a competitor. Do not skip any."
     )
     return header + "\n\n" + "\n\n".join(blocks)

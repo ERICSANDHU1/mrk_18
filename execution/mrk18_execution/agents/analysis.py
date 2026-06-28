@@ -154,9 +154,26 @@ SEAT_FOCUS: dict[AgentRole, str] = {
 STRUCTURE_SYSTEM = (
     "You convert a marketing analysis into a structured JSON report. You add NOTHING — no "
     "new facts, numbers, competitors, or opinions; you only restructure what the analysis "
-    "already says. Produce a tight one-sentence `summary` (the analysis's core thesis), then "
-    "2-6 `claims`, each a DIFFERENT specific point the analysis makes. For each claim set "
-    "`source` per the rules below, using ONLY the evidence block.\n" + SOURCE_RULES
+    "already says. The `summary` is ONE answer-first sentence — the decision or diagnosis "
+    "stated up front, not a wind-up. Then 2-6 `claims`, each a DIFFERENT specific point the "
+    "analysis makes (never a restatement of the summary or another claim). PRESERVE every "
+    "specific number the analysis states (₹, %, prices, counts, market size) inside the claim "
+    "it belongs to; never add a number the analysis did not give. Strip literary filler — no "
+    "ellipses, no 'this changes everything', no rhetorical build-up. Tag a claim `experience` "
+    "ONLY if the REAL CAMPAIGN CASES block actually contains that precedent; otherwise it is "
+    "`model-knowledge`. For each claim set `source` per the rules below, using ONLY the "
+    "evidence block.\n" + SOURCE_RULES
+)
+
+
+# Operator discipline — rides in the USER turn of the prose pass (never the system, so
+# serving == training holds). This is what pushes the adapter toward numbers, named rivals,
+# and answer-first brevity instead of bloodless, hedged thought-leadership.
+_DISCIPLINE = (
+    "Operator discipline: lead with your single-sentence answer. Back claims with SPECIFIC "
+    "numbers that appear in the evidence (₹ amounts, prices, market size, benchmarks, counts) "
+    "— never invent one. Name the buyer's CURRENT alternative and the real rivals, not just "
+    "who is NOT a competitor. No filler, no ellipses, no 'this changes everything'."
 )
 
 
@@ -267,8 +284,64 @@ def _ground_section(
     return section.model_copy(update={"claims": kept[:_MAX_CLAIMS]})
 
 
+_XSEC_T = 0.4  # cross-section overlap (Jaccard) → the same idea wearing two hats.
+# Deliberately lower than the within-section bar (0.55): repeating an idea ACROSS sections
+# is a worse "one thought, five hats" tell than repeating it inside one, so catch looser
+# paraphrases here. Each section still keeps >= 1 claim, so this can only thin, never empty.
+
+
+def _dedup_across_sections(sections: dict[str, dict]) -> dict[str, dict]:
+    """Stop ONE idea from wearing four hats: a claim that already appeared in an earlier
+    section (intelligence first, strategy last) is dropped from the later one, so each
+    section earns its place with a NET-NEW point. Each section keeps at least one claim."""
+    order = ("market_intel", "audience", "usp", "strategy")
+    seen: list[set[str]] = []
+    out: dict[str, dict] = dict(sections)
+    for key in order:
+        sec = sections.get(key)
+        if not sec:
+            continue
+        kept: list[dict] = []
+        for c in sec.get("claims", []):
+            ct = _toks(c.get("text", ""))
+            if ct and any(_jaccard(ct, s) >= _XSEC_T for s in seen):
+                continue  # the same idea already made in an earlier section
+            kept.append(c)
+            if ct:
+                seen.append(ct)
+        if not kept and sec.get("claims"):  # never strip a section to empty
+            first = sec["claims"][0]
+            kept = [first]
+            seen.append(_toks(first.get("text", "")))
+        out[key] = {**sec, "claims": kept}
+    return out
+
+
 class SynthesisOut(BaseModel):
     synthesis: str = Field(min_length=50, description="The CMO's verdict, 150-300 words")
+
+
+_NUMBER_HINTS = (
+    "mrr", "arr", "revenue", "spend", "budget", "price", "pricing", "cac", "ltv", "churn",
+    "users", "customers", "signups", "subscribers", "conversion", "margin", "runway", "burn",
+    "ticket", "aov", "gmv", "orders",
+)
+
+
+def _key_numbers(profile: dict) -> str:
+    """Pull the founder-provided NUMBERS to the front of the brief so the analysis can cite
+    real figures (the no-fabrication rule allows any number that's in the intake). A bloodless,
+    number-free report is the loudest 'an AI wrote this' tell — this is the cheapest fix."""
+    hits: list[str] = []
+    for k, v in (profile or {}).items():
+        if v in (None, "", [], {}):
+            continue
+        kl = str(k).lower()
+        if any(h in kl for h in _NUMBER_HINTS) or isinstance(v, (int, float)):
+            hits.append(f"{k}={v}")
+    if not hits:
+        return ""
+    return "KEY NUMBERS the founder gave (cite as intake:<field>, use them): " + "; ".join(hits)
 
 
 def _profile_brief(
@@ -280,6 +353,8 @@ def _profile_brief(
     experience: str | None = None,
 ) -> str:
     brief = json.dumps(profile, ensure_ascii=False)
+    nums = _key_numbers(profile)
+    nums_block = f"\n\n{nums}" if nums else ""
     flags = (
         "\n\nTHE FOUNDER DISAGREED with the previous analysis on these points — "
         "take them seriously and address each one explicitly:\n- " + "\n- ".join(founder_flags)
@@ -295,7 +370,7 @@ def _profile_brief(
     research = f"\n\n{web_research}" if web_research else ""
     # RAG Tier 1/2 — shared experience base (real campaign cases) to reason FROM
     exp = f"\n\n{experience}" if experience else ""
-    return f"Founder intake (verbatim):\n{brief}{flags}{memo}{knowledge}{research}{exp}"
+    return f"Founder intake (verbatim):\n{brief}{nums_block}{flags}{memo}{knowledge}{research}{exp}"
 
 
 def _sum_usage(role: AgentRole, *usages: Usage) -> Usage:
@@ -332,7 +407,7 @@ async def run_analysis_agent(
     prose, u_prose = await socket.chat(
         role,
         TRAINING_PROMPTS[role],
-        [{"role": "user", "content": f"{brief}\n\n{SEAT_FOCUS[role]}"}],
+        [{"role": "user", "content": f"{brief}\n\n{SEAT_FOCUS[role]}\n\n{_DISCIPLINE}"}],
         max_tokens=1600,
         temperature=0.4,
     )
@@ -378,10 +453,12 @@ async def run_synthesis(
         else ""
     )
     task = (
-        "Below are your team's analyses of this founder. Merge them into ONE verdict: name "
-        "the single most important truth they don't yet see, then COMMIT to the one move for "
-        "THIS week (the offer, the angle, the channel, the thing to stop). Do NOT restate "
-        "their inputs back to them. End on the decision, not a summary."
+        "Below are your team's analyses of this founder. Merge them into ONE verdict in UNDER "
+        "130 words: open with the single most important truth they don't yet see (one "
+        "sentence, answer first), then COMMIT to the one move for THIS week — make it DATED "
+        "and MEASURABLE (e.g. 'ship X by Friday; target Y'), and use a real number where the "
+        "analyses give one. Do NOT restate their inputs. No ellipses, no 'this changes "
+        "everything', no wind-up. End on the decision."
     )
     user = (
         f"{_profile_brief(profile, founder_flags, performance_memo, company_knowledge, web_research, experience)}\n\n"
