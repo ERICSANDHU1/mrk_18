@@ -12,7 +12,6 @@ import {
   Flag,
   Gem,
   type LucideIcon,
-  Sparkles,
   Square,
   Target,
   TrendingUp,
@@ -97,16 +96,17 @@ export default function ReportStory({ report, ...decision }: { report: Report } 
   );
 
   const slides: Slide[] = useMemo(() => {
+    // Gate 1 reviews the INTELLIGENCE only (market intel, audience, USP) + the verdict.
+    // Content Strategy is still computed (it feeds the verdict) but shown AFTER approval,
+    // as the lead-in to the content phase — not in this pre-gate review.
     const out: Slide[] = [
       { kind: "verdict" },
       { kind: "section", n: 1, title: "Market Intelligence", icon: TrendingUp, section: report.market_intel },
       { kind: "section", n: 2, title: "Audience & Positioning", icon: Target, section: report.audience_positioning },
     ];
-    let n = 3;
     if (report.usp_positioning) {
-      out.push({ kind: "section", n: n++, title: "USP & Differentiation", icon: Gem, section: report.usp_positioning });
+      out.push({ kind: "section", n: 3, title: "USP & Differentiation", icon: Gem, section: report.usp_positioning });
     }
-    out.push({ kind: "section", n, title: "Content Strategy", icon: Sparkles, section: report.content_strategy });
     out.push({ kind: "decision" });
     return out;
   }, [report]);
@@ -382,11 +382,15 @@ function DecisionSlide({
         transition={{ duration: 0.4 }}
         className="mx-auto w-full max-w-xl text-center"
       >
-        <p className="font-data text-[11px] uppercase tracking-[0.28em] text-molten">Gate 1 · Your call</p>
-        <h2 className="font-display mt-4 text-[34px] leading-tight sm:text-[42px]">Approve the strategy?</h2>
+        <p className="font-data text-[11px] uppercase tracking-[0.28em] text-molten">
+          Gate 1 · approval needed before content
+        </p>
+        <h2 className="font-display mt-4 text-[34px] leading-tight sm:text-[42px]">Ready to build your content?</h2>
         <p className="mx-auto mt-3 max-w-md text-[14px] leading-relaxed text-mute">
-          Approve and your CMO writes platform-native posts from this. Or flag what&apos;s off and it re-works the
-          analysis.
+          You&apos;ve reviewed the intelligence and your CMO&apos;s verdict.{" "}
+          <span className="font-semibold text-ink">Approving starts the content phase</span> — your CMO turns this
+          into platform-native posts and reel scripts for you to review next. Or flag what&apos;s off and it re-works
+          the analysis first.
         </p>
 
         {flagging ? (

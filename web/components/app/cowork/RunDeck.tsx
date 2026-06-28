@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Gem,
   Image as ImageIcon,
   Loader2,
   MessageSquare,
@@ -90,7 +91,8 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
     if (report?.synthesis) s.push({ kind: "verdict", synthesis: report.synthesis, flags: report.founder_flags ?? [] });
     if (report?.market_intel) s.push({ kind: "section", n: 1, title: "Market Intelligence", icon: TrendingUp, section: report.market_intel });
     if (report?.audience_positioning) s.push({ kind: "section", n: 2, title: "Audience & Positioning", icon: Target, section: report.audience_positioning });
-    if (report?.content_strategy) s.push({ kind: "section", n: 3, title: "Content Strategy", icon: Sparkles, section: report.content_strategy });
+    if (report?.usp_positioning) s.push({ kind: "section", n: 3, title: "USP & Differentiation", icon: Gem, section: report.usp_positioning });
+    if (report?.content_strategy) s.push({ kind: "section", n: 4, title: "Content Strategy", icon: Sparkles, section: report.content_strategy });
     const approved = (items ?? []).filter((it) => APPROVED.includes(it.status));
     approved.forEach((it, i) => {
       s.push({ kind: "post", item: it, index: i + 1, total: approved.length });
