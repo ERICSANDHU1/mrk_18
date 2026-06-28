@@ -45,6 +45,7 @@ _FORMAT_PLATFORM: dict[ContentFormat, Platform] = {
     ContentFormat.X_SINGLE: Platform.X,
     ContentFormat.X_THREAD: Platform.X,
     ContentFormat.IG_CAPTION: Platform.INSTAGRAM,
+    ContentFormat.REEL_SCRIPT: Platform.INSTAGRAM,  # Reels/Shorts live here; the script is universal
 }
 
 
@@ -86,6 +87,12 @@ class ContentItem(BaseModel):
             raise ValueError(
                 f"format {self.format.value} does not belong to platform {self.platform.value}"
             )
+        # A reel/short SCRIPT is a video shot-list, not a platform caption — the post-body,
+        # thread, link, hashtag and media rules below don't apply. Require a body only.
+        if self.format == ContentFormat.REEL_SCRIPT:
+            if self.thread is not None:
+                raise ValueError("a reel script carries no thread")
+            return self
         c = PLATFORM_CONSTRAINTS[self.platform]
         # 2. Thread rules.
         if self.format == ContentFormat.X_THREAD:

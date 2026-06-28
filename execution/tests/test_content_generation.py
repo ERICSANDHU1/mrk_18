@@ -103,8 +103,9 @@ async def test_items_generated_per_platform_and_persisted(ctx):
             .scalars()
             .all()
         )
-    assert {r.platform for r in rows} == {"linkedin", "x", "instagram"}
-    by_platform = {r.platform: r for r in rows}
+    posts = [r for r in rows if r.format != "reel_script"]
+    assert {r.platform for r in posts} == {"linkedin", "x", "instagram"}
+    by_platform = {r.platform: r for r in posts}
 
     # X: thread format, every segment <= 280, NO media (text-first pilot rule)
     x = by_platform["x"]
@@ -119,6 +120,10 @@ async def test_items_generated_per_platform_and_persisted(ctx):
         assert media[0]["mime"] == "image/jpeg"
         assert media[0]["url"].startswith("https://fake.storage/")
         assert media[0]["width"] == 1080 and media[0]["height"] == 1080
+
+    # Instagram targeted → exactly one Reel/Short script, no media (it's a shot list)
+    reels = [r for r in rows if r.format == "reel_script"]
+    assert len(reels) == 1 and reels[0].platform == "instagram" and reels[0].media == []
 
     # approved at gate 2 (per-item decisions in run_to_done)
     assert all(r.status == "approved" for r in rows)

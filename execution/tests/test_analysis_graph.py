@@ -78,10 +78,11 @@ class FakeSocket:
         # Prose pass — analysis agents speak in their trained voice, the verdict IS prose.
         self.calls[role.value] += 1
         usage = Usage(role.value, "openai/gpt-oss-120b", 800, 400)
+        # Number-free so the reel's fabrication guard (check_content) passes on this body.
         text = (
-            "Bitter truth: your positioning is muddy and you're paying for it. Target "
-            "facility managers in Tier-1 tech parks and lead with a 14-day pilot, not a "
-            "discount. Do this first: ship three founder-POV posts this week."
+            "Hook: stop guessing what your buyer wants and show them you already get it. "
+            "Then prove it with one real customer story, on camera, in your own words. "
+            "CTA: follow for the founder marketing playbook."
         )
         return text, usage
 
@@ -169,8 +170,9 @@ async def test_full_run_pauses_at_gate_then_approve_completes(ctx):
     async with factory() as session:
         row = await session.get(RunRow, run.run_id)
     assert row.status == "awaiting_gate2"  # generation done → items at the gate
-    assert socket.calls["content"] == 3  # one generator per target platform
-    assert len(row.gate2["payload"]["items"]) == 3
+    assert socket.calls["content"] == 3  # one post generator per target platform
+    assert socket.calls["script"] == 1  # plus one Reel/Short script
+    assert len(row.gate2["payload"]["items"]) == 4  # 3 posts + 1 reel
 
     await approve_all_gate2(factory, graph, run.run_id)
 
@@ -238,7 +240,7 @@ async def test_audit_trail_of_a_run(ctx):
     assert "gate1_report_review_reached" in outcomes
     assert "gate1_approve" in outcomes
     assert "gate2_items_review_reached" in outcomes
-    assert outcomes.count("gate2_item_approved") == 3  # one event per item, no bulk
+    assert outcomes.count("gate2_item_approved") == 4  # one event per item (3 posts + 1 reel), no bulk
     assert "analysis_run_completed" in outcomes
 
 

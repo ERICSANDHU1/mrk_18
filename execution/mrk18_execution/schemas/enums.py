@@ -19,6 +19,7 @@ class ContentFormat(str, Enum):
     X_SINGLE = "x_single"
     X_THREAD = "x_thread"
     IG_CAPTION = "ig_caption"
+    REEL_SCRIPT = "reel_script"  # short-form VIDEO script (Reels/Shorts) — the script adapter
 
 
 class ContentStatus(str, Enum):

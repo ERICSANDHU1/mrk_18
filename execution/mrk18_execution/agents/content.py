@@ -234,3 +234,102 @@ async def generate_item(
             f"and regenerate:\n{last_error}"
         )
     raise RuntimeError(f"content generation failed rules/guardrails twice: {last_error}")
+
+
+# The script adapter's EXACT training prompt (serving == training) — a prose
+# scriptwriter, so it answers via socket.chat (no JSON schema), and the shot-list
+# prose becomes the reel ContentItem body directly.
+SCRIPT_PROMPT = (
+    "You are MRK18, an AI CMO and direct-response scriptwriter for founders worldwide. "
+    "Write platform-correct, hook-first short-form video and ad scripts that win the first 3 "
+    "seconds and drive ONE action. Open with a pattern-interrupt hook, follow Hook -> Problem "
+    "-> Demo -> CTA, write for sound-off with on-screen captions, match the platform's length, "
+    "and end with a single clear CTA. Pure English. Use whatever currency and market context "
+    "fits the brief. Deliver the script in shot/line form with timestamps, then one line on why "
+    "it works."
+)
+
+
+async def generate_reel_script(
+    socket: LLMSocket,
+    run_id: str,
+    profile: dict,
+    report: dict,
+    *,
+    item_id: str | None = None,
+    prior_body: str | None = None,
+    rejection_note: str | None = None,
+    regeneration_count: int = 0,
+    performance_memo: str | None = None,
+    company_knowledge: str | None = None,  # noqa: ARG001 — kept for a uniform node signature
+    brand_page: str | None = None,  # noqa: ARG001
+) -> tuple[ContentItem, list[Usage]]:
+    """One Reel/Short VIDEO script as a ContentItem (format=reel_script). The script
+    adapter is PROSE, so it answers via socket.chat in its trained voice; the same
+    fabrication guard + one regeneration that protects posts protects scripts too."""
+    from ..security.manifests import require_permission
+
+    require_permission("agent:script", "llm:complete")
+    strategy = report.get("content_strategy", {})
+    memo = f"{performance_memo}\n\n" if performance_memo else ""
+    user = (
+        f"Founder profile: {profile}\n\n"
+        f"Approved content strategy: {strategy.get('summary', '')}\n"
+        f"Key moves: {[c0['text'] for c0 in strategy.get('claims', [])][:4]}\n"
+        f"CMO verdict: {report.get('synthesis', '')[:600]}\n\n"
+        f"{memo}"
+        "Write ONE hook-first short-form VIDEO script (Instagram Reel / YouTube Short, ~20-40s) "
+        "this founder can film themselves: a 3-second pattern-interrupt hook, then 3-5 shots with "
+        "on-screen captions, and ONE clear CTA. India-native context. Shot/line form with "
+        "timestamps."
+    )
+    if rejection_note and scan_input(rejection_note):
+        user += (
+            "\n\nThe founder rejected the previous script (their note was withheld by the input "
+            f"filter). Write a clearly improved replacement.\nPrevious script:\n{prior_body or ''}"
+        )
+    elif rejection_note:
+        user += (
+            f"\n\nThe founder rejected the previous script. Their note (follow it exactly): "
+            f"{rejection_note}\nPrevious script:\n{prior_body or ''}\nWrite a clearly improved "
+            "version, not a light edit."
+        )
+
+    provided = _provided_corpus(profile, report)
+    do_not_claim = profile.get("do_not_claim") or []
+    words_to_avoid = profile.get("words_to_avoid") or []
+    usages: list[Usage] = []
+    last_error: Exception | None = None
+    for _ in range(2):  # one generation + one guardrail-driven retry
+        script, usage = await socket.chat(
+            AgentRole.SCRIPT, SCRIPT_PROMPT, [{"role": "user", "content": user}],
+            max_tokens=1000, temperature=0.6,
+        )
+        usages.append(usage)
+        body = (script or "").strip()
+        if not body:
+            last_error = ValueError("empty script")
+            user += "\n\nYour previous reply was empty — write the full script."
+            continue
+        result = check_content(
+            body=body, thread=None, first_comment=None,
+            do_not_claim=do_not_claim, words_to_avoid=words_to_avoid, provided=provided,
+        )
+        if not result.ok:
+            last_error = GuardrailViolation("; ".join(result.violations))
+            user += f"\n\nYour previous script FAILED content guardrails — fix EVERY issue:\n{last_error}"
+            continue
+        kwargs: dict = {}
+        if item_id is not None:
+            kwargs["item_id"] = UUID(item_id)
+        item = ContentItem(
+            run_id=UUID(run_id),
+            platform=Platform.INSTAGRAM,
+            format=ContentFormat.REEL_SCRIPT,
+            body=body,
+            regeneration_note=rejection_note,
+            regeneration_count=regeneration_count,
+            **kwargs,
+        )
+        return item, usages
+    raise RuntimeError(f"reel script generation failed guardrails twice: {last_error}")

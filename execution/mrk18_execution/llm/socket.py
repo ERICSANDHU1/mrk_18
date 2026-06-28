@@ -77,6 +77,7 @@ class AgentRole(str, Enum):
     STRUCTURE = "structure"  # base model: turns an adapter's PROSE analysis into JSON claims
     SYNTHESIS = "synthesis"
     CONTENT = "content"  # adapter #7's future seat (ad copywriter)
+    SCRIPT = "script"  # short-form VIDEO scriptwriter (Reels/Shorts) — PROSE adapter
     TRIAGE = "triage"
     COMMENT = "comment"  # Slice 3.4 — drafts replies to comments AS the founder
     ANALYTICS = "analytics"  # reads connected ad/marketing metrics -> diagnosis
@@ -120,6 +121,7 @@ def default_registry(groq_api_key: str) -> dict[AgentRole, ModelSeat]:
         AgentRole.STRUCTURE: ModelSeat(**big),
         AgentRole.SYNTHESIS: ModelSeat(**big, max_tokens=2200),
         AgentRole.CONTENT: ModelSeat(**big, max_tokens=1800, temperature=0.6),
+        AgentRole.SCRIPT: ModelSeat(**big, max_tokens=1200, temperature=0.6),
         AgentRole.COMMENT: ModelSeat(**big, max_tokens=400, temperature=0.5),
         AgentRole.ANALYTICS: ModelSeat(**big, max_tokens=1600),
         AgentRole.TRIAGE: ModelSeat(
@@ -138,6 +140,7 @@ BRAIN_ADAPTERS: dict[AgentRole, str] = {
     AgentRole.STRATEGY: "funnel",
     AgentRole.SYNTHESIS: "personality",
     AgentRole.CONTENT: "ad_copy",
+    AgentRole.SCRIPT: "script",  # Phase 3: trained reel/short-video scriptwriter (prose)
     AgentRole.COMMENT: "personality",
     AgentRole.ANALYTICS: "analytics",  # reads ad/marketing metrics -> CMO diagnosis
     AgentRole.USP: "usp",  # Phase 1: the prose->structure bridge serves usp in its trained

@@ -20,6 +20,7 @@ AGENT_MANIFESTS: dict[str, frozenset[str]] = {
     "agent:structure": frozenset({"llm:complete"}),
     "agent:synthesis": frozenset({"llm:complete"}),
     "agent:content": frozenset({"llm:complete"}),
+    "agent:script": frozenset({"llm:complete"}),  # reel/short-video scriptwriter
     "agent:triage": frozenset({"llm:complete"}),
     # Analytics Interpreter: reads metrics -> diagnosis. Text in, text out — no
     # publish, no token access, never touches the outside world.

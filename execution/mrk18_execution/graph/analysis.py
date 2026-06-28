@@ -17,11 +17,11 @@ from langgraph.types import Send, interrupt
 from pydantic import BaseModel, Field
 
 from ..agents.analysis import _dedup_across_sections, run_analysis_agent, run_synthesis
-from ..agents.content import IMAGE_FORMATS, PLATFORM_FORMAT, generate_item
+from ..agents.content import IMAGE_FORMATS, PLATFORM_FORMAT, generate_item, generate_reel_script
 from ..agents.photo_funnel import render_media
 from ..llm.socket import AgentRole, LLMSocket
 from ..schemas.content import MAX_REGENERATIONS
-from ..schemas.enums import ContentStatus, Platform
+from ..schemas.enums import ContentFormat, ContentStatus, Platform
 from ..schemas.report import MarketingIntelligenceReport, ReportSection
 from .state import AnalysisState
 
@@ -194,28 +194,27 @@ def build_analysis_graph(
         return {}  # fan-out happens in the conditional edge below
 
     def fan_out_items(state: AnalysisState) -> list[Send] | str:
+        base = {
+            "run_id": state["run_id"],
+            "founder_id": state["founder_id"],
+            "profile": state["profile"],
+            "report": state["report"],
+            "performance_memo": state.get("performance_memo"),
+            "company_knowledge": state.get("company_knowledge"),
+            "brand_page": state.get("brand_page"),
+        }
         platforms = [
             p for p in state.get("profile", {}).get("target_platforms", [])
             if p in {pl.value for pl in Platform}
         ]
         if not platforms:
             return END
-        return [
-            Send(
-                "generate_item",
-                {
-                    "run_id": state["run_id"],
-                    "founder_id": state["founder_id"],
-                    "profile": state["profile"],
-                    "report": state["report"],
-                    "platform": platform,
-                    "performance_memo": state.get("performance_memo"),
-                    "company_knowledge": state.get("company_knowledge"),
-                    "brand_page": state.get("brand_page"),
-                },
-            )
-            for platform in platforms
-        ]
+        sends = [Send("generate_item", {**base, "platform": platform}) for platform in platforms]
+        # A Reel/Short VIDEO script (the script adapter) when the founder targets a
+        # short-video platform — reels live on Instagram/Shorts, not LinkedIn/X text.
+        if Platform.INSTAGRAM.value in platforms:
+            sends.append(Send("generate_reel", base))
+        return sends
 
     async def generate_item_node(plan: dict) -> dict:
         platform = Platform(plan["platform"])
@@ -244,6 +243,24 @@ def build_analysis_graph(
                 log.warning("image degrade for item %s: %r", item.item_id, exc)
                 item.media = []
         item.status = ContentStatus.AWAITING_APPROVAL  # draft -> awaiting (allowed)
+        return {
+            "content_items": [item.model_dump(mode="json")],
+            "usage": [asdict(u) for u in usages],
+        }
+
+    async def generate_reel_node(plan: dict) -> dict:
+        # One Reel/Short VIDEO script per run via the trained `script` adapter. No image
+        # (it's a shot list the founder films), so no media render.
+        item, usages = await generate_reel_script(
+            socket,
+            plan["run_id"],
+            plan["profile"],
+            plan["report"],
+            performance_memo=plan.get("performance_memo"),
+            company_knowledge=plan.get("company_knowledge"),
+            brand_page=plan.get("brand_page"),
+        )
+        item.status = ContentStatus.AWAITING_APPROVAL
         return {
             "content_items": [item.model_dump(mode="json")],
             "usage": [asdict(u) for u in usages],
@@ -323,13 +340,7 @@ def build_analysis_graph(
 
     async def regenerate_item_node(plan: dict) -> dict:
         prior = plan["item"]
-        platform = Platform(prior["platform"])
-        item, usages = await generate_item(
-            socket,
-            plan["run_id"],
-            plan["profile"],
-            plan["report"],
-            platform,
+        common = dict(
             item_id=prior["item_id"],
             prior_body=prior["body"],
             rejection_note=prior.get("regeneration_note"),
@@ -338,16 +349,25 @@ def build_analysis_graph(
             company_knowledge=plan.get("company_knowledge"),
             brand_page=plan.get("brand_page"),
         )
-        if (
-            image_engine is not None
-            and media_store is not None
-            and PLATFORM_FORMAT[platform] in IMAGE_FORMATS
-        ):
-            try:
-                spec = await render_media(image_engine, media_store, item, plan["founder_id"])
-                item.media = [spec]
-            except Exception:  # noqa: BLE001 — same degrade rule as first generation
-                item.media = []
+        if prior.get("format") == ContentFormat.REEL_SCRIPT.value:
+            item, usages = await generate_reel_script(
+                socket, plan["run_id"], plan["profile"], plan["report"], **common
+            )
+        else:
+            platform = Platform(prior["platform"])
+            item, usages = await generate_item(
+                socket, plan["run_id"], plan["profile"], plan["report"], platform, **common
+            )
+            if (
+                image_engine is not None
+                and media_store is not None
+                and PLATFORM_FORMAT[platform] in IMAGE_FORMATS
+            ):
+                try:
+                    spec = await render_media(image_engine, media_store, item, plan["founder_id"])
+                    item.media = [spec]
+                except Exception:  # noqa: BLE001 — same degrade rule as first generation
+                    item.media = []
         item.status = ContentStatus.AWAITING_APPROVAL  # back to the gate
         return {
             "content_items": [item.model_dump(mode="json")],
@@ -362,6 +382,7 @@ def build_analysis_graph(
     builder.add_node("gate1", gate1)
     builder.add_node("plan_content", plan_content)
     builder.add_node("generate_item", generate_item_node)
+    builder.add_node("generate_reel", generate_reel_node)
     builder.add_node("gate2", gate2)
     builder.add_node("regenerate_item", regenerate_item_node)
 
@@ -373,8 +394,11 @@ def build_analysis_graph(
     builder.add_conditional_edges(
         "gate1", after_gate1, [r.value for r in ANALYSIS_AGENTS] + ["plan_content", END]
     )
-    builder.add_conditional_edges("plan_content", fan_out_items, ["generate_item", END])
+    builder.add_conditional_edges(
+        "plan_content", fan_out_items, ["generate_item", "generate_reel", END]
+    )
     builder.add_edge("generate_item", "gate2")  # fan-in: gate2 waits for all items
+    builder.add_edge("generate_reel", "gate2")  # the reel script joins the same gate
     builder.add_conditional_edges("gate2", after_gate2, ["regenerate_item", "gate2", END])
     builder.add_edge("regenerate_item", "gate2")  # revised items return to the gate
 
