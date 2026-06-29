@@ -1,6 +1,7 @@
 """Saved CMO chats — create/list/get/update, titled from the first message,
 owner-scoped (no cross-tenant leak)."""
 
+import asyncio
 from uuid import uuid4
 
 from tests.authtools import bearer, mint
@@ -39,7 +40,9 @@ async def test_list_returns_owned_newest_first(client):
             f"/founders/{fid}/chats", json={"messages": [{"role": "user", "text": "second"}]}, headers=headers
         )
     ).json()
-    # touch b so it is unambiguously the most-recently-updated
+    # touch b so it is unambiguously the most-recently-updated — the sleep crosses
+    # the ~16ms Windows clock tick so b's timestamp is strictly newer than a's
+    await asyncio.sleep(0.05)
     await client.put(
         f"/founders/{fid}/chats/{b['id']}",
         json={"messages": [{"role": "user", "text": "second"}]},
@@ -85,3 +88,69 @@ async def test_cannot_reach_another_founders_chats(client):
 async def test_requires_auth(client):
     fid, _ = await _signup(client)
     assert (await client.get(f"/founders/{fid}/chats")).status_code == 401
+
+
+async def test_patch_renames(client):
+    fid, headers = await _signup(client)
+    chat = (
+        await client.post(
+            f"/founders/{fid}/chats", json={"messages": [{"role": "user", "text": "draft a hook"}]}, headers=headers
+        )
+    ).json()
+    resp = await client.patch(
+        f"/founders/{fid}/chats/{chat['id']}", json={"title": "Hooks for launch"}, headers=headers
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["title"] == "Hooks for launch"
+    rows = (await client.get(f"/founders/{fid}/chats", headers=headers)).json()
+    assert rows[0]["title"] == "Hooks for launch"
+
+
+async def test_patch_pin_floats_to_top(client):
+    fid, headers = await _signup(client)
+    a = (
+        await client.post(
+            f"/founders/{fid}/chats", json={"messages": [{"role": "user", "text": "older"}]}, headers=headers
+        )
+    ).json()
+    b = (
+        await client.post(
+            f"/founders/{fid}/chats", json={"messages": [{"role": "user", "text": "newer"}]}, headers=headers
+        )
+    ).json()
+    # b is newest → first by default; pinning the older `a` jumps it ahead of b
+    pinned = (
+        await client.patch(f"/founders/{fid}/chats/{a['id']}", json={"pinned": True}, headers=headers)
+    ).json()
+    assert pinned["pinned"] is True
+    rows = (await client.get(f"/founders/{fid}/chats", headers=headers)).json()
+    assert rows[0]["id"] == a["id"] and rows[0]["pinned"] is True
+    assert rows[1]["id"] == b["id"]
+
+
+async def test_patch_archive_hides_but_keeps_row(client):
+    fid, headers = await _signup(client)
+    chat = (
+        await client.post(
+            f"/founders/{fid}/chats", json={"messages": [{"role": "user", "text": "archive me"}]}, headers=headers
+        )
+    ).json()
+    await client.patch(f"/founders/{fid}/chats/{chat['id']}", json={"archived": True}, headers=headers)
+    rows = (await client.get(f"/founders/{fid}/chats", headers=headers)).json()
+    assert chat["id"] not in {r["id"] for r in rows}  # gone from Recents
+    # but not deleted — still directly fetchable
+    assert (await client.get(f"/founders/{fid}/chats/{chat['id']}", headers=headers)).status_code == 200
+
+
+async def test_patch_cannot_touch_another_founders_chat(client):
+    fid_a, headers_a = await _signup(client)
+    chat = (
+        await client.post(
+            f"/founders/{fid_a}/chats", json={"messages": [{"role": "user", "text": "mine"}]}, headers=headers_a
+        )
+    ).json()
+    fid_b, headers_b = await _signup(client)
+    resp = await client.patch(
+        f"/founders/{fid_b}/chats/{chat['id']}", json={"title": "hax"}, headers=headers_b
+    )
+    assert resp.status_code == 404  # owner-scoped, never leaks the row

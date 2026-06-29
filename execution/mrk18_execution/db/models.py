@@ -90,6 +90,9 @@ class ChatSessionRow(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False, default="New chat")
     # the full conversation as [{role: 'user'|'cmo', text}], re-saved each turn
     messages: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    # Recents controls — pinned floats to the top; archived hides from the list
+    pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow

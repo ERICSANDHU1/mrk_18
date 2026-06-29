@@ -57,6 +57,7 @@ def _summary(row: ChatSessionRow) -> dict:
     return {
         "id": str(row.id),
         "title": row.title,
+        "pinned": row.pinned,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
 
@@ -78,13 +79,14 @@ async def list_chats(
     founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> list[dict]:
-    """The founder's chats, newest-updated first — for the Chat tab's Recents."""
+    """The founder's chats — pinned first, then newest-updated; archived hidden."""
     rows = (
         (
             await session.execute(
                 select(ChatSessionRow)
                 .where(ChatSessionRow.founder_id == founder.id)
-                .order_by(ChatSessionRow.updated_at.desc())
+                .where(ChatSessionRow.archived.is_(False))
+                .order_by(ChatSessionRow.pinned.desc(), ChatSessionRow.updated_at.desc())
                 .limit(100)
             )
         )
@@ -136,6 +138,34 @@ async def update_chat(
         row.title = body.title.strip()[:_TITLE_MAX]
     elif not row.title or row.title == "New chat":
         row.title = _title_from(body.messages, None)
+    await session.commit()
+    await session.refresh(row)
+    return _summary(row)
+
+
+class ChatPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, max_length=_TITLE_MAX)
+    pinned: bool | None = None
+    archived: bool | None = None
+
+
+@router.patch("/founders/{founder_id}/chats/{chat_id}", response_model=dict)
+async def patch_chat(
+    chat_id: UUID,
+    body: ChatPatch,
+    founder: FounderRow = Depends(founder_scope),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Rename / pin / archive a chat from the Recents menu (transcript untouched)."""
+    row = await _owned(chat_id, founder, session)
+    if body.title is not None and body.title.strip():
+        row.title = body.title.strip()[:_TITLE_MAX]
+    if body.pinned is not None:
+        row.pinned = body.pinned
+    if body.archived is not None:
+        row.archived = body.archived
     await session.commit()
     await session.refresh(row)
     return _summary(row)

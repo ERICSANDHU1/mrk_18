@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Logo from "@/components/app/Logo";
+import ChatRecents from "@/components/app/ChatRecents";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -71,29 +72,6 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
 
   // Which tab's list is showing. Comrk when on a cowork route, Chat otherwise.
   const activeTab = pathname.startsWith("/cowork") ? "/cowork" : "/chat";
-
-  // The Chat tab's Recents are real, saved chats — fetched live and refreshed
-  // whenever a chat is created/updated (ChatClient fires "mrk18:chats-changed").
-  const [chats, setChats] = useState<Recent[]>([]);
-  useEffect(() => {
-    let active = true;
-    const load = () => {
-      fetch("/api/chats", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((d) => {
-          if (active && Array.isArray(d)) setChats(d as Recent[]);
-        })
-        .catch(() => {});
-    };
-    load();
-    const onChange = () => load();
-    window.addEventListener("mrk18:chats-changed", onChange);
-    return () => {
-      active = false;
-      window.removeEventListener("mrk18:chats-changed", onChange);
-    };
-  }, []);
-  const recents = activeTab === "/cowork" ? COMRK_RECENTS : chats;
 
   const renderRow = (item: NavItem) => {
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -218,22 +196,26 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
 
             <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">Recents</p>
             <div className="dash-scroll mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
-              {recents.length === 0 ? (
-                <p className="px-2.5 py-2 text-[12.5px] text-mute-2">
-                  {activeTab === "/cowork" ? "No runs yet." : "No chats yet."}
-                </p>
+              {activeTab === "/cowork" ? (
+                COMRK_RECENTS.length === 0 ? (
+                  <p className="px-2.5 py-2 text-[12.5px] text-mute-2">No runs yet.</p>
+                ) : (
+                  COMRK_RECENTS.map((r) => (
+                    <Link
+                      key={r.id}
+                      href="/cowork"
+                      title={r.title}
+                      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-mute transition-colors hover:bg-surface hover:text-ink"
+                    >
+                      <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full border border-line" />
+                      <span className="truncate">{r.title}</span>
+                    </Link>
+                  ))
+                )
               ) : (
-                recents.map((r) => (
-                  <Link
-                    key={r.id}
-                    href={activeTab === "/cowork" ? "/cowork" : `/chat?id=${r.id}`}
-                    title={r.title}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-mute transition-colors hover:bg-surface hover:text-ink"
-                  >
-                    <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full border border-line" />
-                    <span className="truncate">{r.title}</span>
-                  </Link>
-                ))
+                <Suspense fallback={null}>
+                  <ChatRecents />
+                </Suspense>
               )}
             </div>
 

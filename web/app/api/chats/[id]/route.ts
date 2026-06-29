@@ -35,6 +35,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json(data, { status: res.status });
 }
 
+/** Rename / pin / archive a chat (from the Recents ⋮ menu). */
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const ctx = await founderOrError();
+  if ("error" in ctx) return ctx.error;
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const res = await backendFetch(`/founders/${ctx.founderId}/chats/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return NextResponse.json(data, { status: res.status });
+}
+
 /** Delete a saved chat. */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await founderOrError();

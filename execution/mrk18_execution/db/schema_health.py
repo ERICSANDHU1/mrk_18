@@ -18,6 +18,7 @@ EXPECTED_COLUMNS = [
     ("connected_accounts", "token_ciphertext"),  # token vault
     ("knowledge_chunks", "embedding"),  # company brain
     ("chat_sessions", "messages"),  # saved CMO chats (Recents)
+    ("chat_sessions", "pinned"),  # Recents pin/archive menu
     ("applications", "marketing_issue"),  # Founding-50 waitlist
 ]
 
