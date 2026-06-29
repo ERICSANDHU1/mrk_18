@@ -42,20 +42,35 @@ const fmtDate = (s: string) => {
   }
 };
 
+/** A subtle status chip marking a widget as a frontend preview — the UI is
+ *  rendered but the feature isn't wired to the backend yet. */
+function ComingSoon() {
+  return (
+    <span className="shrink-0 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-mute-2">
+      Coming soon
+    </span>
+  );
+}
+
 function Widget({
   icon: Icon,
   title,
+  comingSoon,
   children,
 }: {
   icon: typeof Files;
   title: string;
+  comingSoon?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-line bg-surface p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Icon size={15} className="text-molten" aria-hidden />
-        <span className="text-[13px] font-semibold text-ink">{title}</span>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Icon size={15} className="text-molten" aria-hidden />
+          <span className="text-[13px] font-semibold text-ink">{title}</span>
+        </div>
+        {comingSoon && <ComingSoon />}
       </div>
       {children}
     </div>
@@ -63,14 +78,7 @@ function Widget({
 }
 
 function Dormant({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <p className="py-0.5 text-[12.5px] leading-relaxed text-mute">{children}</p>
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-line px-2.5 py-1 text-[11px] text-mute-2">
-        Connect to enable
-      </span>
-    </div>
-  );
+  return <p className="py-0.5 text-[12.5px] leading-relaxed text-mute">{children}</p>;
 }
 
 /** Comrk — the execution desk. Start runs, approve what's pending, and (as
@@ -137,7 +145,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
         )}
 
         {/* schedule — dormant */}
-        <Widget icon={CalendarClock} title="This week">
+        <Widget icon={CalendarClock} title="This week" comingSoon>
           <Dormant>Connect publishing to schedule posts across your channels.</Dormant>
         </Widget>
 
@@ -189,17 +197,17 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
           </Widget>
 
           {/* Publishing queue — dormant */}
-          <Widget icon={Send} title="Publishing queue">
+          <Widget icon={Send} title="Publishing queue" comingSoon>
             <Dormant>Connect a channel (LinkedIn, X) to queue and auto-publish approved content.</Dormant>
           </Widget>
 
           {/* Campaigns running — dormant */}
-          <Widget icon={Rocket} title="Campaigns running">
+          <Widget icon={Rocket} title="Campaigns running" comingSoon>
             <Dormant>Connect your ad account to launch and manage live campaigns from here.</Dormant>
           </Widget>
 
           {/* Mail & calendar — dormant */}
-          <Widget icon={Mail} title="Mail & calendar">
+          <Widget icon={Mail} title="Mail & calendar" comingSoon>
             <Dormant>Connect Gmail and Calendar to handle updates and schedule work from here.</Dormant>
           </Widget>
         </div>

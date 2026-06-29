@@ -49,15 +49,27 @@ const fmtINR = (n?: number) =>
   typeof n === "number" ? `₹${Math.round(n).toLocaleString("en-IN")}` : "—";
 const pct = (n?: number) => (typeof n === "number" ? `${(n * 100).toFixed(1)}%` : "—");
 
+/** A subtle status chip marking a widget as a frontend preview — rendered but
+ *  not yet wired to the backend. */
+function ComingSoon() {
+  return (
+    <span className="shrink-0 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-mute-2">
+      Coming soon
+    </span>
+  );
+}
+
 function Widget({
   icon: Icon,
   title,
   href,
+  comingSoon,
   children,
 }: {
   icon: typeof Eye;
   title: string;
   href?: string;
+  comingSoon?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -67,14 +79,16 @@ function Widget({
           <Icon size={15} className="text-molten" aria-hidden />
           <span className="text-[13px] font-semibold text-ink">{title}</span>
         </div>
-        {href && (
+        {href ? (
           <Link
             href={href}
             className="flex items-center gap-0.5 text-[11px] text-mute-2 transition-colors hover:text-molten"
           >
             View <ArrowUpRight size={12} aria-hidden />
           </Link>
-        )}
+        ) : comingSoon ? (
+          <ComingSoon />
+        ) : null}
       </div>
       <div className="min-h-0 flex-1">{children}</div>
     </div>
@@ -322,23 +336,13 @@ export default function ChiefClient() {
           </Widget>
 
           {/* Funnel — dormant */}
-          <Widget icon={Filter} title="Funnel">
-            <div className="space-y-2">
-              <Empty>Connect your funnel data to see where signups drop off.</Empty>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-line px-2.5 py-1 text-[11px] text-mute-2">
-                Connect to enable
-              </span>
-            </div>
+          <Widget icon={Filter} title="Funnel" comingSoon>
+            <Empty>Connect your funnel data to see where signups drop off.</Empty>
           </Widget>
 
           {/* Watchdog — dormant */}
-          <Widget icon={Radar} title="Watchdog · market news">
-            <div className="space-y-2">
-              <Empty>Competitor moves and market shifts will surface here.</Empty>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-line px-2.5 py-1 text-[11px] text-mute-2">
-                Coming soon
-              </span>
-            </div>
+          <Widget icon={Radar} title="Watchdog · market news" comingSoon>
+            <Empty>Competitor moves and market shifts will surface here.</Empty>
           </Widget>
         </div>
 
