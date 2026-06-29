@@ -13,6 +13,7 @@ import {
   type LucideIcon,
   MessageSquare,
   Plus,
+  Settings,
   Users,
 } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
@@ -225,8 +226,23 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         )}
       </nav>
 
-      {/* footer — appearance toggle + the workspace block */}
+      {/* footer — settings, appearance toggle, and the workspace block */}
       <div className={`mt-2 ${collapsed ? "flex flex-col items-center gap-2" : "space-y-2 px-2"}`}>
+        <Link
+          href="/console/settings"
+          title="Settings"
+          aria-current={pathname.startsWith("/console/settings") ? "page" : undefined}
+          className={`group flex items-center rounded-xl transition-colors duration-200 ${
+            collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
+          } ${
+            pathname.startsWith("/console/settings")
+              ? "bg-molten/10 text-molten"
+              : "text-mute-2 hover:bg-surface hover:text-ink"
+          }`}
+        >
+          <Settings size={18} aria-hidden />
+          {!collapsed && <span className="text-[13.5px] font-semibold">Settings</span>}
+        </Link>
         {!collapsed && (
           <div className="flex items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-medium text-mute-2">Appearance</span>
