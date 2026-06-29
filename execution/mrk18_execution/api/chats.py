@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.models import ChatSessionRow, FounderRow
-from .deps import get_session, require_founder
+from .deps import founder_scope, get_session
 
 router = APIRouter(tags=["chats"])
 
@@ -75,7 +75,7 @@ async def _owned(chat_id: UUID, founder: FounderRow, session: AsyncSession) -> C
 
 @router.get("/founders/{founder_id}/chats", response_model=list[dict])
 async def list_chats(
-    founder: FounderRow = Depends(require_founder),
+    founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> list[dict]:
     """The founder's chats, newest-updated first — for the Chat tab's Recents."""
@@ -97,7 +97,7 @@ async def list_chats(
 @router.post("/founders/{founder_id}/chats", response_model=dict, status_code=201)
 async def create_chat(
     body: ChatCreate,
-    founder: FounderRow = Depends(require_founder),
+    founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Start a new chat — titled from the first message."""
@@ -116,7 +116,7 @@ async def create_chat(
 @router.get("/founders/{founder_id}/chats/{chat_id}", response_model=dict)
 async def get_chat(
     chat_id: UUID,
-    founder: FounderRow = Depends(require_founder),
+    founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     return _full(await _owned(chat_id, founder, session))
@@ -126,7 +126,7 @@ async def get_chat(
 async def update_chat(
     chat_id: UUID,
     body: ChatUpdate,
-    founder: FounderRow = Depends(require_founder),
+    founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Save the running transcript (called each turn)."""
@@ -144,7 +144,7 @@ async def update_chat(
 @router.delete("/founders/{founder_id}/chats/{chat_id}", status_code=204)
 async def delete_chat(
     chat_id: UUID,
-    founder: FounderRow = Depends(require_founder),
+    founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     await session.delete(await _owned(chat_id, founder, session))

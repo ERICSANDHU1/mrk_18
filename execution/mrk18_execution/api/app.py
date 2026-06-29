@@ -250,7 +250,10 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         if app.state.trust_proxy_headers:
             forwarded = request.headers.get("x-forwarded-for", "")
             if forwarded:
-                return forwarded.split(",")[0].strip()
+                # The RIGHTMOST hop is the IP our own proxy (Render) appended; a
+                # leftmost value is attacker-supplied and must never key the limiter
+                # (else a rotating X-Forwarded-For defeats every per-caller limit).
+                return forwarded.split(",")[-1].strip()
         return request.client.host if request.client else "unknown"
 
     @app.middleware("http")

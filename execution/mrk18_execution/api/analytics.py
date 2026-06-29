@@ -9,10 +9,11 @@ Owner-JWT + tenant scope on everything.
 
 import csv
 import io
+import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -82,6 +83,15 @@ class DiagnoseBody(BaseModel):
     csv: str | None = Field(default=None, max_length=400_000)  # OR a campaign CSV export
     source: str = Field(default="manual", max_length=32)  # manual | csv | meta | google | ...
     period: str | None = Field(default=None, max_length=80)
+
+    @field_validator("metrics")
+    @classmethod
+    def _cap_metrics(cls, v: dict | None) -> dict | None:
+        # The structured path bypasses the csv max_length cap; bound its serialized
+        # size so it can't blow up memory or amplify the LLM prompt (pre-launch audit).
+        if v is not None and len(json.dumps(v, default=str)) > 200_000:
+            raise ValueError("metrics JSON too large (max 200k serialized chars)")
+        return v
 
 
 @router.post("/founders/{founder_id}/analytics/diagnose", response_model=dict)

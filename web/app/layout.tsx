@@ -84,9 +84,19 @@ export default function RootLayout({
     >
       <html
         lang="en"
+        suppressHydrationWarning
         className={`${sora.variable} ${spaceGrotesk.variable} ${jbMono.variable} ${fraunces.variable} ${hanken.variable} h-full antialiased`}
       >
-        <body className="theme-sand min-h-full flex flex-col bg-bg text-ink">{children}</body>
+        <body className="theme-sand min-h-full flex flex-col bg-bg text-ink">
+          {/* no-flash: apply the saved Appearance (System/Light/Dark) before paint */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "(function(){try{var t=localStorage.getItem('mrk18-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('mrk18-dark');}catch(e){}})();",
+            }}
+          />
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );

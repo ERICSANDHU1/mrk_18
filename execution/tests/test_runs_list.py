@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from mrk18_execution.db.models import RunRow
+from mrk18_execution.db.models import ContentItemRow, RunRow
 from tests.authtools import bearer, mint
 
 
@@ -91,4 +91,44 @@ async def test_run_progress_owner_only(client, engine):
     rid = await _plant_run(engine, fid_a)
     _, headers_b = await _signup(client)
     resp = await client.get(f"/runs/{rid}/progress", headers=headers_b)
+    assert resp.status_code == 403
+
+
+# ── founder-wide content library ─────────────────────────────────────────────
+async def _plant_content(engine, founder_id, run_id, *, platform="linkedin_post", body="hi"):
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as session:
+        item = ContentItemRow(
+            item_id=uuid4(),
+            run_id=UUID(run_id),
+            founder_id=UUID(founder_id),
+            platform=platform,
+            format=platform,
+            body=body,
+            status="approved",
+            media=[],
+        )
+        session.add(item)
+        await session.commit()
+        return str(item.item_id)
+
+
+async def test_founder_content_library_lists_all_items(client, engine):
+    fid, headers = await _signup(client)
+    rid = await _plant_run(engine, fid)
+    await _plant_content(engine, fid, rid, body="post one")
+    await _plant_content(engine, fid, rid, platform="reel_script", body="script one")
+    resp = await client.get(f"/founders/{fid}/content", headers=headers)
+    assert resp.status_code == 200, resp.text
+    items = resp.json()
+    assert len(items) == 2
+    assert {"item_id", "run_id", "platform", "body", "status", "created_at"} <= items[0].keys()
+
+
+async def test_cannot_list_another_founders_content(client, engine):
+    fid_a, _ = await _signup(client)
+    rid = await _plant_run(engine, fid_a)
+    await _plant_content(engine, fid_a, rid)
+    _, headers_b = await _signup(client)
+    resp = await client.get(f"/founders/{fid_a}/content", headers=headers_b)
     assert resp.status_code == 403

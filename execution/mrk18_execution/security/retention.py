@@ -23,6 +23,7 @@ from ..db.models import (
     AuditRow,
     ConnectedAccountRow,
     AnalyticsDiagnosisRow,
+    ChatSessionRow,
     ContentItemRow,
     FounderProfileRow,
     FounderRow,
@@ -58,6 +59,7 @@ _ERASE_ORDER = [
     RunRow,
     KnowledgeChunkRow,  # the Company Brain corpus — FK → founders only
     AnalyticsDiagnosisRow,  # stored ad-performance diagnoses — FK → founders only
+    ChatSessionRow,  # saved CMO conversations — FK → founders only
     FounderProfileRow,
     FounderRow,
 ]
@@ -228,6 +230,26 @@ async def export_founder_data(session_factory: async_sessionmaker, founder_id: U
             .scalars()
             .all()
         )
+        # Every other founder-scoped table — DPDP right-to-access must disclose ALL
+        # personal data we hold, not just the headline ones (pre-launch audit).
+        async def _all(model):
+            return (
+                (await session.execute(select(model).where(model.founder_id == founder_id)))
+                .scalars()
+                .all()
+            )
+
+        chats = await _all(ChatSessionRow)
+        signals = await _all(SignalRow)
+        diagnoses = await _all(AnalyticsDiagnosisRow)
+        publishes = await _all(PublishResultRow)
+        approvals = await _all(ApprovalEventRow)
+        comments = await _all(PostCommentRow)
+        knowledge = await _all(KnowledgeChunkRow)
+
+        def _iso(dt):
+            return dt.isoformat() if dt else None
+
         # Build the result WHILE the session is still open — these rows detach
         # the moment the tenant_session block exits, and reading their columns
         # after that raises DetachedInstanceError.
@@ -245,6 +267,55 @@ async def export_founder_data(session_factory: async_sessionmaker, founder_id: U
                 else {"platform": a.platform, "status": a.status, "token": None}
                 for a in accounts
             ],
+            "chat_sessions": [
+                {"id": str(c.id), "title": c.title, "messages": c.messages, "created_at": _iso(c.created_at)}
+                for c in chats
+            ],
+            "signals": [
+                {
+                    "item_id": str(s.item_id),
+                    "platform": s.platform,
+                    "window_point": s.window_point,
+                    "reach": s.reach,
+                    "engagement_rate": float(s.engagement_rate) if s.engagement_rate is not None else None,
+                }
+                for s in signals
+            ],
+            "analytics_diagnoses": [
+                {
+                    "diagnosis_id": str(d.diagnosis_id),
+                    "source": d.source,
+                    "period": d.period,
+                    "metrics": d.metrics,
+                    "diagnosis": d.diagnosis,
+                    "created_at": _iso(d.created_at),
+                }
+                for d in diagnoses
+            ],
+            "publish_results": [
+                {
+                    "platform": p.platform,
+                    "status": p.status,
+                    "public_url": p.public_url,
+                    "published_at": _iso(p.published_at),
+                }
+                for p in publishes
+            ],
+            "approval_events": [
+                {"decision": a.decision, "note": a.note, "decided_at": _iso(a.decided_at)}
+                for a in approvals
+            ],
+            "post_comments": [
+                {
+                    "platform": c.platform,
+                    "author_handle": c.author_handle,
+                    "text": c.text,
+                    "reply_draft": c.reply_draft,
+                    "reply_status": c.reply_status,
+                }
+                for c in comments
+            ],
+            "knowledge_chunks": [{"source": k.source, "content": k.content} for k in knowledge],
         }
 
 

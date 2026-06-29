@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Logo from "@/components/app/Logo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp, Loader2, Mic, Plus } from "lucide-react";
@@ -168,7 +168,7 @@ export default function ChatClient() {
       {/* header */}
       <header className="flex shrink-0 items-center gap-2.5 border-b border-line px-5 py-3">
         <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
-          <Image src="/logo-light.svg" alt="mrk18" width={18} height={14} />
+          <Logo width={18} height={14} />
         </span>
         <div className="leading-tight">
           <p className="text-[13px] font-bold text-ink">Your CMO</p>
@@ -185,7 +185,7 @@ export default function ChatClient() {
           {empty ? (
             <div className="flex flex-col items-center px-4 pt-8 text-center sm:pt-12">
               <span className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-line bg-surface">
-                <Image src="/logo-light.svg" alt="mrk18" width={30} height={23} />
+                <Logo width={30} height={23} />
               </span>
               <h1 className="font-display text-[26px] leading-tight text-ink">Talk to your CMO</h1>
               <p className="mt-2 max-w-sm text-[13.5px] leading-relaxed text-mute">

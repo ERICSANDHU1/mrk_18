@@ -74,7 +74,7 @@ export default function Hero() {
                         animate={{ y: 0 }}
                         transition={{ delay: 2.3 + (offset + i) * 0.045, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        {char === " " ? " " : char}
+                        {char === " " ? " " : char}
                       </motion.span>
                     </span>
                   ))}

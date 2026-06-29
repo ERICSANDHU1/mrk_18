@@ -1,0 +1,13 @@
+# Netlify config — deploys the Next.js frontend in web/ (the FastAPI backend
+# stays on Render; the frontend reaches it server-side via BACKEND_URL).
+[build]
+  base = "web"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Native Next.js runtime: SSR, middleware (Clerk), and the /api route handlers
+# all run as Netlify functions. Auto-installed for Next sites; declared for clarity.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

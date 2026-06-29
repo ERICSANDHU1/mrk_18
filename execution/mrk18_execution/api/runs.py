@@ -269,6 +269,48 @@ async def list_founder_runs(
     ]
 
 
+@router.get("/founders/{founder_id}/content", response_model=list[dict])
+async def list_founder_content(
+    founder_id: UUID,
+    _founder: FounderRow = Depends(founder_scope),  # owner check + RLS
+    session: AsyncSession = Depends(get_session),
+    limit: int = Query(40, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> list[dict]:
+    """A founder's whole content library — every generated item across all runs,
+    newest first. Powers the Chief / Comrk content + scripts widgets (the per-run
+    /runs/{id}/items endpoint above only covers one run)."""
+    rows = (
+        (
+            await session.execute(
+                select(ContentItemRow)
+                .where(ContentItemRow.founder_id == founder_id)
+                .order_by(ContentItemRow.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "item_id": str(r.item_id),
+            "run_id": str(r.run_id),
+            "platform": r.platform,
+            "format": r.format,
+            "body": r.body,
+            "thread": r.thread,
+            "first_comment": r.first_comment,
+            "image_prompt": r.image_prompt,
+            "media": r.media,
+            "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
 @router.get("/runs/{run_id}/review-link", response_model=dict)
 async def get_review_link(
     request: Request, row: RunRow = Depends(require_run)

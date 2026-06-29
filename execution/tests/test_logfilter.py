@@ -38,7 +38,8 @@ def test_keyvalue_secret_redacted():
 
 
 def test_exact_configured_secret_redacted():
-    secret = "TiYlG7B2UFy86sbA8EkahoKrusr2wpetREC-AavhK4E"
+    # an EPHEMERAL key — never a real configured secret (pre-launch security audit)
+    secret = Fernet.generate_key().decode()
     out = _scrub(f"master key is {secret} oops", exact=[secret])
     assert secret not in out
 

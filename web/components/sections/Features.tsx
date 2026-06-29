@@ -12,12 +12,6 @@ const FEATURES: Feat[] = [
   { num: "06", title: "Pocket-sized", pills: ["wear it all day", "barely there", "clips on"] },
 ];
 
-const BIG: Feat = {
-  num: "07",
-  title: "Built India-first",
-  pills: ["priced for founders", "sourced locally", "made for the market"],
-};
-
 function FeatureCard({ feat, big }: { feat: Feat; big?: boolean }) {
   return (
     <TiltCard className={`feature-glass rounded-3xl ${big ? "p-10 md:p-14" : "p-8 md:p-9"}`} max={big ? 4 : 7}>
@@ -59,12 +53,6 @@ export default function Features() {
             </Reveal>
           ))}
         </div>
-
-        <Reveal delay={0.1}>
-          <div className="mt-6">
-            <FeatureCard feat={BIG} big />
-          </div>
-        </Reveal>
       </div>
     </section>
   );

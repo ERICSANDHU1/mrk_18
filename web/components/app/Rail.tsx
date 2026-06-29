@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Logo from "@/components/app/Logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
+import ThemeToggle from "./ThemeToggle";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; badge?: string };
 
@@ -129,7 +130,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
       {/* header — logo (+ wordmark) and collapse toggle */}
       <div className={`mb-4 flex items-center ${collapsed ? "flex-col gap-2.5" : "justify-between px-3"}`}>
         <Link href="/console" aria-label="MRK18 home" className="flex items-center gap-2.5">
-          <Image src="/logo-light.svg" alt="mrk18 logo" width={30} height={23} priority className="shrink-0" />
+          <Logo width={30} height={23} className="shrink-0" />
           {!collapsed && <span className="text-[17px] font-extrabold tracking-tight text-ink">mrk18</span>}
         </Link>
         <button
@@ -242,8 +243,14 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         )}
       </nav>
 
-      {/* footer — one clean block: avatar + workspace (company) + your name */}
-      <div className={`mt-2 ${collapsed ? "flex justify-center" : "px-2"}`}>
+      {/* footer — appearance toggle + the workspace block */}
+      <div className={`mt-2 ${collapsed ? "flex flex-col items-center gap-2" : "space-y-2 px-2"}`}>
+        {!collapsed && (
+          <div className="flex items-center justify-between gap-2 px-1">
+            <span className="text-[11px] font-medium text-mute-2">Appearance</span>
+            <ThemeToggle />
+          </div>
+        )}
         <div
           title={`${workspace?.name ?? "Your workspace"}${userLabel ? ` · ${userLabel}` : ""}`}
           className={`flex items-center ${
