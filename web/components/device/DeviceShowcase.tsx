@@ -123,6 +123,41 @@ export default function DeviceShowcase() {
     return () => mq.removeEventListener("change", on);
   }, []);
 
+  // Mobile / tablet: the scroll-driven explode has no room to open and crashes
+  // through the copy — show a clean static shot of the assembled device instead.
+  if (narrow) {
+    return (
+      <section id="device" aria-label="CMO in your pocket" className="relative overflow-hidden px-6 py-20">
+        <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
+            01 — CMO in your pocket
+          </span>
+          <h2 className="mt-5 text-[clamp(1.9rem,7vw,2.6rem)] font-semibold leading-[1.14] text-ink">
+            <span className="block">Your marketing brain —</span>
+            <span className="block text-gradient">now a device you carry.</span>
+          </h2>
+          <p className="mt-5 max-w-md text-[1rem] leading-relaxed text-muted">
+            Nine layers of hardware, one glanceable companion — your CMO, distilled into
+            something small enough to live in your pocket.
+          </p>
+          <div className="relative mt-12 aspect-square w-[min(72vw,300px)]">
+            {LAYERS.map((layer, i) => (
+              <img
+                key={i}
+                src={layer.src}
+                alt=""
+                aria-hidden
+                draggable={false}
+                className="pointer-events-none absolute left-0 top-0 w-full select-none"
+                style={{ zIndex: N - i, transform: `scale(${layer.scale})` }}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="device" aria-label="CMO in your pocket" className="relative">
       <div ref={trackRef} className="relative" style={{ height: "340vh" }}>
