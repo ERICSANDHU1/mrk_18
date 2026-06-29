@@ -1,5 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
 import MagneticButton from "../ui/MagneticButton";
+import FoundersPopover from "./FoundersPopover";
 
 const EXPLORE = [
   { label: "How it works", href: "#how" },
@@ -29,17 +31,12 @@ export default function Footer() {
               </h2>
               <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
                 Just 500 founder seats — locked-in pricing for life. India-first, built to tell you the
-                bitter truth — get in before they're gone.
+                bitter truth — get in before they&apos;re gone.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-5">
               <MagneticButton href="/sign-up">Get started →</MagneticButton>
-              <a
-                href="mailto:mrk18ai@gmail.com"
-                className="text-[14px] font-semibold text-ink underline-offset-4 transition-colors hover:text-amber hover:underline"
-              >
-                Talk to the founder
-              </a>
+              <FoundersPopover />
             </div>
           </div>
         </div>
@@ -77,12 +74,12 @@ export default function Footer() {
               </li>
             ))}
             <li>
-              <a
+              <Link
                 href="/sign-up"
                 className="inline-block text-[14.5px] font-semibold text-amber transition duration-200 hover:translate-x-1 hover:opacity-80"
               >
                 Get started
-              </a>
+              </Link>
             </li>
           </ul>
         </div>
