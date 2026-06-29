@@ -8,6 +8,7 @@ import { Archive, type LucideIcon, MoreVertical, Pencil, Pin, PinOff, Trash2 } f
 
 type Chat = { id: string; title: string; pinned?: boolean };
 type Menu = { id: string; x: number; y: number; up: boolean };
+type PatchBody = { title?: string; pinned?: boolean; archived?: boolean };
 
 const MENU_W = 168;
 const MENU_H = 182;
@@ -23,6 +24,7 @@ export default function ChatRecents() {
   const [confirmDel, setConfirmDel] = useState(false);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const skipBlur = useRef(false);
 
   const load = () => {
@@ -68,21 +70,45 @@ export default function ChatRecents() {
     setConfirmDel(false);
   };
 
-  const patch = async (id: string, body: Record<string, unknown>) => {
+  const patch = async (id: string, body: PatchBody) => {
     setMenu(null);
-    await fetch(`/api/chats/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch(() => {});
-    load();
+    setErr(null);
+    const snapshot = chats;
+    // optimistic: reflect pin/rename/archive immediately, reconcile after
+    setChats((cs) => {
+      const next = cs
+        .map((c) => (c.id === id ? { ...c, ...body } : c))
+        .filter((c) => !(c.id === id && body.archived));
+      return [...next].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    });
+    try {
+      const res = await fetch(`/api/chats/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      load();
+    } catch {
+      setChats(snapshot);
+      setErr("Couldn't save that. If it keeps failing, restart the dev server.");
+    }
   };
 
   const remove = async (id: string) => {
     setMenu(null);
-    await fetch(`/api/chats/${id}`, { method: "DELETE" }).catch(() => {});
+    setErr(null);
+    const snapshot = chats;
+    setChats((cs) => cs.filter((c) => c.id !== id));
     if (activeId === id) router.push("/chat");
-    load();
+    try {
+      const res = await fetch(`/api/chats/${id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) throw new Error(String(res.status));
+      load();
+    } catch {
+      setChats(snapshot);
+      setErr("Couldn't delete that — try again.");
+    }
   };
 
   const startRename = (c: Chat) => {
@@ -109,6 +135,7 @@ export default function ChatRecents() {
 
   return (
     <>
+      {err && <p className="px-2.5 py-1.5 text-[12px] leading-snug text-ember">{err}</p>}
       {chats.map((c) =>
         renameId === c.id ? (
           <input
