@@ -14,6 +14,7 @@ import {
   type LucideIcon,
   MessageSquare,
   Plus,
+  Radar,
   Settings,
   Users,
 } from "lucide-react";
@@ -64,7 +65,9 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
 
   // Which tab's list is showing. Comrk when on a cowork route, Chat otherwise.
-  const activeTab = pathname.startsWith("/cowork") ? "/cowork" : "/chat";
+  // /mrk lives under the Comrk tab, so it stays active (and the mrk entry visible) there
+  const activeTab =
+    pathname.startsWith("/cowork") || pathname.startsWith("/mrk") ? "/cowork" : "/chat";
 
   const renderRow = (item: NavItem) => {
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -186,6 +189,27 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
               <Plus size={15} className="text-molten" aria-hidden />
               New {activeTab === "/cowork" ? "run" : "chat"}
             </Link>
+
+            {activeTab === "/cowork" && (
+              <Link
+                href="/mrk"
+                aria-current={pathname.startsWith("/mrk") ? "page" : undefined}
+                className={`mt-2 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-200 ${
+                  pathname.startsWith("/mrk")
+                    ? "border-molten/40 bg-molten/[0.08]"
+                    : "border-line bg-surface hover:border-molten/40"
+                }`}
+              >
+                <Radar size={16} className="shrink-0 text-molten" aria-hidden />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block text-[12.5px] font-bold text-ink">mrk</span>
+                  <span className="block truncate text-[10.5px] text-mute-2">CMO in your pocket</span>
+                </span>
+                <span className="rounded-full bg-molten/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-molten">
+                  Soon
+                </span>
+              </Link>
+            )}
 
             <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">Recents</p>
             <div className="dash-scroll mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
