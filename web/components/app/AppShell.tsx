@@ -9,6 +9,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 
 const LEFT = { min: 200, max: 340, def: 232, rail: 64 };
 const RIGHT = { min: 260, max: 480, def: 340, rail: 44 };
+const CMO_W = 360; // the floating CmoPanel drawer width (w-[360px])
 const K = { lc: "mrk18.leftCollapsed", lw: "mrk18.leftWidth", rw: "mrk18.rightWidth" };
 
 /** Drag-to-resize / click-to-collapse handle with a hover hint. */
@@ -44,6 +45,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [leftWidth, setLeftWidth] = useState(LEFT.def);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [rightWidth, setRightWidth] = useState(RIGHT.def);
+  const [cmoOpen, setCmoOpen] = useState(false); // the floating CMO panel is open
+  const [wide, setWide] = useState(true); // ≥lg — only then is there room to pad for the panel
   const [ready, setReady] = useState(false);
   const [slotNode, setSlotNode] = useState<HTMLDivElement | null>(null);
   const [hasContent, setHasContent] = useState(false);
@@ -84,6 +87,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // the floating CMO panel announces open/close → collapse the rail + pad content
+  useEffect(() => {
+    const onOpen = () => setCmoOpen(true);
+    const onClose = () => setCmoOpen(false);
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onWide = () => setWide(mq.matches);
+    onWide();
+    window.addEventListener("mrk18:cmo-open", onOpen);
+    window.addEventListener("mrk18:cmo-closed", onClose);
+    mq.addEventListener("change", onWide);
+    return () => {
+      window.removeEventListener("mrk18:cmo-open", onOpen);
+      window.removeEventListener("mrk18:cmo-closed", onClose);
+      mq.removeEventListener("change", onWide);
+    };
+  }, []);
+
   // drag-to-resize + click-to-collapse (no drag = click)
   useEffect(() => {
     const move = (e: MouseEvent) => {
@@ -120,7 +140,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     document.body.style.cursor = "col-resize";
   };
 
-  const lw = leftCollapsed ? LEFT.rail : leftWidth;
+  // the CMO panel forces the rail shut (without touching the user's saved choice)
+  const railCollapsed = cmoOpen || leftCollapsed;
+  const lw = railCollapsed ? LEFT.rail : leftWidth;
   const rw = rightCollapsed ? RIGHT.rail : rightWidth;
   const wt = dragRef.current ? "none" : "width 0.18s ease";
 
@@ -129,12 +151,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex h-full w-full overflow-hidden">
         {/* LEFT — nav */}
         <div className="relative z-20 h-full shrink-0" style={{ width: lw, transition: wt }}>
-          <Rail collapsed={leftCollapsed} onToggle={() => setLeftCollapsed((v) => !v)} />
-          {!leftCollapsed && <Handle side="left" shortcut="Ctrl+B" onResizeStart={beginDrag("left")} />}
+          <Rail collapsed={railCollapsed} onToggle={() => setLeftCollapsed((v) => !v)} />
+          {!railCollapsed && <Handle side="left" shortcut="Ctrl+B" onResizeStart={beginDrag("left")} />}
         </div>
 
         {/* MAIN */}
-        <main className="relative min-w-0 flex-1 overflow-hidden">{children}</main>
+        <main
+          className="relative min-w-0 flex-1 overflow-hidden"
+          style={{ paddingRight: cmoOpen && wide ? CMO_W : 0, transition: "padding 0.2s ease" }}
+        >
+          {children}
+        </main>
 
         {/* RIGHT — content-driven (renders only when a page docks content) */}
         {hasContent && (

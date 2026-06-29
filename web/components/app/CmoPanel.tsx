@@ -93,6 +93,12 @@ export default function CmoPanel() {
     callRef.current = call;
   }, [call]);
 
+  // Tell the app shell to make room while the panel is open: it collapses the left
+  // rail and pads the content so the drawer never overlaps the page.
+  useEffect(() => {
+    window.dispatchEvent(new Event(open ? "mrk18:cmo-open" : "mrk18:cmo-closed"));
+  }, [open]);
+
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
   }, [messages]);
