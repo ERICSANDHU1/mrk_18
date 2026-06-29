@@ -95,6 +95,23 @@ body {
   }
 }
 
+/* Modals/overlays render ABOVE the custom cursor (which is then hidden behind
+   them), so the native cursor must come back inside anything marked .cursor-native. */
+.cursor-native,
+.cursor-native * {
+  cursor: auto !important;
+}
+.cursor-native a,
+.cursor-native button,
+.cursor-native [role="button"] {
+  cursor: pointer !important;
+}
+.cursor-native input,
+.cursor-native textarea,
+.cursor-native select {
+  cursor: text !important;
+}
+
 /* ---------- brand utilities ---------- */
 
 .text-gradient {
