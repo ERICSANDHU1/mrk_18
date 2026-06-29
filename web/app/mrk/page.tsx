@@ -1,21 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import { Handshake, MapPin, Radar, Sparkles, Users, Zap } from "lucide-react";
+import DeviceModel3D from "@/components/device/DeviceModel3D";
 
 export const metadata: Metadata = { title: "mrk" };
-
-// the assembled device — the 9 transparent-PNG layers stacked into the closed product
-const LAYERS = [
-  { src: "/device/device-1-glass.png?v=3", scale: 1.0 },
-  { src: "/device/device-2-display.png", scale: 0.94 },
-  { src: "/device/device-3-sensor.png", scale: 0.86 },
-  { src: "/device/device-4-pcb.png", scale: 0.92 },
-  { src: "/device/device-5-haptic.png", scale: 0.8 },
-  { src: "/device/device-6-battery.png", scale: 0.93 },
-  { src: "/device/device-7-power.png", scale: 0.82 },
-  { src: "/device/device-8-magnet.png", scale: 0.92 },
-  { src: "/device/device-9-shell.png", scale: 1.06 },
-];
 
 const FEATURES = [
   {
@@ -75,18 +62,8 @@ export default function MrkPage() {
               after the Founding 500.
             </p>
           </div>
-          <div className="relative mx-auto aspect-square w-[min(64vw,280px)]">
-            {LAYERS.map((l, i) => (
-              <img
-                key={i}
-                src={l.src}
-                alt=""
-                aria-hidden
-                draggable={false}
-                className="pointer-events-none absolute left-0 top-0 w-full select-none"
-                style={{ zIndex: LAYERS.length - i, transform: `scale(${l.scale})` }}
-              />
-            ))}
+          <div className="relative mx-auto aspect-square w-[min(74vw,340px)] cursor-grab active:cursor-grabbing">
+            <DeviceModel3D />
           </div>
         </div>
 
