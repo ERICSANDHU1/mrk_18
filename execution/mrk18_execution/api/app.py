@@ -18,6 +18,7 @@ from ..db.engine import build_engine, build_session_factory
 from ..security.headers import apply_security_headers
 from ..security.logfilter import install_secret_scrubbing
 from ..security.ratelimit import RateLimiter
+from .apply import router as apply_router
 from .connections import router as connections_router
 from .intake import router as intake_router
 from .privacy import router as privacy_router
@@ -347,6 +348,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     from .ops import router as ops_router
     from .signals import router as signals_router
 
+    app.include_router(apply_router)
     app.include_router(intake_router)
     app.include_router(runs_router)
     app.include_router(meta_router)

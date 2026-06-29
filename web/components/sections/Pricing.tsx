@@ -1,4 +1,5 @@
 import Reveal from "../ui/Reveal";
+import Waitlist, { WaitlistTrigger } from "./Waitlist";
 
 const ROWS = [
   {
@@ -39,36 +40,28 @@ export default function Pricing() {
 
         <Reveal delay={0.12}>
           <div className="mt-16 border-t border-stroke">
-            {ROWS.map((row) => {
-              const inner = (
-                <div className="grid grid-cols-1 items-center gap-3 border-b border-stroke py-9 transition-transform duration-300 ease-out hover:translate-x-3 md:grid-cols-[1.2fr_2fr_auto]">
-                  <h3 className={`text-2xl font-extrabold tracking-tight md:text-3xl ${row.highlight ? "text-gradient" : ""}`}>
-                    {row.name}
-                  </h3>
-                  <p className="text-[15px] text-muted">{row.desc}</p>
-                  <span
-                    className={`justify-self-start rounded-full px-5 py-2 text-[13px] font-semibold md:justify-self-end ${
-                      row.highlight
-                        ? "text-white"
-                        : "border border-stroke text-ink"
-                    }`}
-                    style={row.highlight ? { background: "var(--gradient-brand)" } : undefined}
-                  >
+            {ROWS.map((row) => (
+              <div
+                key={row.name}
+                className="grid grid-cols-1 items-center gap-3 border-b border-stroke py-9 transition-transform duration-300 ease-out hover:translate-x-3 md:grid-cols-[1.2fr_2fr_auto]"
+              >
+                <h3 className={`text-2xl font-extrabold tracking-tight md:text-3xl ${row.highlight ? "text-gradient" : ""}`}>
+                  {row.name}
+                </h3>
+                <p className="text-[15px] text-muted">{row.desc}</p>
+                {row.href === "#waitlist" ? (
+                  <WaitlistTrigger highlight={row.highlight}>{row.action}</WaitlistTrigger>
+                ) : (
+                  <span className="justify-self-start rounded-full border border-stroke px-5 py-2 text-[13px] font-semibold text-ink md:justify-self-end">
                     {row.action}
                   </span>
-                </div>
-              );
-              return row.href ? (
-                <a key={row.name} href={row.href} className="block">
-                  {inner}
-                </a>
-              ) : (
-                <div key={row.name}>{inner}</div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
         </Reveal>
       </div>
+      <Waitlist />
     </section>
   );
 }

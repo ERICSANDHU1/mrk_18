@@ -376,6 +376,20 @@ class AnalyticsDiagnosisRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
+class ApplicationRow(Base):
+    """Founding-50 waitlist applications from the public landing form (no founder
+    yet). Read them in the Supabase Table Editor."""
+
+    __tablename__ = "applications"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    phone: Mapped[str | None] = mapped_column(Text, nullable=True)
+    company: Mapped[str | None] = mapped_column(Text, nullable=True)
+    marketing_issue: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
 class AuditRow(Base):
     __tablename__ = "audit_log"
 
