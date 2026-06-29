@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Loader2,
+  Lock,
   RefreshCw,
   Scissors,
   Sparkles,
@@ -14,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import ConnectDataState from "./ConnectDataState";
+import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 type Diag = {
   headline?: string;
@@ -123,6 +125,21 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
       setRepulling(false);
     }
   };
+
+  if (CONNECTORS_LOCKED) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stroke-2 bg-surface px-6 py-16 text-center">
+        <span className="mb-4 rounded-xl border border-stroke-2 bg-surface-2 p-3 text-muted">
+          <Lock size={20} aria-hidden />
+        </span>
+        <h3 className="text-[15px] font-bold tracking-tight">Ad connector — coming soon</h3>
+        <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted">
+          Connecting your Meta ad account is locked while we finish setup. Your CMO will diagnose
+          your ad spend here the moment it&apos;s live.
+        </p>
+      </div>
+    );
+  }
 
   if (data === null) {
     return (

@@ -11,10 +11,12 @@ import {
   Files,
   Filter,
   Loader2,
+  Lock,
   MessageSquare,
   Plug,
   Radar,
 } from "lucide-react";
+import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 type Diagnosis = {
   headline?: string;
@@ -245,7 +247,7 @@ export default function ChiefClient() {
           {/* Leaks */}
           <Widget icon={Droplet} title="Leaks" href="/console/leaks">
             {leaking.length === 0 ? (
-              <Empty>No leaks flagged yet — run an ad analysis to find what's burning money.</Empty>
+              <Empty>No leaks flagged yet — wasted spend surfaces here once the ad connector is live.</Empty>
             ) : (
               <div className="space-y-1.5">
                 {leaking.slice(0, 3).map((l, i) => (
@@ -285,12 +287,18 @@ export default function ChiefClient() {
             {connections.length === 0 ? (
               <div className="space-y-2">
                 <Empty>No data sources connected yet.</Empty>
-                <Link
-                  href="/console/leaks"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-ink transition-colors hover:border-molten/40"
-                >
-                  <Plug size={13} aria-hidden /> Connect a source
-                </Link>
+                {CONNECTORS_LOCKED ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-mute-2">
+                    <Lock size={13} aria-hidden /> Connector coming soon
+                  </span>
+                ) : (
+                  <Link
+                    href="/console/leaks"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-ink transition-colors hover:border-molten/40"
+                  >
+                    <Plug size={13} aria-hidden /> Connect a source
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="flex flex-wrap gap-1.5">

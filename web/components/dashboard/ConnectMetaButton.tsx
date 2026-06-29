@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, RefreshCw } from "lucide-react";
+import { Check, Loader2, Lock, RefreshCw } from "lucide-react";
+import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 type Conn = {
   platform: string;
@@ -30,6 +31,14 @@ export default function ConnectMetaButton() {
       active = false;
     };
   }, []);
+
+  if (CONNECTORS_LOCKED) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-lg border border-stroke-2 bg-surface-2 px-3.5 py-2 text-[12.5px] font-semibold text-muted">
+        <Lock size={14} aria-hidden /> Meta connector — coming soon
+      </span>
+    );
+  }
 
   const meta = conns?.find((c) => c.platform === "meta" && c.status === "connected") ?? null;
 

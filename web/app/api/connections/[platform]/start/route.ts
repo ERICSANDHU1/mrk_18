@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { backendFetch, getFounderId } from "@/lib/server/backend";
+import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 /** Begin an OAuth connect for a platform (e.g. "meta"). Returns { authorize_url }
  *  — the browser redirects there to the user's OWN provider account to approve. */
 export async function POST(_req: Request, { params }: { params: Promise<{ platform: string }> }) {
+  if (CONNECTORS_LOCKED) {
+    return NextResponse.json({ error: "connector is not available yet" }, { status: 403 });
+  }
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const founderId = await getFounderId();

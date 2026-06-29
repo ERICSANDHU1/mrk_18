@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { backendFetch, getFounderId } from "@/lib/server/backend";
+import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 /** Manually re-pull + re-diagnose the founder's Meta ad data (refresh button). */
 export async function POST() {
+  if (CONNECTORS_LOCKED) {
+    return NextResponse.json({ error: "connector is not available yet" }, { status: 403 });
+  }
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   const founderId = await getFounderId();
