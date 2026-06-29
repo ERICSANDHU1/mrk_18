@@ -17,6 +17,7 @@ export default function StartRunButton() {
       const res = await fetch("/api/runs", { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (res.ok && body.run_id) {
+        window.dispatchEvent(new Event("mrk18:runs-changed")); // refresh the Comrk Recents
         router.push(`/cowork/run/${body.run_id}`);
         return;
       }

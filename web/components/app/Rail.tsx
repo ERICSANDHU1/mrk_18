@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Logo from "@/components/app/Logo";
 import ChatRecents from "@/components/app/ChatRecents";
+import CoworkRecents from "@/components/app/CoworkRecents";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -25,21 +26,12 @@ type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; 
 // and Dashboard pinned to the bottom of the rail.
 const TOP: NavItem[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare, exact: false },
-  { href: "/cowork", label: "Comrk", icon: Users, exact: false, badge: "1" },
+  { href: "/cowork", label: "Comrk", icon: Users, exact: false },
 ];
 const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true };
 
-// Per-tab session lists. Placeholder rows for now — they populate for real once
-// chat / run history is wired; today they show the rail's shape under each tab.
-type Recent = { id: string; title: string };
-
-// Comrk's list is still placeholder (run history comes later); the Chat tab's
-// list is fetched live from /api/chats in the component below.
-const COMRK_RECENTS: Recent[] = [
-  { id: "r1", title: "Cofounder.co · full run" },
-  { id: "r2", title: "Cofounder.co · re-run" },
-];
-
+// Each tab's Recents are fetched live, per founder: Chat → /api/chats (ChatRecents),
+// Comrk → /api/runs (CoworkRecents). No more shared placeholder rows.
 type Workspace = { name: string; initial: string };
 
 /** Section-switcher rail — collapses to icons, expands to a labelled nav. */
@@ -198,21 +190,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">Recents</p>
             <div className="dash-scroll mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
               {activeTab === "/cowork" ? (
-                COMRK_RECENTS.length === 0 ? (
-                  <p className="px-2.5 py-2 text-[12.5px] text-mute-2">No runs yet.</p>
-                ) : (
-                  COMRK_RECENTS.map((r) => (
-                    <Link
-                      key={r.id}
-                      href="/cowork"
-                      title={r.title}
-                      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-mute transition-colors hover:bg-surface hover:text-ink"
-                    >
-                      <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full border border-line" />
-                      <span className="truncate">{r.title}</span>
-                    </Link>
-                  ))
-                )
+                <CoworkRecents />
               ) : (
                 <Suspense fallback={null}>
                   <ChatRecents />
