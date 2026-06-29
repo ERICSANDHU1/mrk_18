@@ -4,6 +4,7 @@ import Logo from "@/components/app/Logo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowUp, Loader2, Mic, Plus } from "lucide-react";
+import { cleanCmoText } from "@/lib/text";
 
 type Role = "user" | "cmo";
 type Msg = { id: string; role: Role; text: string };
@@ -215,7 +216,7 @@ export default function ChatClient() {
                         : "rounded-tr-sm bg-surface-2 text-ink"
                     }`}
                   >
-                    {m.text}
+                    {m.role === "cmo" ? cleanCmoText(m.text) : m.text}
                   </div>
                 </div>
               ))}

@@ -17,6 +17,7 @@ import {
   Radar,
 } from "lucide-react";
 import { CONNECTORS_LOCKED } from "@/lib/flags";
+import { cleanCmoText } from "@/lib/text";
 
 type Diagnosis = {
   headline?: string;
@@ -370,7 +371,7 @@ export default function ChiefClient() {
                         : "rounded-tr-sm bg-surface-2 text-ink"
                     }`}
                   >
-                    {m.text}
+                    {m.role === "cmo" ? cleanCmoText(m.text) : m.text}
                   </div>
                 </div>
               ))}
