@@ -3,8 +3,8 @@ import Waitlist, { WaitlistTrigger } from "./Waitlist";
 
 const ROWS = [
   {
-    name: "Founding 50",
-    desc: "Early access · founder pricing locked",
+    name: "Founding 500",
+    desc: "Founder pricing locked for life · filling fast",
     action: "Apply",
     href: "#waitlist",
     highlight: true,
@@ -36,6 +36,19 @@ export default function Pricing() {
           <h2 className="mt-6 text-[clamp(2.2rem,5.5vw,4rem)] font-extrabold leading-[1.05] tracking-[-0.03em]">
             Start free. <span className="text-gradient">Lock founder pricing.</span>
           </h2>
+          <div className="mt-7 flex flex-col items-start gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-molten/30 bg-molten/[0.06] px-3.5 py-1.5 text-[12.5px] font-bold uppercase tracking-wide text-ink">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-molten opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-molten" />
+              </span>
+              Only 500 founder seats — filling fast
+            </span>
+            <p className="max-w-xl text-[15px] leading-relaxed text-muted">
+              Founder pricing locks for life. Once the Founding 500 are in, this door closes —
+              everyone after pays full launch price.
+            </p>
+          </div>
         </Reveal>
 
         <Reveal delay={0.12}>

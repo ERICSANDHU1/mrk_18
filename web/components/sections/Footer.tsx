@@ -28,8 +28,8 @@ export default function Footer() {
                 Your CMO is almost <span className="text-gradient">in your pocket.</span>
               </h2>
               <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-                Founding 50 spots. Founder pricing, locked. India-first, built to tell you the bitter
-                truth — get in before launch.
+                Just 500 founder seats — locked-in pricing for life. India-first, built to tell you the
+                bitter truth — get in before they're gone.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-5">

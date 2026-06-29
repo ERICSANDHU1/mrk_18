@@ -27,7 +27,7 @@ export function WaitlistTrigger({
 const FIELD =
   "w-full rounded-xl border border-stroke bg-surface-2 px-4 py-3 text-[14px] text-ink placeholder:text-muted focus:border-molten/50 focus:outline-none";
 
-/** Founding-50 application modal — posts to /api/apply, which stores it for the
+/** Founding-500 application modal — posts to /api/apply, which stores it for the
  *  team in Supabase. Opened by any WaitlistTrigger via a window event. */
 export default function Waitlist() {
   const [open, setOpen] = useState(false);
@@ -89,7 +89,7 @@ export default function Waitlist() {
       className="cursor-native fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Apply for Founding 50"
+      aria-label="Apply for Founding 500"
     >
       <button
         aria-label="Close"
@@ -115,15 +115,16 @@ export default function Waitlist() {
             </span>
             <h3 className="text-xl font-extrabold tracking-tight text-ink">You're on the list.</h3>
             <p className="mt-2 text-[14px] leading-relaxed text-muted">
-              We'll reach out about your Founding 50 spot. Thanks for the marketing issue — your CMO
+              We'll reach out about your Founding 500 spot. Thanks for the marketing issue — your CMO
               will be ready for it.
             </p>
           </div>
         ) : (
           <form onSubmit={submit}>
-            <h3 className="text-2xl font-extrabold tracking-tight text-ink">Apply for Founding 50</h3>
+            <h3 className="text-2xl font-extrabold tracking-tight text-ink">Apply for Founding 500</h3>
             <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
-              Founder pricing, locked. Tell us where to reach you and your biggest marketing headache.
+              Founder pricing locked for life — and seats are limited. Tell us where to reach you and
+              your biggest marketing headache.
             </p>
             <div className="mt-5 space-y-3">
               <input

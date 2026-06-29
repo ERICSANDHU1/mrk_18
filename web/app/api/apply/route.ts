@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { backendFetch } from "@/lib/server/backend";
 
-/** Public Founding-50 application — forwards the landing form to the backend
+/** Public Founding-500 application — forwards the landing form to the backend
  *  (no auth; the /apply endpoint is public + rate-limited + honeypot-guarded). */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
