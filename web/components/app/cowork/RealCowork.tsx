@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Files, Mail, Rocket, Send } from "lucide-react";
 import StartRunButton from "./StartRunButton";
+import MrkShowcase from "./MrkShowcase";
 
 export interface FounderProfile {
   company_name: string;
@@ -211,6 +212,9 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
             <Dormant>Connect Gmail and Calendar to handle updates and schedule work from here.</Dormant>
           </Widget>
         </div>
+
+        {/* mrk — the pocket device (proximity networking), coming after the Founding 500 */}
+        <MrkShowcase />
       </div>
     </div>
   );
