@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, type LucideIcon, MoreVertical, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { SkeletonRows } from "@/components/app/ui/Skeleton";
 
 type Chat = { id: string; title: string; pinned?: boolean };
 type Menu = { id: string; x: number; y: number; up: boolean };
@@ -20,6 +21,7 @@ export default function ChatRecents() {
   const activeId = useSearchParams().get("id");
 
   const [chats, setChats] = useState<Chat[]>([]);
+  const [loading, setLoading] = useState(true);
   const [menu, setMenu] = useState<Menu | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -31,7 +33,8 @@ export default function ChatRecents() {
     fetch("/api/chats", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => Array.isArray(d) && setChats(d as Chat[]))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
   useEffect(() => {
     load();
@@ -127,6 +130,7 @@ export default function ChatRecents() {
     if (t && current && t !== current.title) patch(id, { title: t });
   };
 
+  if (loading) return <SkeletonRows rows={4} className="mt-1.5" />;
   if (chats.length === 0) {
     return <p className="px-2.5 py-2 text-[12.5px] text-mute-2">No chats yet.</p>;
   }

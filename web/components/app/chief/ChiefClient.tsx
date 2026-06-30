@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { CONNECTORS_LOCKED } from "@/lib/flags";
 import { cleanCmoText } from "@/lib/text";
+import { Skeleton } from "@/components/app/ui/Skeleton";
 
 type Diagnosis = {
   headline?: string;
@@ -238,7 +239,11 @@ export default function ChiefClient() {
           ].map((k) => (
             <div key={k.label} className="rounded-xl bg-surface-2 px-3.5 py-3">
               <div className="text-[11px] text-mute-2">{k.label}</div>
-              <div className="mt-1 text-[20px] font-semibold text-ink">{k.value}</div>
+              {loading ? (
+                <Skeleton className="mt-1.5 h-6 w-14 rounded-md" />
+              ) : (
+                <div className="mt-1 text-[20px] font-semibold text-ink">{k.value}</div>
+              )}
             </div>
           ))}
         </div>

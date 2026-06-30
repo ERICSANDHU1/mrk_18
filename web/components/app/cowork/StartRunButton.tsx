@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2 } from "lucide-react";
+import PrimaryButton from "@/components/app/ui/PrimaryButton";
 
 /** Kicks off a real analysis run, then routes to the run flow. */
 export default function StartRunButton() {
@@ -30,11 +31,7 @@ export default function StartRunButton() {
 
   return (
     <div className="mt-4">
-      <button
-        onClick={start}
-        disabled={loading}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2 text-[12px] font-bold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-70"
-      >
+      <PrimaryButton onClick={start} disabled={loading} className="px-4 py-2 text-[12px]">
         {loading ? (
           <>
             <Loader2 size={13} className="animate-spin" aria-hidden /> Starting…
@@ -44,7 +41,7 @@ export default function StartRunButton() {
             Start your first run <ArrowRight size={13} aria-hidden />
           </>
         )}
-      </button>
+      </PrimaryButton>
       {err && <p className="mt-2 text-[12px] text-ember">{err}</p>}
     </div>
   );

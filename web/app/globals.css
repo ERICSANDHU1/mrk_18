@@ -45,6 +45,7 @@
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
   --color-mute-2: var(--mute-2);
+  --color-mute: var(--muted); /* `text-mute` is used widely — map it to the real muted token (both themes) */
   --font-sans: var(--font-sora);
   --font-mono: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
 }
@@ -208,7 +209,7 @@ body {
 
 /* visible keyboard focus */
 :focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--molten);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -387,11 +388,6 @@ body {
   color: #f4f4f5;
 }
 .mrk18-dark .app-scope .text-muted {
-  color: #b4b4bd;
-}
-/* `text-mute` is used widely but isn't a real token (no --color-mute), so it
-   inherits and ends up low-contrast on black — pin it to a readable grey. */
-.mrk18-dark .app-scope .text-mute {
   color: #b4b4bd;
 }
 /* the .app-scope layout div also carries .text-ink — `.theme-sand .text-ink`
