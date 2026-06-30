@@ -242,7 +242,7 @@ export default function ChatClient() {
   const empty = messages.length === 0;
 
   const composer = (
-    <div className="rounded-2xl border border-line bg-surface shadow-sm transition-colors focus-within:border-molten/50">
+    <div className="rounded-2xl border border-line bg-surface shadow-sm transition-colors focus-within:border-molten/40">
       <div className="flex items-end gap-2 px-3 pt-3">
         <textarea
           ref={taRef}
@@ -254,7 +254,8 @@ export default function ChatClient() {
           onKeyDown={onKeyDown}
           rows={1}
           placeholder={listening ? "Listening…" : "Message your CMO…"}
-          className="dash-scroll max-h-40 min-h-[24px] flex-1 resize-none bg-transparent text-[14px] leading-relaxed text-ink placeholder:text-mute-2 focus:outline-none"
+          style={{ outline: "none" }}
+          className="dash-scroll max-h-40 min-h-[24px] flex-1 resize-none bg-transparent text-[14px] leading-relaxed text-ink placeholder:text-mute-2"
         />
         <button
           onClick={() => submit(draft)}
