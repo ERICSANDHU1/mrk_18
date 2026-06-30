@@ -174,7 +174,7 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
           <button
             onClick={runAnalysis}
             disabled={running}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2.5 text-[13px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-molten px-4 py-2.5 text-[13px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {running ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Sparkles size={14} aria-hidden />}
             {running ? "Analysing…" : "Run CMO analysis"}

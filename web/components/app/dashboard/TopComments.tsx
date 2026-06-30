@@ -57,7 +57,7 @@ export default function TopComments() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button
                             onClick={() => setSent((s) => ({ ...s, [c.id]: true }))}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-3 py-1.5 text-[12px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-molten px-3 py-1.5 text-[12px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
                           >
                             <Check size={13} aria-hidden /> Approve &amp; send
                           </button>

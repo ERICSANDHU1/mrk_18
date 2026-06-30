@@ -195,7 +195,7 @@ export default function RunFlow({ runId }: { runId: string }) {
               <button
                 onClick={retry}
                 disabled={retrying}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-60"
               >
                 {retrying ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <RotateCcw size={14} aria-hidden />}
                 Retry from where it stopped

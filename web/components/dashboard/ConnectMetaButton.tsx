@@ -111,7 +111,7 @@ export default function ConnectMetaButton() {
       <button
         onClick={connect}
         disabled={busy || conns === null}
-        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2.5 text-[13px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-lg bg-molten px-4 py-2.5 text-[13px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {busy && <Loader2 size={14} className="animate-spin" aria-hidden />}
         Connect Meta Ads

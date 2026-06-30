@@ -138,7 +138,7 @@ export default function FunnelView({ stages }: { stages: FunnelStage[] }) {
               {active.verdict !== "healthy" && (
                 <Link
                   href="/console"
-                  className="mt-3.5 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-3.5 py-2 text-[12px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+                  className="mt-3.5 inline-flex items-center gap-1.5 rounded-lg bg-molten px-3.5 py-2 text-[12px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
                 >
                   Open on the Execute board
                   <ArrowRight size={13} aria-hidden />

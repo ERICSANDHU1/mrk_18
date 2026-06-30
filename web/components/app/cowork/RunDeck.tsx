@@ -255,7 +255,7 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
             Done
           </Link>
         ) : (
-          <button onClick={() => paginate(1)} className="inline-flex h-10 items-center gap-1.5 rounded-full bg-gradient-to-r from-molten via-amber to-ember px-4 text-[13px] font-bold text-white transition hover:opacity-90">
+          <button onClick={() => paginate(1)} className="inline-flex h-10 items-center gap-1.5 rounded-full bg-molten px-4 text-[13px] font-bold text-white transition hover:opacity-90">
             Next <ChevronRight size={16} aria-hidden />
           </button>
         )}
@@ -324,7 +324,7 @@ function SummarySlide({ count }: { count: number }) {
           {count} {count === 1 ? "post is" : "posts are"} approved and ready to ship — copy any one from
           its slide, or come back to publish when you connect your channels.
         </p>
-        <Link href="/cowork" className="mt-7 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-molten via-amber to-ember px-6 py-3 text-[14px] font-bold text-white transition hover:opacity-90">
+        <Link href="/cowork" className="mt-7 inline-flex items-center gap-1.5 rounded-full bg-molten px-6 py-3 text-[14px] font-bold text-white transition hover:opacity-90">
           <ArrowLeft size={15} aria-hidden /> Back to workspace
         </Link>
       </motion.div>

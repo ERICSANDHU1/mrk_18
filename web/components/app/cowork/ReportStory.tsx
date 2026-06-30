@@ -129,7 +129,7 @@ function EditAffordance({ editor, what }: { editor: EditorProps; what: string })
           type="button"
           onClick={editor.onSubmit}
           disabled={!editor.text.trim()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2 text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-molten px-4 py-2 text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
         >
           <Check size={13} aria-hidden /> Apply
         </button>
@@ -394,7 +394,7 @@ export default function ReportStory({
         ) : (
           <button
             onClick={() => paginate(1)}
-            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-gradient-to-r from-molten via-amber to-ember px-4 text-[13px] font-bold text-white transition hover:opacity-90"
+            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-molten px-4 text-[13px] font-bold text-white transition hover:opacity-90"
           >
             {index === last - 1 ? "Decide" : "Next"} <ChevronRight size={16} aria-hidden />
           </button>
@@ -541,7 +541,7 @@ function DecisionSlide({
               <button
                 onClick={onSubmitFlag}
                 disabled={submitting || !flagText.trim()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-molten px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-60"
               >
                 <Flag size={13} aria-hidden /> Send back to re-work
               </button>
@@ -558,7 +558,7 @@ function DecisionSlide({
             <button
               onClick={onApprove}
               disabled={submitting}
-              className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-molten via-amber to-ember px-6 py-3.5 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-molten px-6 py-3.5 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {submitting ? "Working…" : "Approve & generate content"}
               {!submitting && <Check size={16} aria-hidden />}

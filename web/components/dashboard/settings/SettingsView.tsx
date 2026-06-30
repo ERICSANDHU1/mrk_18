@@ -252,7 +252,7 @@ export default function SettingsView() {
         <button
           onClick={save}
           disabled={!dirty || saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-50"
         >
           {saving && <Loader2 size={13} className="animate-spin" aria-hidden />} Save changes
         </button>

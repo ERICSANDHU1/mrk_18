@@ -294,7 +294,7 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
           <button
             type="button"
             onClick={() => onComplete?.(data)}
-            className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
           >
             Go to your workspace <ArrowRight size={15} aria-hidden />
           </button>
@@ -487,7 +487,7 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
               <button
                 type="button"
                 onClick={next}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
               >
                 Continue <ArrowRight size={15} aria-hidden />
               </button>
@@ -496,7 +496,7 @@ export default function OnboardingForm({ onComplete }: { onComplete?: (seed: Bra
                 type="button"
                 onClick={submit}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-70"
+                className="inline-flex items-center gap-2 rounded-xl bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90 disabled:opacity-70"
               >
                 {submitting ? "Teaching your CMO…" : "Seed my CMO's brain"}
                 {!submitting && <Brain size={15} aria-hidden />}

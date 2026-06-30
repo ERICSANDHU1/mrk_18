@@ -156,7 +156,7 @@ export default async function ConsoleDashboard() {
           </div>
           <Link
             href="/cowork"
-            className="mt-7 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
+            className="mt-7 inline-flex items-center gap-1.5 rounded-lg bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
           >
             Start your first run <ArrowRight size={14} aria-hidden />
           </Link>
@@ -183,7 +183,7 @@ export default async function ConsoleDashboard() {
                     </span>
                     <Link
                       href={`/cowork/run/${it.run_id}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-molten via-amber to-ember px-3 py-1.5 text-[12px] font-bold text-white"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-molten px-3 py-1.5 text-[12px] font-bold text-white"
                     >
                       Review <ArrowRight size={12} aria-hidden />
                     </Link>

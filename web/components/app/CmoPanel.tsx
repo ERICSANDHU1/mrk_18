@@ -471,7 +471,7 @@ export default function CmoPanel() {
                   )}
                   <span
                     aria-hidden
-                    className={`h-20 w-20 rounded-full bg-gradient-to-br from-molten via-amber to-ember ${call === "live" ? "orb" : "opacity-70"}`}
+                    className={`h-20 w-20 rounded-full bg-molten ${call === "live" ? "orb" : "opacity-70"}`}
                   />
                   {call === "live" && phase === "listening" && (
                     <Mic size={20} className="absolute text-white/80" aria-hidden />
@@ -530,7 +530,7 @@ export default function CmoPanel() {
           </div>
           <button
             onClick={connect}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-molten via-amber to-ember py-2.5 text-[13px] font-extrabold text-white transition-opacity duration-200 hover:opacity-90"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-molten py-2.5 text-[13px] font-extrabold text-white transition-opacity duration-200 hover:opacity-90"
           >
             <Phone size={15} aria-hidden /> Call CMO
           </button>

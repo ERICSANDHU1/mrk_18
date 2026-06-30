@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SkeletonRows } from "@/components/app/ui/Skeleton";
 
 type Run = { run_id: string; status: string; started_at: string };
 
@@ -28,6 +29,7 @@ const fmtDate = (s: string) => {
  *  (StartRunButton fires "mrk18:runs-changed"). */
 export default function CoworkRecents() {
   const [runs, setRuns] = useState<Run[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -35,7 +37,8 @@ export default function CoworkRecents() {
       fetch("/api/runs", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : []))
         .then((d) => active && Array.isArray(d) && setRuns(d as Run[]))
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => active && setLoading(false));
     load();
     const onChange = () => load();
     window.addEventListener("mrk18:runs-changed", onChange);
@@ -45,6 +48,7 @@ export default function CoworkRecents() {
     };
   }, []);
 
+  if (loading) return <SkeletonRows rows={4} className="mt-1.5" />;
   if (runs.length === 0) {
     return <p className="px-2.5 py-2 text-[12.5px] text-mute-2">No runs yet.</p>;
   }
