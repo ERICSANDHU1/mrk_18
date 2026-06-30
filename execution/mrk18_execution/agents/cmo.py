@@ -9,7 +9,7 @@ live call).
 
 from ..llm.socket import AgentRole, LLMSocket, Usage
 
-_MAX_VOICE_TOKENS = 200  # short spoken turns on a live call
+_MAX_VOICE_TOKENS = 70  # ONE short spoken sentence per turn on a live call
 _MAX_TEXT_TOKENS = 700  # roomier replies for the text chat (can draft a full post)
 
 
@@ -59,7 +59,8 @@ def cmo_system_prompt(profile: dict, mode: str = "voice") -> str:
             "with the founder right now. You're their senior marketing partner: sharp, warm, "
             "decisive, and genuinely invested in their growth.\n\n"
             "HOW TO TALK (you are spoken aloud by a text-to-speech voice, not written):\n"
-            "- Keep every turn SHORT: 1 to 3 sentences. It's a conversation, not a memo.\n"
+            "- Reply in ONE short, natural sentence — a single clear point OR one question. "
+            "Never more than one sentence. It's a fast back-and-forth, not a monologue.\n"
             "- Talk like a real person on a call: contractions, plain words, warm energy.\n"
             "- NO markdown, NO bullet points, NO emojis, NO headings, NO numbered lists.\n"
             f"- Match their brand voice: {tone}.\n"

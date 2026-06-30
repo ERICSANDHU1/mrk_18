@@ -3,8 +3,9 @@
 import Logo from "@/components/app/Logo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic, Phone, PhoneOff, Send, X } from "lucide-react";
+import { AudioLines, Mic, Phone, PhoneOff, Send, X } from "lucide-react";
 import type { ChatMsg } from "@/lib/mock/console";
+import { cleanCmoText } from "@/lib/text";
 
 type CallState = "idle" | "connecting" | "live";
 type Phase = "listening" | "thinking" | "speaking";
@@ -17,6 +18,26 @@ const ONBOARDING_PROMPT =
   "Complete your onboarding first — your CMO activates once your workspace is set up.";
 const RECOGNITION_LANG = "en-IN";
 const SILENCE_MS = 900; // pause this long → treat the founder's turn as finished
+const BARGE_MIN_WORDS = 3; // a clear phrase (not a 1-word TTS echo) to count as cutting in
+
+// Did the mic mostly just hear the CMO's own TTS coming back through the speakers
+// (echo), or is the founder genuinely talking over it?
+function isEcho(heard: string, spoken: string): boolean {
+  const hw = heard.toLowerCase().match(/[a-z']+/g) || [];
+  if (!hw.length) return true;
+  const sw = new Set(spoken.toLowerCase().match(/[a-z']+/g) || []);
+  const fromCmo = hw.filter((w) => sw.has(w)).length / hw.length;
+  return fromCmo >= 0.5; // half-or-more of it is the CMO's own words → echo, ignore
+}
+
+// On a call the CMO speaks ONE line: strip any markdown, keep the first sentence.
+function oneLine(text: string): string {
+  const clean = cleanCmoText(text).replace(/\s+/g, " ").trim();
+  const m = clean.match(/^.*?[.!?](?:\s|$)/);
+  let s = (m ? m[0] : clean).trim();
+  if (s.length > 220) s = s.slice(0, 217).trimEnd() + "…";
+  return s || clean;
+}
 
 /* ── Minimal Web Speech typings (not in the default TS lib) ──────────────── */
 type SRAlt = { transcript: string };
@@ -50,15 +71,27 @@ function makeRecognition(): SpeechRecognitionLike | null {
   return r;
 }
 
+// Known male voice names across Windows / macOS / Chrome (voices don't expose a
+// gender flag, so we match by name).
+const MALE_VOICE =
+  /(ravi|hemant|prabhat|david|mark|guy|christopher|brian|eric|alex|daniel|rishi|aaron|fred|george|james|tom|oliver|arthur|ryan)/i;
+
+function isMaleVoice(v: SpeechSynthesisVoice): boolean {
+  if (/\bfemale\b/i.test(v.name)) return false;
+  return /\bmale\b/i.test(v.name) || MALE_VOICE.test(v.name);
+}
+
 function pickVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
+  const en = voices.filter((v) => /^en/i.test(v.lang));
+  const pool = en.length ? en : voices;
   return (
-    voices.find((v) => /en[-_]IN/i.test(v.lang)) ||
-    voices.find((v) => /^en/i.test(v.lang) && /google|natural/i.test(v.name)) ||
-    voices.find((v) => /^en/i.test(v.lang)) ||
-    voices[0]
+    pool.find((v) => /en[-_]IN/i.test(v.lang) && isMaleVoice(v)) || // Indian-English male — ideal
+    pool.find((v) => isMaleVoice(v)) || // any English male voice
+    pool.find((v) => /en[-_]IN/i.test(v.lang)) || // Indian English (any)
+    pool[0]
   );
 }
 
@@ -80,12 +113,14 @@ export default function CmoPanel() {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const callRef = useRef<CallState>("idle");
   const speakingRef = useRef(false);
-  const listeningRef = useRef(false);
+  const micOnRef = useRef(false); // the recognition session is currently running
+  const speakTextRef = useRef(""); // what the CMO is saying now — to tell echo from a real cut-in
   const wireRef = useRef<Wire[]>([]); // running [{role,content}] sent to the backend
   const finalRef = useRef(""); // buffered final words for the current founder turn
   const noFounderRef = useRef(false); // last askCmo failed because there's no workspace yet
   const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const maleVoiceRef = useRef(false); // is the chosen TTS voice already male?
   const phaseRef = useRef<Phase>("listening"); // handlers read the latest phase
   const endCallRef = useRef<() => void>(() => {}); // set once endCall is defined
 
@@ -107,7 +142,9 @@ export default function CmoPanel() {
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const load = () => {
-      voiceRef.current = pickVoice();
+      const v = pickVoice();
+      voiceRef.current = v;
+      maleVoiceRef.current = v ? isMaleVoice(v) : false;
     };
     load();
     window.speechSynthesis.onvoiceschanged = load;
@@ -117,12 +154,13 @@ export default function CmoPanel() {
   }, []);
 
   /* ── one shared call to the CMO brain ─────────────────────────────────── */
-  const askCmo = useCallback(async (history: Wire[]): Promise<string | null> => {
+  const askCmo = useCallback(
+    async (history: Wire[], mode: "voice" | "text" = "voice"): Promise<string | null> => {
     try {
       const res = await fetch("/api/cmo/voice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history.slice(-20) }),
+        body: JSON.stringify({ messages: history.slice(-20), mode }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && typeof data.reply === "string") {
@@ -141,46 +179,66 @@ export default function CmoPanel() {
   }, []);
 
   /* ── speech out (TTS) ─────────────────────────────────────────────────── */
-  const speak = useCallback((text: string, onDone: () => void) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) {
-      onDone();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    if (voiceRef.current) u.voice = voiceRef.current;
-    u.rate = 1.02;
-    u.pitch = 1.0;
-    speakingRef.current = true;
-    setPhase("speaking");
-    const finish = () => {
-      if (!speakingRef.current) return;
-      speakingRef.current = false;
-      onDone();
-    };
-    u.onend = finish;
-    u.onerror = finish; // never strand the call if TTS hiccups
-    window.speechSynthesis.speak(u);
-  }, []);
-
-  /* ── listening (STT) ──────────────────────────────────────────────────── */
-  const startListening = useCallback(() => {
-    if (callRef.current !== "live" || speakingRef.current || listeningRef.current) return;
+  // Keep ONE recognition session hot for the whole call (no stop/start per turn).
+  // armMic just (re)starts it if it dropped; phaseRef decides how each result is
+  // read — speaking → barge-in check, listening → the founder's turn.
+  const armMic = useCallback(() => {
+    if (callRef.current === "idle" || micOnRef.current) return;
     const rec = recRef.current;
     if (!rec) return;
     try {
-      finalRef.current = "";
-      setInterim("");
-      setPhase("listening");
-      listeningRef.current = true;
       rec.start();
+      micOnRef.current = true;
     } catch {
-      // start() throws if already started — safe to ignore
+      /* start() throws if already running — fine */
     }
   }, []);
 
-  const stopListening = useCallback(() => {
-    listeningRef.current = false;
+  const speak = useCallback(
+    (text: string, onDone: () => void) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
+        onDone();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      speakTextRef.current = text; // lets us tell our own echo from a real interruption
+      const u = new SpeechSynthesisUtterance(text);
+      if (voiceRef.current) u.voice = voiceRef.current;
+      u.rate = 1.02;
+      // a real male voice sounds natural at pitch 1; if only a female voice is
+      // available, drop the pitch so it still reads as male.
+      u.pitch = maleVoiceRef.current ? 1.0 : 0.82;
+      speakingRef.current = true;
+      setPhase("speaking");
+      phaseRef.current = "speaking";
+      armMic(); // keep listening so the founder can cut in mid-sentence
+      const finish = () => {
+        if (!speakingRef.current) return; // already interrupted
+        speakingRef.current = false;
+        speakTextRef.current = "";
+        onDone();
+      };
+      u.onend = finish;
+      u.onerror = finish; // never strand the call if TTS hiccups
+      window.speechSynthesis.speak(u);
+    },
+    [armMic],
+  );
+
+  /* ── listening (STT) ──────────────────────────────────────────────────── */
+  // hand the turn back to the founder — the mic is already hot, so this just
+  // resets the buffer and flips the phase.
+  const beginListening = useCallback(() => {
+    if (callRef.current !== "live") return;
+    finalRef.current = "";
+    setInterim("");
+    setPhase("listening");
+    phaseRef.current = "listening";
+    armMic();
+  }, [armMic]);
+
+  const stopMic = useCallback(() => {
+    micOnRef.current = false;
     if (silenceRef.current) clearTimeout(silenceRef.current);
     try {
       recRef.current?.stop();
@@ -189,71 +247,108 @@ export default function CmoPanel() {
     }
   }, []);
 
-  // founder finished a turn → send it, speak the reply, then listen again
+  // founder cut in (tapped the orb, or the mic heard them over the CMO) → stop
+  // the CMO and hand them the turn.
+  const interrupt = useCallback(() => {
+    if (callRef.current !== "live" || !speakingRef.current) return;
+    window.speechSynthesis?.cancel();
+    speakingRef.current = false;
+    speakTextRef.current = "";
+    beginListening();
+  }, [beginListening]);
+
+  // founder finished a turn → send it, speak the (one-line) reply, then listen again
   const handleFounderTurn = useCallback(
     (text: string) => {
       const clean = text.trim();
       if (!clean || callRef.current !== "live") return;
-      stopListening();
+      if (silenceRef.current) clearTimeout(silenceRef.current);
       setInterim("");
+      setPhase("thinking");
+      phaseRef.current = "thinking"; // ignore mic input while the reply composes
       setTranscript((t) => [...t, { who: "founder", text: clean }]);
       wireRef.current = [...wireRef.current, { role: "user", content: clean }];
-      setPhase("thinking");
-      askCmo(wireRef.current).then((reply) => {
+      askCmo(wireRef.current, "voice").then((reply) => {
         if (callRef.current !== "live") return;
-        const say =
+        const raw =
           reply ??
           (noFounderRef.current
             ? ONBOARDING_PROMPT
-            : "Sorry — I didn't quite catch that. Say it again?");
+            : "Sorry — I didn't catch that. Say it again?");
+        const say = oneLine(raw); // one spoken sentence — conversational, not a memo
         setTranscript((t) => [...t, { who: "cmo", text: say }]);
         wireRef.current = [...wireRef.current, { role: "assistant", content: say }];
-        speak(say, startListening);
+        speak(say, beginListening);
       });
     },
-    [askCmo, speak, startListening, stopListening],
+    [askCmo, speak, beginListening],
+  );
+
+  // (re)start the silence timer — a pause this long ends the founder's turn
+  const armSilence = useCallback(
+    (interimText: string) => {
+      if (silenceRef.current) clearTimeout(silenceRef.current);
+      silenceRef.current = setTimeout(() => {
+        const turn = finalRef.current.trim() || interimText.trim();
+        finalRef.current = "";
+        if (turn) handleFounderTurn(turn);
+      }, SILENCE_MS);
+    },
+    [handleFounderTurn],
   );
 
   // wire the recognition handlers once
   const attachHandlers = useCallback(
     (rec: SpeechRecognitionLike) => {
       rec.onresult = (e: SREvent) => {
-        // ignore our own voice echoing back (speaking), AND any late/buffered
-        // result that arrives after a turn was already submitted (listening is
-        // false once handleFounderTurn → stopListening runs). Without the second
-        // guard, that stray result fires the same turn twice → double reply.
-        if (speakingRef.current || !listeningRef.current) return;
+        if (callRef.current !== "live") return;
+        const ph = phaseRef.current;
+        if (ph === "thinking") return; // ignore input while the reply is composing
+
+        let finals = "";
         let interimText = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
           const said = r[0]?.transcript ?? "";
-          if (r.isFinal) finalRef.current += said + " ";
+          if (r.isFinal) finals += said + " ";
           else interimText += said;
         }
+
+        if (ph === "speaking") {
+          // the mic is also hearing the CMO's own TTS — only a clear phrase that
+          // ISN'T the CMO echoing counts as the founder cutting in.
+          const heard = (finals + interimText).trim();
+          const words = heard ? heard.split(/\s+/).length : 0;
+          if (words < BARGE_MIN_WORDS || isEcho(heard, speakTextRef.current)) return;
+          window.speechSynthesis?.cancel(); // stop the CMO, let the founder talk
+          speakingRef.current = false;
+          speakTextRef.current = "";
+          setPhase("listening");
+          phaseRef.current = "listening";
+          finalRef.current = finals;
+          setInterim(interimText);
+          armSilence(interimText);
+          return;
+        }
+
+        // listening — the founder's turn
+        finalRef.current += finals;
         setInterim(interimText);
-        if (silenceRef.current) clearTimeout(silenceRef.current);
-        silenceRef.current = setTimeout(() => {
-          const turn = finalRef.current.trim() || interimText.trim();
-          finalRef.current = "";
-          if (turn) handleFounderTurn(turn);
-        }, SILENCE_MS);
+        armSilence(interimText);
       };
       rec.onerror = (e: SRErrorEvent) => {
         if (e.error === "not-allowed" || e.error === "service-not-allowed") {
           setError("Microphone blocked — allow mic access and try again.");
           endCallRef.current();
         }
-        // "no-speech"/"aborted" are normal; the flow restarts listening itself
+        // "no-speech"/"aborted" are normal; onend re-arms the mic
       };
       rec.onend = () => {
-        listeningRef.current = false;
-        // keep the mic open across natural pauses while it's our turn to listen
-        if (callRef.current === "live" && !speakingRef.current && phaseRef.current === "listening") {
-          startListening();
-        }
+        micOnRef.current = false;
+        if (callRef.current === "live") armMic(); // keep the mic hot the whole call
       };
     },
-    [handleFounderTurn, startListening],
+    [armMic, armSilence],
   );
 
   useEffect(() => {
@@ -281,21 +376,24 @@ export default function CmoPanel() {
       return;
     }
     recRef.current = rec;
+    micOnRef.current = false;
     attachHandlers(rec);
     wireRef.current = [];
     setTranscript([]);
     setInterim("");
     setCall("live");
     callRef.current = "live";
+    armMic(); // mic hot from the first word, so the founder can cut in
     // the CMO speaks first — instant, templated, zero API wait — then listens
     setTranscript([{ who: "cmo", text: GREETING }]);
     wireRef.current = [{ role: "assistant", content: GREETING }];
-    speak(GREETING, startListening);
-  }, [attachHandlers, speak, startListening]);
+    speak(GREETING, beginListening);
+  }, [attachHandlers, speak, beginListening, armMic]);
 
   const endCall = useCallback(() => {
-    stopListening();
+    stopMic();
     speakingRef.current = false;
+    speakTextRef.current = "";
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     try {
       recRef.current?.abort();
@@ -319,7 +417,7 @@ export default function CmoPanel() {
       ]);
     }
     setTranscript([]);
-  }, [stopListening, transcript.length]);
+  }, [stopMic, transcript.length]);
 
   // keep endCallRef pointing at the latest endCall (onerror is wired once)
   useEffect(() => {
@@ -360,7 +458,7 @@ export default function CmoPanel() {
       ...messages.map((m): Wire => ({ role: m.role === "cmo" ? "assistant" : "user", content: m.text })),
       { role: "user", content: text },
     ];
-    const reply = await askCmo(history);
+    const reply = await askCmo(history, "text");
     if (reply) {
       setMessages((m) => [...m, { id: `c-${m.length}`, role: "cmo", text: reply, time: "now" }]);
     }
@@ -470,24 +568,55 @@ export default function CmoPanel() {
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-between p-5"
             >
-              {/* orb */}
+              {/* orb — tap while the CMO is speaking to cut in */}
               <div className="flex flex-1 flex-col items-center justify-center">
-                <div className="relative grid h-28 w-28 place-items-center">
+                <button
+                  type="button"
+                  onClick={interrupt}
+                  disabled={phase !== "speaking"}
+                  aria-label={phase === "speaking" ? "Tap to interrupt" : "On a call"}
+                  className={`relative grid h-32 w-32 place-items-center rounded-full transition-transform duration-200 ${
+                    phase === "speaking" ? "cursor-pointer hover:scale-[1.03] active:scale-95" : "cursor-default"
+                  }`}
+                >
                   {(call === "connecting" || phase === "speaking") && (
                     <>
-                      <span aria-hidden className="ring absolute inset-0 rounded-full border border-molten/50" />
-                      <span aria-hidden className="ring absolute inset-0 rounded-full border border-molten/50" style={{ animationDelay: "0.5s" }} />
+                      <span aria-hidden className="ring absolute inset-0 rounded-full border border-molten/40" />
+                      <span aria-hidden className="ring absolute inset-1 rounded-full border border-molten/30" style={{ animationDelay: "0.6s" }} />
                     </>
+                  )}
+                  {call === "live" && phase === "listening" && (
+                    <span aria-hidden className="pulse-dot absolute inset-0 rounded-full bg-molten/10" />
                   )}
                   <span
                     aria-hidden
-                    className={`h-20 w-20 rounded-full bg-molten ${call === "live" ? "orb" : "opacity-70"}`}
-                  />
-                  {call === "live" && phase === "listening" && (
-                    <Mic size={20} className="absolute text-white/80" aria-hidden />
-                  )}
-                </div>
-                <p className="mt-4 text-[13px] font-semibold">{statusLabel}</p>
+                    className={`grid h-20 w-20 place-items-center rounded-full bg-gradient-to-br from-molten to-ember text-white shadow-lg shadow-[var(--shadow-color)] ${
+                      call === "live" && phase === "speaking" ? "orb" : ""
+                    }`}
+                  >
+                    {call === "connecting" ? (
+                      <span className="h-2.5 w-2.5 animate-ping rounded-full bg-white/90" />
+                    ) : phase === "listening" ? (
+                      <Mic size={26} aria-hidden />
+                    ) : phase === "thinking" ? (
+                      <span className="flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" style={{ animationDelay: "0ms" }} />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" style={{ animationDelay: "150ms" }} />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-white/90" style={{ animationDelay: "300ms" }} />
+                      </span>
+                    ) : (
+                      <AudioLines size={26} aria-hidden />
+                    )}
+                  </span>
+                </button>
+                <p className="mt-5 text-[13px] font-semibold text-ink">{statusLabel}</p>
+                <p className="mt-1 h-4 text-[11px] text-mute-2">
+                  {phase === "speaking"
+                    ? "Just talk to cut in — or tap the orb"
+                    : phase === "listening"
+                      ? "Listening — go ahead"
+                      : ""}
+                </p>
               </div>
 
               {/* live transcript */}
