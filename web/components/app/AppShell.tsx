@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Rail from "./Rail";
+import CmoPanel from "./CmoPanel";
+import CmoConcierge from "./CmoConcierge";
 import { RightPanelCtx } from "./right-panel-slot";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -194,6 +196,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </div>
+      {/* the floating CMO + its proactive concierge greeting — on every app page */}
+      <CmoPanel />
+      <CmoConcierge />
     </RightPanelCtx.Provider>
   );
 }

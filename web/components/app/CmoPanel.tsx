@@ -338,6 +338,16 @@ export default function CmoPanel() {
     };
   }, []);
 
+  // the concierge greeting's "Yes" → open the panel and start a live call
+  useEffect(() => {
+    const onCall = () => {
+      setOpen(true);
+      connect();
+    };
+    window.addEventListener("mrk18:cmo-call", onCall);
+    return () => window.removeEventListener("mrk18:cmo-call", onCall);
+  }, [connect]);
+
   /* ── text chat (also real — same brain) ───────────────────────────────── */
   const send = useCallback(async () => {
     const text = draft.trim();
