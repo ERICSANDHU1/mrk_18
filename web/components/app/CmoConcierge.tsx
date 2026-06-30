@@ -17,20 +17,8 @@ const LINES = [
   "Your CMO, in your ear. Tell me what's slowing your growth right now.",
 ];
 
-function trySpeak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  try {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const v = voices.find((x) => /en[-_]IN/i.test(x.lang)) || voices.find((x) => /^en/i.test(x.lang));
-    if (v) u.voice = v;
-    u.rate = 1.02;
-    window.speechSynthesis.speak(u); // may be blocked until the user interacts — the bubble still shows
-  } catch {
-    /* speech unavailable */
-  }
-}
+// set once the user dismisses or accepts — no more greetings for this session
+const OFF = "mrk18:concierge-off";
 
 /** Proactive CMO concierge: on opening Chat / Comrk / Chief it greets the founder
  *  in a chat bubble (and speaks it), asking how it can help. "Yes" fires
@@ -50,28 +38,27 @@ export default function CmoConcierge() {
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
-    // hide the previous bubble + stop any speech the instant the tab changes
-    setShow(false);
-    window.speechSynthesis?.cancel();
+    setShow(false); // hide the previous bubble the instant the tab changes
     if (!tab) return;
+    if (sessionStorage.getItem(OFF)) return; // dismissed/accepted earlier this session
     const picked = LINES[Math.floor(Math.random() * LINES.length)];
     const t = setTimeout(() => {
       setLine(picked);
       setNonce((n) => n + 1);
-      setShow(true);
-      trySpeak(picked);
+      setShow(true); // appears silently — no speech until the user says "Yes"
     }, 700);
     return () => clearTimeout(t);
   }, [tab]);
 
+  // "Not now" / ✕ → silence the greeting for the rest of this session
   const close = () => {
-    window.speechSynthesis?.cancel();
+    sessionStorage.setItem(OFF, "1");
     setShow(false);
   };
   const accept = () => {
-    window.speechSynthesis?.cancel();
+    sessionStorage.setItem(OFF, "1");
     setShow(false);
-    window.dispatchEvent(new Event("mrk18:cmo-call")); // CmoPanel opens + starts the call
+    window.dispatchEvent(new Event("mrk18:cmo-call")); // CmoPanel opens + starts the live call
   };
 
   return (
