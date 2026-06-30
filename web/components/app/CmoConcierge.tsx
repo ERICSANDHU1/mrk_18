@@ -17,9 +17,6 @@ const LINES = [
   "Your CMO, in your ear. Tell me what's slowing your growth right now.",
 ];
 
-const KEY = "mrk18:concierge-ts";
-const COOLDOWN = 1000 * 60 * 8; // don't re-greet within 8 min of the last one
-
 function trySpeak(text: string) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   try {
@@ -40,27 +37,32 @@ function trySpeak(text: string) {
  *  mrk18:cmo-call → CmoPanel opens and starts a real voice call. */
 export default function CmoConcierge() {
   const pathname = usePathname();
-  const onAllowedPage =
-    pathname === "/chat" || pathname.startsWith("/cowork") || pathname.startsWith("/chief");
+  // which of the three tabs we're on — the greeting re-toggles whenever this changes
+  const tab = pathname.startsWith("/chief")
+    ? "chief"
+    : pathname.startsWith("/cowork") || pathname.startsWith("/mrk")
+      ? "comrk"
+      : pathname.startsWith("/chat")
+        ? "chat"
+        : null;
   const [show, setShow] = useState(false);
   const [line, setLine] = useState("");
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
-    if (!onAllowedPage) {
-      setShow(false);
-      return;
-    }
-    const last = Number(sessionStorage.getItem(KEY) || 0);
-    if (Date.now() - last < COOLDOWN) return;
+    // hide the previous bubble + stop any speech the instant the tab changes
+    setShow(false);
+    window.speechSynthesis?.cancel();
+    if (!tab) return;
     const picked = LINES[Math.floor(Math.random() * LINES.length)];
     const t = setTimeout(() => {
       setLine(picked);
+      setNonce((n) => n + 1);
       setShow(true);
-      sessionStorage.setItem(KEY, String(Date.now()));
       trySpeak(picked);
-    }, 1200);
+    }, 700);
     return () => clearTimeout(t);
-  }, [pathname, onAllowedPage]);
+  }, [tab]);
 
   const close = () => {
     window.speechSynthesis?.cancel();
@@ -76,6 +78,7 @@ export default function CmoConcierge() {
     <AnimatePresence>
       {show && (
         <motion.div
+          key={nonce}
           initial={{ opacity: 0, y: 16, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 12, scale: 0.97 }}
