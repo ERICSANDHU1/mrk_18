@@ -23,11 +23,11 @@ import ThemeToggle from "./ThemeToggle";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; badge?: string };
 
-// CHIEF sits at the top with its own elevated treatment; Chat + Comrk beneath it,
-// and Dashboard pinned to the bottom of the rail.
+// One 3-tab segment — Chat · Comrk · Chief — like Claude Code. Dashboard pinned bottom.
 const TOP: NavItem[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare, exact: false },
   { href: "/cowork", label: "Comrk", icon: Users, exact: false },
+  { href: "/chief", label: "Chief", icon: Crown, exact: false },
 ];
 const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true };
 
@@ -64,10 +64,12 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const userLabel =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
 
-  // Which tab's list is showing. Comrk when on a cowork route, Chat otherwise.
-  // /mrk lives under the Comrk tab, so it stays active (and the mrk entry visible) there
-  const activeTab =
-    pathname.startsWith("/cowork") || pathname.startsWith("/mrk") ? "/cowork" : "/chat";
+  // Which of the 3 tabs is active. /mrk lives under Comrk; Chief has no list.
+  const activeTab = pathname.startsWith("/chief")
+    ? "/chief"
+    : pathname.startsWith("/cowork") || pathname.startsWith("/mrk")
+      ? "/cowork"
+      : "/chat";
 
   const renderRow = (item: NavItem) => {
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -117,34 +119,8 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         </button>
       </div>
 
-      {/* nav — CHIEF header, then the active tab's list (Chat / Comrk), Dashboard pinned bottom */}
+      {/* nav — the 3-tab segment (Chat / Comrk / Chief) + the active tab's list, Dashboard pinned bottom */}
       <nav className={`flex min-h-0 flex-1 flex-col ${collapsed ? "items-center gap-1" : "px-2"}`}>
-        {/* CHIEF — elevated command-center entry */}
-        <Link
-          href="/chief"
-          title="CHIEF"
-          aria-current={pathname.startsWith("/chief") ? "page" : undefined}
-          className={`group relative rounded-xl border transition-colors duration-200 ${
-            collapsed ? "grid h-11 w-11 place-items-center" : "block px-3.5 py-3"
-          } ${
-            pathname.startsWith("/chief")
-              ? "border-molten/40 bg-molten/[0.08]"
-              : "border-line bg-surface hover:border-molten/40"
-          }`}
-        >
-          {!collapsed && (
-            <span aria-hidden className="absolute inset-x-3.5 top-0 h-[2.5px] rounded-full bg-gradient-to-r from-molten to-ember" />
-          )}
-          {collapsed ? (
-            <Crown size={18} className="text-molten" aria-hidden />
-          ) : (
-            <span className="flex items-center gap-2.5">
-              <Crown size={17} className="text-molten" aria-hidden />
-              <span className="text-[16px] font-extrabold tracking-wide text-ink">CHIEF</span>
-            </span>
-          )}
-        </Link>
-
         {collapsed ? (
           /* collapsed — icon-only nav */
           <>
@@ -157,7 +133,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         ) : (
           /* expanded — Chat / Comrk tabs + the active tab's session list */
           <>
-            <div className="mt-3 flex gap-1 rounded-xl border border-line bg-surface p-1">
+            <div className="mt-1 flex gap-1 rounded-xl border border-line bg-surface-2 p-1">
               {TOP.map((t) => {
                 const on = activeTab === t.href;
                 const Icon = t.icon;
@@ -166,61 +142,62 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                     key={t.href}
                     href={t.href}
                     aria-current={on ? "page" : undefined}
-                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12.5px] font-semibold transition-colors ${
-                      on ? "bg-molten/10 text-molten" : "text-mute-2 hover:text-ink"
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
+                      on ? "bg-surface text-ink shadow-sm" : "text-mute-2 hover:text-ink"
                     }`}
                   >
-                    <Icon size={15} aria-hidden />
+                    <Icon size={14} aria-hidden />
                     {t.label}
-                    {t.badge && (
-                      <span className="ml-0.5 rounded-full bg-amber/15 px-1.5 text-[10px] font-bold text-amber">
-                        {t.badge}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
             </div>
 
-            <Link
-              href={activeTab}
-              className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-molten/40"
-            >
-              <Plus size={15} className="text-molten" aria-hidden />
-              New {activeTab === "/cowork" ? "run" : "chat"}
-            </Link>
+            {activeTab === "/chief" ? (
+              <div className="flex-1" />
+            ) : (
+              <>
+                <Link
+                  href={activeTab}
+                  className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-molten/40"
+                >
+                  <Plus size={15} className="text-molten" aria-hidden />
+                  New {activeTab === "/cowork" ? "run" : "chat"}
+                </Link>
 
-            {activeTab === "/cowork" && (
-              <Link
-                href="/mrk"
-                aria-current={pathname.startsWith("/mrk") ? "page" : undefined}
-                className={`mt-2 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-200 ${
-                  pathname.startsWith("/mrk")
-                    ? "border-molten/40 bg-molten/[0.08]"
-                    : "border-line bg-surface hover:border-molten/40"
-                }`}
-              >
-                <Radar size={16} className="shrink-0 text-molten" aria-hidden />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block text-[12.5px] font-bold text-ink">mrk</span>
-                  <span className="block truncate text-[10.5px] text-mute-2">CMO in your pocket</span>
-                </span>
-                <span className="rounded-full bg-molten/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-molten">
-                  Soon
-                </span>
-              </Link>
+                {activeTab === "/cowork" && (
+                  <Link
+                    href="/mrk"
+                    aria-current={pathname.startsWith("/mrk") ? "page" : undefined}
+                    className={`mt-2 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-200 ${
+                      pathname.startsWith("/mrk")
+                        ? "border-molten/40 bg-molten/[0.08]"
+                        : "border-line bg-surface hover:border-molten/40"
+                    }`}
+                  >
+                    <Radar size={16} className="shrink-0 text-molten" aria-hidden />
+                    <span className="min-w-0 flex-1 leading-tight">
+                      <span className="block text-[12.5px] font-bold text-ink">mrk</span>
+                      <span className="block truncate text-[10.5px] text-mute-2">CMO in your pocket</span>
+                    </span>
+                    <span className="rounded-full bg-molten/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-molten">
+                      Soon
+                    </span>
+                  </Link>
+                )}
+
+                <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">Recents</p>
+                <div className="dash-scroll mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
+                  {activeTab === "/cowork" ? (
+                    <CoworkRecents />
+                  ) : (
+                    <Suspense fallback={null}>
+                      <ChatRecents />
+                    </Suspense>
+                  )}
+                </div>
+              </>
             )}
-
-            <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">Recents</p>
-            <div className="dash-scroll mt-1.5 min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-0.5">
-              {activeTab === "/cowork" ? (
-                <CoworkRecents />
-              ) : (
-                <Suspense fallback={null}>
-                  <ChatRecents />
-                </Suspense>
-              )}
-            </div>
 
             <div aria-hidden className="mx-1 my-2 border-t border-line" />
             {renderRow(BOTTOM)}
