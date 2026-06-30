@@ -141,13 +141,14 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                   <Link
                     key={t.href}
                     href={t.href}
+                    title={t.label}
                     aria-current={on ? "page" : undefined}
-                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
-                      on ? "bg-surface text-ink shadow-sm" : "text-mute-2 hover:text-ink"
+                    className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
+                      on ? "flex-1 bg-surface text-ink shadow-sm" : "px-2.5 text-mute-2 hover:text-ink"
                     }`}
                   >
-                    <Icon size={14} aria-hidden />
-                    {t.label}
+                    <Icon size={15} aria-hidden />
+                    {on && t.label}
                   </Link>
                 );
               })}
