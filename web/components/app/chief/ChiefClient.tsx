@@ -237,7 +237,7 @@ export default function ChiefClient() {
             { label: "Posts measured", value: perf?.items_measured ? String(perf.items_measured) : "—" },
             { label: "Connected", value: String(connected.length) },
           ].map((k) => (
-            <div key={k.label} className="rounded-xl bg-surface-2 px-3.5 py-3">
+            <div key={k.label} className="rounded-2xl border border-line bg-surface px-3.5 py-3">
               <div className="text-[11px] text-mute-2">{k.label}</div>
               {loading ? (
                 <Skeleton className="mt-1.5 h-6 w-14 rounded-md" />

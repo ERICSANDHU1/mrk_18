@@ -164,7 +164,12 @@ export default async function ConsoleDashboard() {
       ) : (
         <>
           {/* Pending approvals — real, from runs sitting at Gate 2 */}
-          <section id="approvals" className="rounded-2xl border border-line bg-surface p-5">
+          <section
+            id="approvals"
+            className={`rounded-2xl border border-line bg-surface p-5 ${
+              pending.length > 0 ? "border-l-[3px] border-l-molten" : ""
+            }`}
+          >
             <h2 className="flex items-center gap-2 text-[14px] font-bold">
               <Clock size={15} className="text-molten" aria-hidden /> Waiting on you
             </h2>
