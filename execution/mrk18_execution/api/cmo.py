@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..db.models import FounderProfileRow
-from .deps import get_session, require_founder
+from .deps import get_session, get_verified_claims, require_founder
 
 router = APIRouter(tags=["cmo"])
 
@@ -86,14 +86,9 @@ async def cmo_voice_turn(
     return {"reply": reply}
 
 
-@router.post("/founders/{founder_id}/cmo/stt", response_model=dict)
-async def cmo_transcribe(
-    founder_id: UUID,
-    request: Request,
-    founder=Depends(require_founder),
-) -> dict:
-    """The call's ears: one spoken founder turn (raw audio body — webm/mp4/wav)
-    → Groq Whisper large-v3-turbo → {text}. Free tier: 2k requests/day."""
+async def _whisper_transcribe(request: Request) -> dict:
+    """Shared STT: raw audio body (webm/mp4/wav) → Groq Whisper large-v3-turbo
+    → {text}. Free tier: 2k requests/day."""
     settings = get_settings()
     if not settings.groq_api_key:
         raise HTTPException(status_code=503, detail="speech-to-text unavailable (set GROQ_API_KEY).")
@@ -127,14 +122,9 @@ class SpeakRequest(BaseModel):
     text: str = Field(min_length=1, max_length=600)  # spoken turns are one-liners
 
 
-@router.post("/founders/{founder_id}/cmo/tts")
-async def cmo_speak(
-    founder_id: UUID,
-    body: SpeakRequest,
-    founder=Depends(require_founder),
-) -> Response:
-    """The CMO's voice: text → audio. Primary: Microsoft's en-IN male neural voice
-    via edge-tts (free, unlimited). Fallback: Groq Orpheus male (100 req/day free).
+async def _synthesize_speech(text: str) -> Response:
+    """Shared TTS: text → audio. Primary: Microsoft's en-IN male neural voice via
+    edge-tts (free, unlimited). Fallback: Groq Orpheus male (100 req/day free).
     503 when neither works → the browser falls back to its own male voice."""
     # 1) edge-tts — free MS neural voice, no key. Lazy import so the API still
     #    boots (and falls back) if the package isn't installed yet.
@@ -143,7 +133,7 @@ async def cmo_speak(
 
         chunks: list[bytes] = []
         stream = edge_tts.Communicate(
-            body.text, voice=EDGE_VOICE, rate="+8%", volume="+20%"
+            text, voice=EDGE_VOICE, rate="+8%", volume="+20%"
         ).stream()
         async for part in stream:
             if part.get("type") == "audio" and part.get("data"):
@@ -164,7 +154,7 @@ async def cmo_speak(
                     json={
                         "model": ORPHEUS_MODEL,
                         "voice": ORPHEUS_VOICE,
-                        "input": body.text,
+                        "input": text,
                         "response_format": "wav",
                     },
                 )
@@ -174,3 +164,75 @@ async def cmo_speak(
             pass
 
     raise HTTPException(status_code=503, detail="tts unavailable — browser voice fallback.")
+
+
+# ── founder-scoped ears + voice (the personal CMO call) ─────────────────────
+
+
+@router.post("/founders/{founder_id}/cmo/stt", response_model=dict)
+async def cmo_transcribe(
+    founder_id: UUID,
+    request: Request,
+    founder=Depends(require_founder),
+) -> dict:
+    return await _whisper_transcribe(request)
+
+
+@router.post("/founders/{founder_id}/cmo/tts")
+async def cmo_speak(
+    founder_id: UUID,
+    body: SpeakRequest,
+    founder=Depends(require_founder),
+) -> Response:
+    return await _synthesize_speech(body.text)
+
+
+# ── guest call (signed in, but no company registered yet) ───────────────────
+# Same ears and voice, but the brain answers as the mrk18 GUIDE — it knows the
+# product and every page of the site, and nudges the visitor toward onboarding.
+# Auth: a valid session JWT is still required (these burn Groq quota), it just
+# doesn't have to map to a founder row yet.
+
+
+@router.post("/cmo/guest/voice", response_model=dict)
+async def cmo_guest_voice(
+    body: VoiceRequest,
+    request: Request,
+    claims: dict = Depends(get_verified_claims),
+) -> dict:
+    """One spoken turn for a not-yet-onboarded user: empty profile → the guide
+    persona (see agents.cmo.guide_system_prompt)."""
+    socket = getattr(request.app.state, "voice_socket", None) or getattr(
+        request.app.state, "llm_socket", None
+    )
+    if socket is None:
+        raise HTTPException(
+            status_code=503,
+            detail="the CMO voice is unavailable — no model is configured (set GROQ_API_KEY).",
+        )
+    from ..agents.cmo import cmo_reply
+
+    messages = [{"role": t.role, "content": t.content} for t in body.messages]
+    try:
+        reply, _usage = await cmo_reply(socket, profile={}, messages=messages, mode=body.mode)
+    except Exception as exc:  # noqa: BLE001 — a live call must fail soft
+        raise HTTPException(
+            status_code=502, detail=f"the assistant couldn't respond right now: {exc}"
+        ) from exc
+    return {"reply": reply}
+
+
+@router.post("/cmo/guest/stt", response_model=dict)
+async def cmo_guest_transcribe(
+    request: Request,
+    claims: dict = Depends(get_verified_claims),
+) -> dict:
+    return await _whisper_transcribe(request)
+
+
+@router.post("/cmo/guest/tts")
+async def cmo_guest_speak(
+    body: SpeakRequest,
+    claims: dict = Depends(get_verified_claims),
+) -> Response:
+    return await _synthesize_speech(body.text)

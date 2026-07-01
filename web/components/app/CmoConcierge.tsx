@@ -17,12 +17,10 @@ const LINES = [
   "Your CMO, in your ear. Tell me what's slowing your growth right now.",
 ];
 
-// set once the user dismisses or accepts — no more greetings for this session
-const OFF = "mrk18:concierge-off";
-
-/** Proactive CMO concierge: on opening Chat / Comrk / Chief it greets the founder
- *  in a chat bubble (and speaks it), asking how it can help. "Yes" fires
- *  mrk18:cmo-call → CmoPanel opens and starts a real voice call. */
+/** Proactive CMO concierge: a SILENT chat bubble that re-appears on every switch
+ *  between Chat / Comrk / Chief, asking how the CMO can help. "Yes" fires
+ *  mrk18:cmo-call → the live voice call starts. "Not now" / ✕ just hides it
+ *  until the next tab switch. */
 export default function CmoConcierge() {
   const pathname = usePathname();
   // which of the three tabs we're on — the greeting re-toggles whenever this changes
@@ -40,25 +38,20 @@ export default function CmoConcierge() {
   useEffect(() => {
     setShow(false); // hide the previous bubble the instant the tab changes
     if (!tab) return;
-    if (sessionStorage.getItem(OFF)) return; // dismissed/accepted earlier this session
     const picked = LINES[Math.floor(Math.random() * LINES.length)];
     const t = setTimeout(() => {
       setLine(picked);
       setNonce((n) => n + 1);
-      setShow(true); // appears silently — no speech until the user says "Yes"
+      setShow(true); // appears silently — voice only starts after "Yes"
     }, 700);
     return () => clearTimeout(t);
   }, [tab]);
 
-  // "Not now" / ✕ → silence the greeting for the rest of this session
-  const close = () => {
-    sessionStorage.setItem(OFF, "1");
-    setShow(false);
-  };
+  // hides until the next switch between the three tabs
+  const close = () => setShow(false);
   const accept = () => {
-    sessionStorage.setItem(OFF, "1");
     setShow(false);
-    window.dispatchEvent(new Event("mrk18:cmo-call")); // CmoPanel opens + starts the live call
+    window.dispatchEvent(new Event("mrk18:cmo-call")); // the live call starts
   };
 
   return (

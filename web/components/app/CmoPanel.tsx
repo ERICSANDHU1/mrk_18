@@ -112,6 +112,8 @@ export default function CmoPanel() {
   const recorderRef = useRef<MediaRecorder | null>(null); // records the founder's turn
   const heardRef = useRef(0); // speech frames heard this turn
   const quietRef = useRef(0); // consecutive silence frames after speech
+  const sttFailsRef = useRef(0); // consecutive failed transcriptions — 3 ends the call
+  const endCallRef = useRef<() => void>(() => {}); // set once endCall is defined
   const turnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null); // plays the CMO's voice
   const mimeRef = useRef(""); // recorder container picked at connect time
@@ -274,15 +276,36 @@ export default function CmoPanel() {
           body: blob,
         });
         const data = await res.json().catch(() => ({}));
-        const text = res.ok && typeof data.text === "string" ? data.text.trim() : "";
         if (callRef.current !== "live") return;
+        if (!res.ok) {
+          // a broken backend must not loop forever — 3 strikes ends the call honestly
+          if (++sttFailsRef.current >= 3) {
+            setError(
+              typeof data.error === "string"
+                ? data.error
+                : "The call can't reach the CMO right now — try again in a minute.",
+            );
+            endCallRef.current();
+            return;
+          }
+          startListeningRef.current();
+          return;
+        }
+        sttFailsRef.current = 0;
+        const text = typeof data.text === "string" ? data.text.trim() : "";
         if (!text) {
           startListeningRef.current(); // couldn't make out words — listen again
           return;
         }
         turnHandlerRef.current(text);
       } catch {
-        if (callRef.current === "live") startListeningRef.current();
+        if (callRef.current !== "live") return;
+        if (++sttFailsRef.current >= 3) {
+          setError("The call can't reach the CMO right now — try again in a minute.");
+          endCallRef.current();
+          return;
+        }
+        startListeningRef.current();
       }
     };
     recorderRef.current = rec;
@@ -468,6 +491,7 @@ export default function CmoPanel() {
     }
     setupVad(micStreamRef.current);
     wireRef.current = [];
+    sttFailsRef.current = 0;
     setTranscript([]);
     setCall("live");
     callRef.current = "live";
@@ -503,6 +527,11 @@ export default function CmoPanel() {
     }
     setTranscript([]);
   }, [stopRecorder, teardownVad, transcript.length]);
+
+  // the recorder's failure guard ends the call through the latest endCall
+  useEffect(() => {
+    endCallRef.current = endCall;
+  }, [endCall]);
 
   // cleanup on unmount
   useEffect(() => {

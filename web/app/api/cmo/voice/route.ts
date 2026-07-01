@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { backendFetch, getFounderId } from "@/lib/server/backend";
 
-/** One turn of the live CMO conversation — proxies the running transcript to the
- *  FastAPI backend, which replies AS the founder's CMO (grounded in their memory). */
+/** One turn of the live CMO conversation. Onboarded founder → their personal CMO
+ *  (grounded in company memory). No company registered yet → the mrk18 GUIDE, an
+ *  assistant that knows the product and every page of the site. */
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const founderId = await getFounderId();
-  if (!founderId) {
-    return NextResponse.json({ error: "no founder record yet" }, { status: 400 });
-  }
 
   const body = await req.json().catch(() => ({}));
   const messages = Array.isArray(body?.messages) ? body.messages : [];
@@ -20,7 +18,8 @@ export async function POST(req: Request) {
   }
   const mode = body?.mode === "text" ? "text" : "voice";
 
-  const res = await backendFetch(`/founders/${founderId}/cmo/voice`, {
+  const path = founderId ? `/founders/${founderId}/cmo/voice` : "/cmo/guest/voice";
+  const res = await backendFetch(path, {
     method: "POST",
     body: JSON.stringify({ messages: messages.slice(-40), mode }),
   });
