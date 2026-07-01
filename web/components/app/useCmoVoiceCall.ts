@@ -23,9 +23,21 @@ const TICK_MS = 60;
 const BARGE_RMS = 0.03; // louder bar to cut the CMO off (its own voice is echo-cancelled)
 const BARGE_FRAMES = 3; // ~180ms sustained → interrupt
 const TALK_RMS = 0.015; // softer bar to count as speech while it's the founder's turn
-const MIN_SPEECH_FRAMES = 3; // ~180ms of voice → they really said something
+const MIN_SPEECH_FRAMES = 5; // ~300ms of sustained voice → they really said something
 const TURN_SILENCE_FRAMES = 15; // ~900ms of quiet after speech → their turn is done
 const MAX_TURN_MS = 30_000; // hard stop so a turn can't record forever
+
+// Whisper doesn't return empty on silence/noise — it hallucinates filler like ".",
+// "you" or "Thank you." Sending those to the brain makes ghost turns in the chat.
+const HALLUCINATION =
+  /^(you|the|bye|okay|hmm+|thank you|thanks|thank you for watching|thanks for watching)[.!,\s]*$/i;
+
+function isRealTurn(text: string): boolean {
+  if (!/[a-z0-9]/i.test(text)) return false; // punctuation-only (".", "…")
+  const words = text.trim().split(/\s+/);
+  if (words.length <= 3 && HALLUCINATION.test(text.trim())) return false;
+  return true;
+}
 
 // A pure acknowledgement isn't an answer — keep the next sentence too.
 const FILLER =
@@ -273,8 +285,8 @@ export function useCmoVoiceCall(opts: {
         }
         sttFailsRef.current = 0;
         const text = typeof data.text === "string" ? data.text.trim() : "";
-        if (!text) {
-          startListeningRef.current();
+        if (!text || !isRealTurn(text)) {
+          startListeningRef.current(); // silence/noise — not a real turn, keep listening
           return;
         }
         turnHandlerRef.current(text);
