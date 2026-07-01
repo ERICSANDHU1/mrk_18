@@ -199,6 +199,32 @@ export default function ChatClient() {
     beginCall();
   }, [searchParams, router, beginCall]);
 
+  // sidebar "New chat" → a clean slate (also ends any live call)
+  const resetThread = useCallback(() => {
+    endCall(); // a fresh chat shouldn't inherit a live call
+    hydratedIdRef.current = null;
+    sessionIdRef.current = null;
+    messagesRef.current = [];
+    setMessages([]);
+    setDraft("");
+    setError(null);
+    router.replace("/chat", { scroll: false });
+  }, [endCall, router]);
+
+  // it arrives two ways: the instant event (already on /chat) …
+  useEffect(() => {
+    const onNew = () => resetThread();
+    window.addEventListener("mrk18:new-chat", onNew);
+    return () => window.removeEventListener("mrk18:new-chat", onNew);
+  }, [resetThread]);
+
+  // … and /chat?new=1 — a guaranteed URL change from ANY state, so the button
+  // always does something even if the event is missed
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    resetThread();
+  }, [searchParams, resetThread]);
+
   // speak a reply aloud (Web Speech TTS), preferring an Indian-English voice
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;

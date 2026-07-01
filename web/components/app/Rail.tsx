@@ -159,7 +159,14 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             ) : (
               <>
                 <Link
-                  href={activeTab}
+                  // /chat?new=1 is a real URL change from any state — ChatClient
+                  // resets on it; the event covers the instant already-on-/chat case
+                  href={activeTab === "/chat" ? "/chat?new=1" : activeTab}
+                  onClick={
+                    activeTab === "/chat"
+                      ? () => window.dispatchEvent(new Event("mrk18:new-chat"))
+                      : undefined
+                  }
                   className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-molten/40"
                 >
                   <Plus size={15} className="text-molten" aria-hidden />
