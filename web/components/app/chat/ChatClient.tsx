@@ -3,8 +3,20 @@
 import Logo from "@/components/app/Logo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowUp, Loader2, Mic, PenLine, Plus, Sparkles, Swords, Target } from "lucide-react";
+import {
+  ArrowUp,
+  AudioLines,
+  Loader2,
+  Mic,
+  PenLine,
+  PhoneOff,
+  Plus,
+  Sparkles,
+  Swords,
+  Target,
+} from "lucide-react";
 import { cleanCmoText } from "@/lib/text";
+import { useCmoVoiceCall } from "@/components/app/useCmoVoiceCall";
 
 type Role = "user" | "cmo";
 type Msg = { id: string; role: Role; text: string };
@@ -133,6 +145,60 @@ export default function ChatClient() {
     [router],
   );
 
+  /* ── the LIVE voice call — turns render as real messages in this thread ── */
+  const messagesRef = useRef<Msg[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const onCallTurn = useCallback(
+    (who: "founder" | "cmo", text: string) => {
+      const next: Msg[] = [
+        ...messagesRef.current,
+        {
+          id: `${who}-${Date.now()}-${messagesRef.current.length}`,
+          role: who === "cmo" ? "cmo" : "user",
+          text,
+        },
+      ];
+      messagesRef.current = next;
+      setMessages(next); // the thread auto-scrolls as each spoken turn lands
+      if (who === "cmo") void persist(next); // the call saves to this chat
+    },
+    [persist],
+  );
+
+  const { call, phase, connect: connectCall, endCall, interrupt } = useCmoVoiceCall({
+    onTurn: onCallTurn,
+    onError: setError,
+  });
+
+  // start a call, seeding the CMO with this thread's history
+  const beginCall = useCallback(() => {
+    setError(null);
+    void connectCall(
+      messagesRef.current.map((m) => ({
+        role: m.role === "cmo" ? ("assistant" as const) : ("user" as const),
+        content: m.text,
+      })),
+    );
+  }, [connectCall]);
+
+  // the concierge "Yes" (already on /chat) and the drawer's Call CMO land here
+  useEffect(() => {
+    const onCallEvent = () => beginCall();
+    window.addEventListener("mrk18:cmo-call", onCallEvent);
+    return () => window.removeEventListener("mrk18:cmo-call", onCallEvent);
+  }, [beginCall]);
+
+  // …or via /chat?call=1 from any other page
+  useEffect(() => {
+    if (searchParams.get("call") !== "1") return;
+    const id = searchParams.get("id");
+    router.replace(id ? `/chat?id=${id}` : "/chat", { scroll: false });
+    beginCall();
+  }, [searchParams, router, beginCall]);
+
   // speak a reply aloud (Web Speech TTS), preferring an Indian-English voice
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -190,6 +256,7 @@ export default function ChatClient() {
 
   // mic = push-to-talk: listen, fill the input, auto-send, then speak the reply
   const toggleMic = useCallback(() => {
+    if (call !== "idle") return; // a live call owns the mic
     if (listening) {
       recRef.current?.stop();
       return;
@@ -230,7 +297,7 @@ export default function ChatClient() {
     recRef.current = rec;
     setListening(true);
     rec.start();
-  }, [listening, submit]);
+  }, [call, listening, submit]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -240,6 +307,50 @@ export default function ChatClient() {
   };
 
   const empty = messages.length === 0;
+
+  // the live-call strip — sits right above the composer while a call is on
+  const callBar = call !== "idle" && (
+    <div className="mb-2 flex items-center gap-3 rounded-2xl border border-molten/25 bg-molten/[0.06] px-3.5 py-2.5">
+      <button
+        type="button"
+        onClick={interrupt}
+        disabled={phase !== "speaking"}
+        aria-label={phase === "speaking" ? "Tap to interrupt" : "On a call"}
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-molten to-ember text-white ${
+          phase === "speaking" ? "cursor-pointer transition-transform hover:scale-105 active:scale-95" : ""
+        }`}
+      >
+        {call === "connecting" ? (
+          <span className="h-2 w-2 animate-ping rounded-full bg-white/90" aria-hidden />
+        ) : phase === "speaking" ? (
+          <AudioLines size={16} aria-hidden />
+        ) : phase === "thinking" ? (
+          <Loader2 size={15} className="animate-spin" aria-hidden />
+        ) : (
+          <Mic size={16} aria-hidden />
+        )}
+      </button>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="text-[13px] font-semibold text-ink">
+          {call === "connecting"
+            ? "Connecting to your CMO…"
+            : phase === "speaking"
+              ? "CMO speaking — talk over to cut in"
+              : phase === "thinking"
+                ? "Thinking…"
+                : "Listening — go ahead"}
+        </p>
+        <p className="text-[11px] text-mute-2">Live voice call · saves to this chat</p>
+      </div>
+      <button
+        type="button"
+        onClick={endCall}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-ember px-3 py-1.5 text-[12px] font-bold text-white transition-opacity hover:opacity-90"
+      >
+        <PhoneOff size={13} aria-hidden /> End
+      </button>
+    </div>
+  );
 
   const composer = (
     <div className="rounded-2xl border border-line bg-surface shadow-sm transition-colors focus-within:border-molten/40">
@@ -334,6 +445,7 @@ export default function ChatClient() {
             </div>
 
             {error && <p className="mb-2 px-1 text-center text-[12px] text-ember">{error}</p>}
+            {callBar}
             {composer}
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
@@ -385,6 +497,7 @@ export default function ChatClient() {
           <div className="shrink-0 border-t border-line bg-bg px-4 py-4">
             <div className="mx-auto w-full max-w-3xl">
               {error && <p className="mb-2 px-1 text-[12px] text-ember">{error}</p>}
+              {callBar}
               {composer}
             </div>
           </div>
