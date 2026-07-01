@@ -19,6 +19,10 @@ const ONBOARDING_PROMPT =
 const RECOGNITION_LANG = "en-IN";
 const SILENCE_MS = 900; // pause this long → treat the founder's turn as finished
 
+// When an ElevenLabs agent is configured, ElevenCmoCall handles the live voice call
+// (better STT + male voice + native barge-in); this panel just routes to it.
+const ELEVEN = !!process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+
 // Real voice barge-in: watch the mic's loudness on an echo-cancelled stream (so the
 // CMO's own voice is filtered out) and cut in the instant the founder talks over it.
 const BARGE_RMS = 0.03; // mic loudness above this = the founder is actually speaking
@@ -461,6 +465,7 @@ export default function CmoPanel() {
   // the concierge greeting's "Yes" → open the panel and start a live call
   useEffect(() => {
     const onCall = () => {
+      if (ELEVEN) return; // ElevenCmoCall handles the live call when configured
       setOpen(true);
       connect();
     };
@@ -690,7 +695,7 @@ export default function CmoPanel() {
             </button>
           </div>
           <button
-            onClick={connect}
+            onClick={ELEVEN ? () => window.dispatchEvent(new Event("mrk18:cmo-call")) : connect}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-molten py-2.5 text-[13px] font-extrabold text-white transition-opacity duration-200 hover:opacity-90"
           >
             <Phone size={15} aria-hidden /> Call CMO
