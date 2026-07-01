@@ -363,54 +363,66 @@ body {
    Light / Dark — see ThemeToggle + the no-flash script in the root layout). */
 .mrk18-dark .app-scope {
   color-scheme: dark;
-  color: #f4f4f5;
-  --ink: #f4f4f5;
-  --muted: #b4b4bd;
-  /* brand orange — kept warm so the accent pops on the neutral black surfaces */
-  --molten: #f97a45;
-  --amber: #ff9a5c;
-  --ember: #e85f2a;
-  --gold: #d9a35e;
-  --gradient-brand: linear-gradient(120deg, var(--molten), var(--amber) 55%, var(--ember));
-  --stroke: rgba(244, 244, 245, 0.1);
-  --glass: rgba(20, 20, 22, 0.7);
-  --cta-ink: #ffffff;
-  --cta-glow: rgba(249, 122, 69, 0.3);
-  --cta-glow-strong: rgba(249, 122, 69, 0.45);
-  /* neutral near-black surfaces, gently elevated (no warm/brown tint) */
-  --bg: #09090b;
-  --surface: #18181b;
-  --surface-2: #232328;
-  --stroke-2: rgba(244, 244, 245, 0.07);
-  --good: #34d399;
-  --watch: #fbbf24;
-  --bad: #f87171;
-  --line: #27272a;
-  --line-soft: #1f1f23;
-  --mute-2: #9c9ca6;
-  --sidebar: #0e0e10;
-  --overlay-subtle: rgba(244, 244, 245, 0.05);
-  --shadow-color: rgba(0, 0, 0, 0.6);
-  --backdrop: rgba(0, 0, 0, 0.66);
+  color: #e8e6e1;
+  --ink: #e8e6e1;
+  --muted: #b3b1a8;
+  /* Claude-style night: the orange goes QUIET — accents become warm neutrals so
+     text, borders and active states read as calm grays (only the logo mark keeps
+     brand color). bg-molten primary buttons get a dark label via the rule below. */
+  --molten: #d6d3ca;
+  --amber: #d6d3ca;
+  --ember: #57544d;
+  --gold: #c9c6bc;
+  --gradient-brand: linear-gradient(120deg, #d6d3ca, #b5b2a9);
+  --stroke: rgba(232, 230, 225, 0.1);
+  --glass: rgba(28, 27, 25, 0.7);
+  --cta-ink: #232220;
+  --cta-glow: rgba(0, 0, 0, 0);
+  --cta-glow-strong: rgba(0, 0, 0, 0);
+  /* warm dark-gray surfaces, gently elevated — Claude's night neutrals */
+  --bg: #262624;
+  --surface: #30302e;
+  --surface-2: #3a3a37;
+  --stroke-2: rgba(232, 230, 225, 0.07);
+  --good: #4dbd8c;
+  --watch: #d9a648;
+  --bad: #e0756b;
+  --line: #3d3c39;
+  --line-soft: #343330;
+  --mute-2: #918f86;
+  --sidebar: #1f1e1c;
+  --overlay-subtle: rgba(232, 230, 225, 0.06);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.6);
 }
 /* beat the explicit `.theme-sand .text-ink/.text-muted` overrides inside the app */
 .mrk18-dark .app-scope .text-ink {
-  color: #f4f4f5;
+  color: #e8e6e1;
 }
 .mrk18-dark .app-scope .text-muted {
-  color: #b4b4bd;
+  color: #b3b1a8;
 }
 /* the .app-scope layout div also carries .text-ink — `.theme-sand .text-ink`
    would otherwise win by source order and pull the scope's inherited color back
    to dark ink, dragging every unclassed heading + bare label down with it. */
 .mrk18-dark .app-scope.text-ink {
-  color: #f4f4f5;
+  color: #e8e6e1;
 }
 .mrk18-dark .app-scope h1,
 .mrk18-dark .app-scope h2,
 .mrk18-dark .app-scope h3,
 .mrk18-dark .app-scope h4 {
-  color: #f4f4f5;
+  color: #e8e6e1;
+}
+/* primary surfaces built on the accent: at night the accent is LIGHT, so their
+   labels flip dark (specificity beats the elements' own .text-white) */
+.mrk18-dark .app-scope .bg-molten,
+.mrk18-dark .app-scope .from-molten {
+  color: #232220;
+}
+/* errors must stay readable even though ember surfaces went graphite */
+.mrk18-dark .app-scope .text-ember {
+  color: #e0756b;
 }
 .theme-sand .text-ink {
   color: #1b1815;
