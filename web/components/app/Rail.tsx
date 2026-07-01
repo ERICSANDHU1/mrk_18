@@ -10,9 +10,14 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Crown,
+  Droplet,
+  Eye,
+  Files,
+  Filter,
   LayoutDashboard,
   type LucideIcon,
   MessageSquare,
+  Plug,
   Plus,
   Radar,
   Settings,
@@ -30,6 +35,17 @@ const TOP: NavItem[] = [
   { href: "/chief", label: "Chief", icon: Crown, exact: false },
 ];
 const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true };
+
+// Chief's rooms — the command-center areas, one page each (shown in the sidebar
+// when the Chief tab is active; the Chief page itself is the visual overview).
+const CHIEF_NAV: (NavItem & { soon?: boolean })[] = [
+  { href: "/console/leaks", label: "Leaks", icon: Droplet, exact: false },
+  { href: "/chief/eagleview", label: "Eagle view", icon: Eye, exact: false },
+  { href: "/console/channels", label: "Channels & connectors", icon: Plug, exact: false },
+  { href: "/chief/content", label: "Content & scripts", icon: Files, exact: false },
+  { href: "/console/funnel", label: "Funnel", icon: Filter, exact: false },
+  { href: "/chief/watchdog", label: "Watchdog", icon: Radar, exact: false, soon: true },
+];
 
 // Each tab's Recents are fetched live, per founder: Chat → /api/chats (ChatRecents),
 // Comrk → /api/runs (CoworkRecents). No more shared placeholder rows.
@@ -64,12 +80,15 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const userLabel =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
 
-  // Which of the 3 tabs is active. /mrk lives under Comrk; Chief has no list.
-  const activeTab = pathname.startsWith("/chief")
-    ? "/chief"
-    : pathname.startsWith("/cowork") || pathname.startsWith("/mrk")
-      ? "/cowork"
-      : "/chat";
+  // Which of the 3 tabs is active. /mrk lives under Comrk; Chief owns its rooms
+  // (including the console detail pages it links to).
+  const activeTab =
+    pathname.startsWith("/chief") ||
+    ["/console/leaks", "/console/channels", "/console/funnel"].some((p) => pathname.startsWith(p))
+      ? "/chief"
+      : pathname.startsWith("/cowork") || pathname.startsWith("/mrk")
+        ? "/cowork"
+        : "/chat";
 
   const renderRow = (item: NavItem) => {
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
@@ -155,7 +174,39 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             </div>
 
             {activeTab === "/chief" ? (
-              <div className="flex-1" />
+              /* Chief's rooms — overview on the tab itself, one page per room */
+              <>
+                <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">
+                  Command center
+                </p>
+                <div className="mt-1.5 space-y-0.5">
+                  {CHIEF_NAV.map((item) => {
+                    const active = pathname.startsWith(item.href);
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors duration-200 ${
+                          active ? "bg-molten/10 text-molten" : "text-mute-2 hover:bg-surface hover:text-ink"
+                        }`}
+                      >
+                        <Icon size={15} aria-hidden />
+                        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
+                          {item.label}
+                        </span>
+                        {item.soon && (
+                          <span className="rounded-full bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-mute-2">
+                            Soon
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+                <div className="flex-1" />
+              </>
             ) : (
               <>
                 <Link

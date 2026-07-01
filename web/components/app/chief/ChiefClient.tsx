@@ -1,22 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowDownRight,
   ArrowUp,
   ArrowUpRight,
-  Droplet,
-  Eye,
-  Files,
-  Filter,
   Loader2,
-  Lock,
   MessageSquare,
-  Plug,
-  Radar,
 } from "lucide-react";
-import { CONNECTORS_LOCKED } from "@/lib/flags";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { cleanCmoText } from "@/lib/text";
 import { Skeleton } from "@/components/app/ui/Skeleton";
 
@@ -34,82 +38,63 @@ type Analytics = {
   created_at?: string;
 } | null;
 type Connection = { platform: string; status: string; needs_reconnect?: boolean };
-type ContentItem = { item_id: string; platform: string; format: string; body: string; status: string };
-type Rank = { item_id: string; platform: string; body: string; latest_engagement_rate?: number };
-type Perf = { items_measured?: number; ranking?: Rank[] };
 type ChatMsg = { id: string; role: "user" | "cmo"; text: string };
-
-const PLATFORM_LABEL: Record<string, string> = {
-  meta: "Meta",
-  x: "X",
-  linkedin: "LinkedIn",
-  ig: "Instagram",
-  instagram: "Instagram",
-  reddit: "Reddit",
-  google: "Google",
-};
 
 const fmtINR = (n?: number) =>
   typeof n === "number" ? `₹${Math.round(n).toLocaleString("en-IN")}` : "—";
-const pct = (n?: number) => (typeof n === "number" ? `${(n * 100).toFixed(1)}%` : "—");
 
-/** A subtle status chip marking a widget as a frontend preview — rendered but
- *  not yet wired to the backend. */
-function ComingSoon() {
-  return (
-    <span className="shrink-0 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-mute-2">
-      Coming soon
-    </span>
-  );
-}
+/* ── demo data (until real sources are live) ─────────────────────────────── */
+const SPEND_30D = [
+  { d: "Jun 3", spend: 3200, leads: 9 },
+  { d: "Jun 5", spend: 3600, leads: 11 },
+  { d: "Jun 7", spend: 3400, leads: 10 },
+  { d: "Jun 9", spend: 4100, leads: 14 },
+  { d: "Jun 11", spend: 3900, leads: 13 },
+  { d: "Jun 13", spend: 4600, leads: 16 },
+  { d: "Jun 15", spend: 5200, leads: 19 },
+  { d: "Jun 17", spend: 4800, leads: 17 },
+  { d: "Jun 19", spend: 5600, leads: 22 },
+  { d: "Jun 21", spend: 5300, leads: 20 },
+  { d: "Jun 23", spend: 6100, leads: 25 },
+  { d: "Jun 25", spend: 5800, leads: 24 },
+  { d: "Jun 27", spend: 6600, leads: 28 },
+  { d: "Jun 29", spend: 6900, leads: 30 },
+  { d: "Jul 1", spend: 7400, leads: 33 },
+];
+const CHANNELS = [
+  { name: "Meta", spend: 64000 },
+  { name: "Google", spend: 41500 },
+  { name: "LinkedIn", spend: 22000 },
+  { name: "X", spend: 15000 },
+];
+const FUNNEL = [
+  { stage: "Visitors", n: 12400 },
+  { stage: "Signups", n: 1180 },
+  { stage: "Activated", n: 512 },
+  { stage: "Paying", n: 96 },
+];
+const KPIS = [
+  { label: "Ad spend · 30d", value: "₹1,42,500", delta: "+12%", good: true },
+  { label: "CAC", value: "₹312", delta: "−8%", good: true },
+  { label: "Leads · 30d", value: "458", delta: "+23%", good: true },
+  { label: "ROAS", value: "3.4×", delta: "+0.4", good: true },
+];
 
-function Widget({
-  icon: Icon,
-  title,
-  href,
-  comingSoon,
-  children,
-}: {
-  icon: typeof Eye;
-  title: string;
-  href?: string;
-  comingSoon?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col rounded-2xl border border-line bg-surface p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon size={15} className="text-molten" aria-hidden />
-          <span className="text-[13px] font-semibold text-ink">{title}</span>
-        </div>
-        {href ? (
-          <Link
-            href={href}
-            className="flex items-center gap-0.5 text-[11px] text-mute-2 transition-colors hover:text-molten"
-          >
-            View <ArrowUpRight size={12} aria-hidden />
-          </Link>
-        ) : comingSoon ? (
-          <ComingSoon />
-        ) : null}
-      </div>
-      <div className="min-h-0 flex-1">{children}</div>
-    </div>
-  );
-}
+const tooltipStyle = {
+  background: "var(--surface)",
+  border: "1px solid var(--line)",
+  borderRadius: 12,
+  fontSize: 12,
+  color: "var(--ink)",
+  boxShadow: "0 8px 24px var(--shadow-color)",
+} as const;
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-1 text-[12.5px] leading-relaxed text-mute">{children}</p>;
-}
-
-/** Chief — the founder's command center. Reads, diagnoses, and points to the next
- *  move. Live widgets pull real data; not-yet-connected ones show a connect state. */
+/** Chief — the founder's command center: the week visualised (spend, channels,
+ *  funnel), the CMO's read on it, and the chief chat. The detail rooms (Leaks,
+ *  Eagle view, Channels, Content, Funnel, Watchdog) live in the sidebar. */
 export default function ChiefClient() {
   const [analytics, setAnalytics] = useState<Analytics>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [content, setContent] = useState<ContentItem[]>([]);
-  const [perf, setPerf] = useState<Perf>({});
   const [company, setCompany] = useState("");
   const [loading, setLoading] = useState(true);
   const [chat, setChat] = useState<ChatMsg[]>([]);
@@ -124,21 +109,15 @@ export default function ChiefClient() {
       fetch(url, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-    Promise.all([
-      j("/api/analytics/latest"),
-      j("/api/connections"),
-      j("/api/content?limit=50"),
-      j("/api/performance"),
-      j("/api/me/profile"),
-    ]).then(([a, c, ct, p, prof]) => {
-      if (!active) return;
-      setAnalytics(a ?? null);
-      setConnections(Array.isArray(c) ? c : []);
-      setContent(Array.isArray(ct) ? ct : []);
-      setPerf(p ?? {});
-      setCompany(prof?.profile?.company_name ?? "");
-      setLoading(false);
-    });
+    Promise.all([j("/api/analytics/latest"), j("/api/connections"), j("/api/me/profile")]).then(
+      ([a, c, prof]) => {
+        if (!active) return;
+        setAnalytics(a ?? null);
+        setConnections(Array.isArray(c) ? c : []);
+        setCompany(prof?.profile?.company_name ?? "");
+        setLoading(false);
+      },
+    );
     return () => {
       active = false;
     };
@@ -190,10 +169,8 @@ export default function ChiefClient() {
 
   const diag = analytics?.diagnosis ?? null;
   const connected = connections.filter((c) => c.status === "connected");
-  const leaking = diag?.leaking ?? [];
-  const ranking = perf?.ranking ?? [];
-  const scripts = content.filter((c) => c.format === "reel_script");
-  const posts = content.filter((c) => c.format !== "reel_script");
+  const live = typeof analytics?.metrics?.total_spend === "number";
+  const maxChannel = Math.max(...CHANNELS.map((c) => c.spend));
 
   return (
     <div className="dash-scroll h-full overflow-y-auto">
@@ -206,13 +183,21 @@ export default function ChiefClient() {
               {company ? `${company} · ` : ""}your command center
             </p>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-[11px] text-mute">
-            <span
-              aria-hidden
-              className={`h-1.5 w-1.5 rounded-full ${connected.length ? "bg-good" : "bg-mute-2"}`}
-            />
-            {connected.length} source{connected.length === 1 ? "" : "s"} live
-          </span>
+          <div className="flex items-center gap-2">
+            {!live && !loading && (
+              <span className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-[11px] text-mute">
+                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-watch" />
+                Demo data
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-[11px] text-mute">
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${connected.length ? "bg-good" : "bg-mute-2"}`}
+              />
+              {connected.length} source{connected.length === 1 ? "" : "s"} live
+            </span>
+          </div>
         </div>
 
         {/* CMO read */}
@@ -229,135 +214,147 @@ export default function ChiefClient() {
           </div>
         </div>
 
-        {/* KPI strip */}
-        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: "Ad spend", value: fmtINR(analytics?.metrics?.total_spend) },
-            { label: "Leaks flagged", value: leaking.length ? String(leaking.length) : "—" },
-            { label: "Posts measured", value: perf?.items_measured ? String(perf.items_measured) : "—" },
-            { label: "Connected", value: String(connected.length) },
-          ].map((k) => (
+        {/* KPI row */}
+        <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {KPIS.map((k, i) => (
             <div key={k.label} className="rounded-2xl border border-line bg-surface px-3.5 py-3">
               <div className="text-[11px] text-mute-2">{k.label}</div>
               {loading ? (
-                <Skeleton className="mt-1.5 h-6 w-14 rounded-md" />
+                <Skeleton className="mt-1.5 h-6 w-16 rounded-md" />
               ) : (
-                <div className="mt-1 text-[20px] font-semibold text-ink">{k.value}</div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-[20px] font-semibold text-ink">
+                    {i === 0 && live ? fmtINR(analytics?.metrics?.total_spend) : k.value}
+                  </span>
+                  <span
+                    className={`flex items-center gap-0.5 text-[11px] font-semibold ${k.good ? "text-good" : "text-bad"}`}
+                  >
+                    {k.delta.startsWith("−") ? (
+                      <ArrowDownRight size={11} aria-hidden />
+                    ) : (
+                      <ArrowUpRight size={11} aria-hidden />
+                    )}
+                    {k.delta}
+                  </span>
+                </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* widget grid */}
+        {/* spend over time */}
+        <div className="mb-3 rounded-2xl border border-line bg-surface p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[13px] font-semibold text-ink">Ad spend · last 30 days</span>
+            <span className="font-data text-[10.5px] uppercase tracking-wide text-mute-2">₹ / day</span>
+          </div>
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={SPEND_30D} margin={{ top: 4, right: 4, left: -14, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--molten)" stopOpacity={0.22} />
+                    <stop offset="100%" stopColor="var(--molten)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--line-soft)" strokeDasharray="3 6" vertical={false} />
+                <XAxis
+                  dataKey="d"
+                  tick={{ fill: "var(--mute-2)", fontSize: 10.5 }}
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--line)" }}
+                  interval="preserveStartEnd"
+                  minTickGap={28}
+                />
+                <YAxis
+                  tick={{ fill: "var(--mute-2)", fontSize: 10.5 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: "var(--mute-2)", fontSize: 11 }}
+                  formatter={(value) => [fmtINR(Number(value)), "Spend"]}
+                  cursor={{ stroke: "var(--line)" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="spend"
+                  stroke="var(--molten)"
+                  strokeWidth={2}
+                  fill="url(#spendFill)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* channels + funnel */}
         <div className="grid gap-3 md:grid-cols-2">
-          {/* Leaks */}
-          <Widget icon={Droplet} title="Leaks" href="/console/leaks">
-            {leaking.length === 0 ? (
-              <Empty>No leaks flagged yet — wasted spend surfaces here once the ad connector is live.</Empty>
-            ) : (
-              <div className="space-y-1.5">
-                {leaking.slice(0, 3).map((l, i) => (
-                  <div key={i} className="flex items-start gap-2 text-[12.5px] text-ink">
-                    <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-bad" />
-                    <span className="leading-snug">{l}</span>
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-ink">Spend by channel</span>
+              <span className="font-data text-[10.5px] uppercase tracking-wide text-mute-2">30d</span>
+            </div>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={CHANNELS} layout="vertical" margin={{ top: 0, right: 8, left: -6, bottom: 0 }}>
+                  <XAxis type="number" hide domain={[0, maxChannel]} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fill: "var(--muted)", fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={72}
+                  />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(value) => [fmtINR(Number(value)), "Spend"]}
+                    cursor={{ fill: "var(--overlay-subtle)" }}
+                  />
+                  <Bar dataKey="spend" radius={[4, 8, 8, 4]} barSize={18}>
+                    {CHANNELS.map((c, i) => (
+                      <Cell key={c.name} fill="var(--molten)" fillOpacity={1 - i * 0.18} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-ink">Signup funnel</span>
+              <span className="font-data text-[10.5px] uppercase tracking-wide text-mute-2">30d</span>
+            </div>
+            <div className="space-y-3.5 pt-1">
+              {FUNNEL.map((f, i) => {
+                const width = (f.n / FUNNEL[0].n) * 100;
+                const conv = i === 0 ? null : (f.n / FUNNEL[i - 1].n) * 100;
+                return (
+                  <div key={f.stage}>
+                    <div className="mb-1 flex items-baseline justify-between">
+                      <span className="text-[12px] font-medium text-ink">{f.stage}</span>
+                      <span className="font-data text-[11px] text-mute">
+                        {f.n.toLocaleString("en-IN")}
+                        {conv !== null && (
+                          <span className="text-mute-2"> · {conv.toFixed(0)}%</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
+                      <div
+                        className="h-full rounded-full bg-molten"
+                        style={{ width: `${Math.max(width, 2)}%`, opacity: 1 - i * 0.16 }}
+                      />
+                    </div>
                   </div>
-                ))}
-                {diag?.working?.length ? (
-                  <p className="pt-1 text-[11.5px] text-good">{diag.working.length} working well</p>
-                ) : null}
-              </div>
-            )}
-          </Widget>
-
-          {/* Eagle View — performance */}
-          <Widget icon={Eye} title="Eagle view · top posts">
-            {ranking.length === 0 ? (
-              <Empty>No measured posts yet — they appear here once published content gathers signals.</Empty>
-            ) : (
-              <div className="space-y-2">
-                {ranking.slice(0, 3).map((r) => (
-                  <div key={r.item_id} className="flex items-center justify-between gap-2 text-[12.5px]">
-                    <span className="truncate text-ink">
-                      <span className="text-mute-2">{PLATFORM_LABEL[r.platform] ?? r.platform} · </span>
-                      {r.body?.slice(0, 40) || "—"}
-                    </span>
-                    <span className="shrink-0 text-good">{pct(r.latest_engagement_rate)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Widget>
-
-          {/* Channels & connectors */}
-          <Widget icon={Plug} title="Channels & connectors" href="/console/channels">
-            {connections.length === 0 ? (
-              <div className="space-y-2">
-                <Empty>No data sources connected yet.</Empty>
-                {CONNECTORS_LOCKED ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-mute-2">
-                    <Lock size={13} aria-hidden /> Connector coming soon
-                  </span>
-                ) : (
-                  <Link
-                    href="/console/leaks"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-ink transition-colors hover:border-molten/40"
-                  >
-                    <Plug size={13} aria-hidden /> Connect a source
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {connections.map((c) => {
-                  const ok = c.status === "connected" && !c.needs_reconnect;
-                  return (
-                    <span
-                      key={c.platform}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] ${
-                        ok ? "bg-good/10 text-good" : "bg-watch/10 text-watch"
-                      }`}
-                    >
-                      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
-                      {PLATFORM_LABEL[c.platform] ?? c.platform}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </Widget>
-
-          {/* Content & scripts */}
-          <Widget icon={Files} title="Content & scripts" href="/cowork">
-            {content.length === 0 ? (
-              <Empty>Nothing generated yet — start a run in Comrk to fill your library.</Empty>
-            ) : (
-              <div>
-                <div className="flex gap-2">
-                  <span className="rounded-lg bg-surface-2 px-2.5 py-1 text-[12px] text-mute">
-                    {posts.length} posts
-                  </span>
-                  <span className="rounded-lg bg-surface-2 px-2.5 py-1 text-[12px] text-mute">
-                    {scripts.length} scripts
-                  </span>
-                </div>
-                {content[0] && (
-                  <p className="mt-2.5 truncate text-[12.5px] text-mute">
-                    Latest: {content[0].body?.slice(0, 50)}
-                  </p>
-                )}
-              </div>
-            )}
-          </Widget>
-
-          {/* Funnel — dormant */}
-          <Widget icon={Filter} title="Funnel" comingSoon>
-            <Empty>Connect your funnel data to see where signups drop off.</Empty>
-          </Widget>
-
-          {/* Watchdog — dormant */}
-          <Widget icon={Radar} title="Watchdog · market news" comingSoon>
-            <Empty>Competitor moves and market shifts will surface here.</Empty>
-          </Widget>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* chat — inline & real-time, no redirect */}
@@ -372,7 +369,7 @@ export default function ChiefClient() {
                   <div
                     className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
                       m.role === "cmo"
-                        ? "rounded-tl-sm border border-molten/20 bg-molten/[0.07] text-ink"
+                        ? "font-claude-serif rounded-tl-sm border border-molten/20 bg-molten/[0.07] text-ink"
                         : "rounded-tr-sm bg-surface-2 text-ink"
                     }`}
                   >
