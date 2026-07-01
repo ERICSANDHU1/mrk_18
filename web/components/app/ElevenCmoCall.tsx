@@ -59,8 +59,6 @@ function CallInner() {
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const startingRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
-  const briefRef = useRef(""); // the founder's business brief, fed to the agent on connect
-  const sentCtxRef = useRef(false); // have we injected the brief for this call yet?
 
   const conv = useConversation({
     onError: (message: string) => setError(message || "The call hit an error."),
@@ -78,48 +76,25 @@ function CallInner() {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
   }, [transcript]);
 
-  // Once connected, feed the founder's business to the agent as a contextual update
-  // (no Security toggle needed — unlike prompt overrides). Skipped when OVERRIDES is on
-  // since the brief is already baked into the system prompt then.
-  useEffect(() => {
-    if (conv.status === "disconnected") {
-      sentCtxRef.current = false;
-      return;
-    }
-    if (conv.status !== "connected" || OVERRIDES || sentCtxRef.current || !briefRef.current) return;
-    sentCtxRef.current = true;
-    try {
-      conv.sendContextualUpdate(
-        `Reference information about the founder you are advising — use it to give specific, grounded advice, and do not ask them to repeat what's here. ${briefRef.current}`,
-      );
-    } catch {
-      /* older SDK without contextual updates — grounding then needs OVERRIDES */
-    }
-  }, [conv.status, conv]);
-
   const start = useCallback(async () => {
     if (!AGENT_ID || startingRef.current || conv.status !== "disconnected") return;
     startingRef.current = true;
     setError(null);
     setTranscript([]);
     setActive(true);
-    sentCtxRef.current = false;
-    // Pull the founder's business brief from their onboarding profile — it's fed to the
-    // agent so the CMO talks about THEIR company (via the connect effect above, or the
-    // system prompt when OVERRIDES is on).
-    briefRef.current = await founderBrief();
-
     const opts: StartOpts = {
       agentId: AGENT_ID,
       connectionType: "webrtc", // real-time voice — ElevenLabs handles STT, TTS + barge-in
     };
-    // OVERRIDES (opt-in): bake the brief straight into the system prompt. Needs prompt
-    // overrides allow-listed in the agent's Security tab, or ElevenLabs rejects the call.
+    // OVERRIDES (opt-in): bake the founder's business into the system prompt. Needs
+    // prompt overrides allow-listed in the agent's Security tab, or ElevenLabs rejects
+    // the call. Left off, the agent uses its own dashboard voice + prompt (reliable).
     if (OVERRIDES) {
+      const brief = await founderBrief();
       const overrides: NonNullable<StartOpts["overrides"]> = {};
-      if (briefRef.current) {
+      if (brief) {
         overrides.agent = {
-          prompt: { prompt: `${PERSONA} Ground everything in THEIR business: ${briefRef.current}.` },
+          prompt: { prompt: `${PERSONA} Ground everything in THEIR business: ${brief}.` },
         };
       }
       if (VOICE_ID) overrides.tts = { voiceId: VOICE_ID };
