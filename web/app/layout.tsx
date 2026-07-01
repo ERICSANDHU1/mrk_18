@@ -8,7 +8,7 @@ import {
   Source_Serif_4,
   Familjen_Grotesk,
 } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
+import ClerkThemed from "@/components/ClerkThemed";
 import "./globals.css";
 // Clash Display (headlines) is self-hosted via @font-face in globals.css
 // (/public/fonts/*) — next/font/local mis-compiles in this Next build.
@@ -89,23 +89,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider
-      appearance={{
-        variables: {
-          colorPrimary: "#b4532a",
-          colorBackground: "#ffffff",
-          borderRadius: "0.6rem",
-          fontFamily: "var(--font-hanken), system-ui, sans-serif",
-        },
-        elements: {
-          card: "bg-surface border border-stroke-2 shadow-xl",
-          headerTitle: "tracking-tight",
-          socialButtonsBlockButton: "border-stroke-2",
-          formButtonPrimary: "bg-molten text-white font-bold hover:opacity-90",
-          footerActionLink: "text-molten hover:underline",
-        },
-      }}
-    >
+    // ClerkThemed = ClerkProvider that follows the app's Appearance toggle, so
+    // the account modal / user popover go dark with the rest of the app.
+    <ClerkThemed>
       <html
         lang="en"
         suppressHydrationWarning
@@ -122,6 +108,6 @@ export default function RootLayout({
           {children}
         </body>
       </html>
-    </ClerkProvider>
+    </ClerkThemed>
   );
 }
