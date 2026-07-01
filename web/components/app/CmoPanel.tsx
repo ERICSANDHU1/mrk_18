@@ -19,6 +19,11 @@ const ONBOARDING_PROMPT =
 const RECOGNITION_LANG = "en-IN";
 const SILENCE_MS = 900; // pause this long → treat the founder's turn as finished
 
+// Real voice barge-in: watch the mic's loudness on an echo-cancelled stream (so the
+// CMO's own voice is filtered out) and cut in the instant the founder talks over it.
+const BARGE_RMS = 0.03; // mic loudness above this = the founder is actually speaking
+const BARGE_FRAMES = 3; // sustained this many ~60ms frames (~180ms) before we cut in
+
 // A pure acknowledgement ("Got it.", "Sure.") isn't an answer on its own — if the
 // CMO opens with one, we keep the next sentence too so the spoken line has substance.
 const FILLER = /^(got it|sure|okay|ok|right|alright|great|nice|cool|absolutely|totally|yeah|yes|of course|exactly|good question|love it|makes sense|understood|gotcha|fair enough|perfect|awesome)\b/i;
@@ -120,6 +125,11 @@ export default function CmoPanel() {
   const maleVoiceRef = useRef(false); // is the chosen TTS voice already male?
   const phaseRef = useRef<Phase>("listening"); // handlers read the latest phase
   const endCallRef = useRef<() => void>(() => {}); // set once endCall is defined
+  // voice barge-in: an echo-cancelled mic stream + a volume meter that only fires
+  // while the CMO is speaking
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const vadRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     callRef.current = call;
@@ -226,13 +236,73 @@ export default function CmoPanel() {
     }
   }, []);
 
-  // founder taps the orb to cut in while the CMO is talking → stop it and listen
+  // founder cuts in (tapped the orb, OR the mic heard them over the CMO) → stop the
+  // CMO immediately and hand them the turn.
   const interrupt = useCallback(() => {
     if (callRef.current !== "live" || !speakingRef.current) return;
     speakingRef.current = false; // so the utterance's onend no-ops (no double-listen)
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     startListening();
   }, [startListening]);
+
+  // Watch the echo-cancelled mic while the CMO talks; when the founder's voice rises
+  // over it for ~180ms, interrupt() cuts the CMO off and starts listening.
+  const setupVad = useCallback(
+    (stream: MediaStream) => {
+      try {
+        const Ctx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        ctx.resume?.();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        audioCtxRef.current = ctx;
+        const buf = new Float32Array(analyser.fftSize);
+        let hot = 0;
+        vadRef.current = setInterval(() => {
+          // only listen for a cut-in while the CMO is actually speaking
+          if (callRef.current !== "live" || !speakingRef.current) {
+            hot = 0;
+            return;
+          }
+          analyser.getFloatTimeDomainData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+          const rms = Math.sqrt(sum / buf.length);
+          if (rms > BARGE_RMS) {
+            hot += 1;
+            if (hot >= BARGE_FRAMES) {
+              hot = 0;
+              interrupt(); // founder is talking over the CMO → hand them the turn
+            }
+          } else {
+            hot = 0;
+          }
+        }, 60);
+      } catch {
+        /* WebAudio unavailable — tap-to-interrupt still works */
+      }
+    },
+    [interrupt],
+  );
+
+  const teardownVad = useCallback(() => {
+    if (vadRef.current) {
+      clearInterval(vadRef.current);
+      vadRef.current = null;
+    }
+    try {
+      audioCtxRef.current?.close();
+    } catch {
+      /* noop */
+    }
+    audioCtxRef.current = null;
+    micStreamRef.current?.getTracks().forEach((t) => t.stop());
+    micStreamRef.current = null;
+  }, []);
 
   // founder finished a turn → send it, speak the (one-line) reply, then listen again
   const handleFounderTurn = useCallback(
@@ -316,15 +386,18 @@ export default function CmoPanel() {
     setCall("connecting");
     callRef.current = "connecting";
     try {
-      // trigger the mic permission prompt up front
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop()); // we only needed the permission
+      // keep an echo-cancelled mic stream open for the whole call — it powers the
+      // barge-in volume meter (the recognizer captures the actual words separately).
+      micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
     } catch {
       setError("Microphone blocked — allow mic access and try again.");
       setCall("idle");
       callRef.current = "idle";
       return;
     }
+    setupVad(micStreamRef.current);
     recRef.current = rec;
     attachHandlers(rec);
     wireRef.current = [];
@@ -336,10 +409,11 @@ export default function CmoPanel() {
     setTranscript([{ who: "cmo", text: GREETING }]);
     wireRef.current = [{ role: "assistant", content: GREETING }];
     speak(GREETING, startListening);
-  }, [attachHandlers, speak, startListening]);
+  }, [attachHandlers, speak, startListening, setupVad]);
 
   const endCall = useCallback(() => {
     stopListening();
+    teardownVad();
     speakingRef.current = false;
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     try {
@@ -364,7 +438,7 @@ export default function CmoPanel() {
       ]);
     }
     setTranscript([]);
-  }, [stopListening, transcript.length]);
+  }, [stopListening, teardownVad, transcript.length]);
 
   // keep endCallRef pointing at the latest endCall (onerror is wired once)
   useEffect(() => {
@@ -380,8 +454,9 @@ export default function CmoPanel() {
         /* noop */
       }
       if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+      teardownVad();
     };
-  }, []);
+  }, [teardownVad]);
 
   // the concierge greeting's "Yes" → open the panel and start a live call
   useEffect(() => {
