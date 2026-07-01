@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AudioLines, Loader2, Mic, PhoneOff, X } from "lucide-react";
 import Logo from "@/components/app/Logo";
 import { useCmoVoiceCall } from "@/components/app/useCmoVoiceCall";
+import { saveChat } from "@/lib/chat-store";
 
 type Turn = { who: "founder" | "cmo"; text: string };
 
@@ -16,9 +17,23 @@ export default function CmoCallDock() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+  const turnsRef = useRef<Turn[]>([]); // onTurn reads the latest without stale closures
+  const sessionIdRef = useRef<string | null>(null); // this call's chat in Recents
 
+  // every spoken turn lands here — and the conversation saves to Recents,
+  // exactly like a typed chat (one session per call)
   const onTurn = useCallback((who: "founder" | "cmo", text: string) => {
-    setTurns((t) => [...t, { who, text }]);
+    const next = [...turnsRef.current, { who, text }];
+    turnsRef.current = next;
+    setTurns(next);
+    if (who === "cmo") {
+      void saveChat(
+        sessionIdRef.current,
+        next.map((t) => ({ role: t.who === "cmo" ? ("cmo" as const) : ("user" as const), text: t.text })),
+      ).then((id) => {
+        if (id) sessionIdRef.current = id;
+      });
+    }
   }, []);
 
   const { call, phase, connect, endCall, interrupt } = useCmoVoiceCall({
@@ -36,6 +51,8 @@ export default function CmoCallDock() {
     const onCall = () => {
       setError(null);
       setTurns([]);
+      turnsRef.current = [];
+      sessionIdRef.current = null; // a fresh call = a fresh chat in Recents
       setActive(true);
       void connect();
     };

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Phone, Send, X } from "lucide-react";
 import type { ChatMsg } from "@/lib/mock/console";
+import { saveChat } from "@/lib/chat-store";
 
 /** The floating CMO drawer: a quick text thread with the CMO from any page.
  *  The LIVE voice call happens in the Chat section — "Call CMO" (and the
@@ -18,6 +19,7 @@ export default function CmoPanel() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef<string | null>(null); // this thread's chat in Recents
   const pathname = usePathname();
 
   // Tell the app shell to make room while the panel is open: it collapses the left
@@ -54,7 +56,18 @@ export default function CmoPanel() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && typeof data.reply === "string") {
-        setMessages((m) => [...m, { id: `c-${m.length}`, role: "cmo", text: data.reply, time: "now" }]);
+        const full: ChatMsg[] = [
+          ...next,
+          { id: `c-${next.length}`, role: "cmo", text: data.reply, time: "now" },
+        ];
+        setMessages(full);
+        // the drawer thread saves to Recents too — same as any chat
+        void saveChat(
+          sessionIdRef.current,
+          full.map((m) => ({ role: m.role === "cmo" ? ("cmo" as const) : ("user" as const), text: m.text })),
+        ).then((id) => {
+          if (id) sessionIdRef.current = id;
+        });
       } else {
         setError(data.error || "The CMO couldn't respond.");
       }
