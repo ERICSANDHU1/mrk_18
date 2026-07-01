@@ -18,25 +18,23 @@ const ONBOARDING_PROMPT =
   "Complete your onboarding first — your CMO activates once your workspace is set up.";
 const RECOGNITION_LANG = "en-IN";
 const SILENCE_MS = 900; // pause this long → treat the founder's turn as finished
-const BARGE_MIN_WORDS = 3; // a clear phrase (not a 1-word TTS echo) to count as cutting in
 
-// Did the mic mostly just hear the CMO's own TTS coming back through the speakers
-// (echo), or is the founder genuinely talking over it?
-function isEcho(heard: string, spoken: string): boolean {
-  const hw = heard.toLowerCase().match(/[a-z']+/g) || [];
-  if (!hw.length) return true;
-  const sw = new Set(spoken.toLowerCase().match(/[a-z']+/g) || []);
-  const fromCmo = hw.filter((w) => sw.has(w)).length / hw.length;
-  return fromCmo >= 0.5; // half-or-more of it is the CMO's own words → echo, ignore
-}
+// A pure acknowledgement ("Got it.", "Sure.") isn't an answer on its own — if the
+// CMO opens with one, we keep the next sentence too so the spoken line has substance.
+const FILLER = /^(got it|sure|okay|ok|right|alright|great|nice|cool|absolutely|totally|yeah|yes|of course|exactly|good question|love it|makes sense|understood|gotcha|fair enough|perfect|awesome)\b/i;
 
-// On a call the CMO speaks ONE line: strip any markdown, keep the first sentence.
+// On a call the CMO speaks ONE short line: strip markdown, then keep the first
+// real sentence (plus a follow-on if the first is just filler).
 function oneLine(text: string): string {
   const clean = cleanCmoText(text).replace(/\s+/g, " ").trim();
-  const m = clean.match(/^.*?[.!?](?:\s|$)/);
-  let s = (m ? m[0] : clean).trim();
-  if (s.length > 220) s = s.slice(0, 217).trimEnd() + "…";
-  return s || clean;
+  if (!clean) return clean;
+  const parts = clean.match(/[^.!?]+[.!?]?/g) || [clean];
+  let out = (parts[0] || "").trim();
+  if (parts[1] && (out.length < 40 || FILLER.test(out))) {
+    out = `${out} ${parts[1].trim()}`.trim();
+  }
+  if (out.length > 240) out = `${out.slice(0, 237).trimEnd()}…`;
+  return out || clean;
 }
 
 /* ── Minimal Web Speech typings (not in the default TS lib) ──────────────── */
@@ -113,8 +111,7 @@ export default function CmoPanel() {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const callRef = useRef<CallState>("idle");
   const speakingRef = useRef(false);
-  const micOnRef = useRef(false); // the recognition session is currently running
-  const speakTextRef = useRef(""); // what the CMO is saying now — to tell echo from a real cut-in
+  const listeningRef = useRef(false);
   const wireRef = useRef<Wire[]>([]); // running [{role,content}] sent to the backend
   const finalRef = useRef(""); // buffered final words for the current founder turn
   const noFounderRef = useRef(false); // last askCmo failed because there's no workspace yet
@@ -179,66 +176,48 @@ export default function CmoPanel() {
   }, []);
 
   /* ── speech out (TTS) ─────────────────────────────────────────────────── */
-  // Keep ONE recognition session hot for the whole call (no stop/start per turn).
-  // armMic just (re)starts it if it dropped; phaseRef decides how each result is
-  // read — speaking → barge-in check, listening → the founder's turn.
-  const armMic = useCallback(() => {
-    if (callRef.current === "idle" || micOnRef.current) return;
+  const speak = useCallback((text: string, onDone: () => void) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      onDone();
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (voiceRef.current) u.voice = voiceRef.current;
+    u.rate = 1.02;
+    // a real male voice sounds natural at pitch 1; if only a female voice is
+    // available, drop the pitch so it still reads as male.
+    u.pitch = maleVoiceRef.current ? 1.0 : 0.82;
+    speakingRef.current = true;
+    setPhase("speaking");
+    const finish = () => {
+      if (!speakingRef.current) return; // already interrupted (e.g. founder cut in)
+      speakingRef.current = false;
+      onDone();
+    };
+    u.onend = finish;
+    u.onerror = finish; // never strand the call if TTS hiccups
+    window.speechSynthesis.speak(u);
+  }, []);
+
+  /* ── listening (STT) ──────────────────────────────────────────────────── */
+  const startListening = useCallback(() => {
+    if (callRef.current !== "live" || speakingRef.current || listeningRef.current) return;
     const rec = recRef.current;
     if (!rec) return;
     try {
+      finalRef.current = "";
+      setInterim("");
+      setPhase("listening");
+      listeningRef.current = true;
       rec.start();
-      micOnRef.current = true;
     } catch {
-      /* start() throws if already running — fine */
+      // start() throws if already started — safe to ignore
     }
   }, []);
 
-  const speak = useCallback(
-    (text: string, onDone: () => void) => {
-      if (typeof window === "undefined" || !window.speechSynthesis) {
-        onDone();
-        return;
-      }
-      window.speechSynthesis.cancel();
-      speakTextRef.current = text; // lets us tell our own echo from a real interruption
-      const u = new SpeechSynthesisUtterance(text);
-      if (voiceRef.current) u.voice = voiceRef.current;
-      u.rate = 1.02;
-      // a real male voice sounds natural at pitch 1; if only a female voice is
-      // available, drop the pitch so it still reads as male.
-      u.pitch = maleVoiceRef.current ? 1.0 : 0.82;
-      speakingRef.current = true;
-      setPhase("speaking");
-      phaseRef.current = "speaking";
-      armMic(); // keep listening so the founder can cut in mid-sentence
-      const finish = () => {
-        if (!speakingRef.current) return; // already interrupted
-        speakingRef.current = false;
-        speakTextRef.current = "";
-        onDone();
-      };
-      u.onend = finish;
-      u.onerror = finish; // never strand the call if TTS hiccups
-      window.speechSynthesis.speak(u);
-    },
-    [armMic],
-  );
-
-  /* ── listening (STT) ──────────────────────────────────────────────────── */
-  // hand the turn back to the founder — the mic is already hot, so this just
-  // resets the buffer and flips the phase.
-  const beginListening = useCallback(() => {
-    if (callRef.current !== "live") return;
-    finalRef.current = "";
-    setInterim("");
-    setPhase("listening");
-    phaseRef.current = "listening";
-    armMic();
-  }, [armMic]);
-
-  const stopMic = useCallback(() => {
-    micOnRef.current = false;
+  const stopListening = useCallback(() => {
+    listeningRef.current = false;
     if (silenceRef.current) clearTimeout(silenceRef.current);
     try {
       recRef.current?.stop();
@@ -247,27 +226,24 @@ export default function CmoPanel() {
     }
   }, []);
 
-  // founder cut in (tapped the orb, or the mic heard them over the CMO) → stop
-  // the CMO and hand them the turn.
+  // founder taps the orb to cut in while the CMO is talking → stop it and listen
   const interrupt = useCallback(() => {
     if (callRef.current !== "live" || !speakingRef.current) return;
-    window.speechSynthesis?.cancel();
-    speakingRef.current = false;
-    speakTextRef.current = "";
-    beginListening();
-  }, [beginListening]);
+    speakingRef.current = false; // so the utterance's onend no-ops (no double-listen)
+    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+    startListening();
+  }, [startListening]);
 
   // founder finished a turn → send it, speak the (one-line) reply, then listen again
   const handleFounderTurn = useCallback(
     (text: string) => {
       const clean = text.trim();
       if (!clean || callRef.current !== "live") return;
-      if (silenceRef.current) clearTimeout(silenceRef.current);
+      stopListening();
       setInterim("");
-      setPhase("thinking");
-      phaseRef.current = "thinking"; // ignore mic input while the reply composes
       setTranscript((t) => [...t, { who: "founder", text: clean }]);
       wireRef.current = [...wireRef.current, { role: "user", content: clean }];
+      setPhase("thinking");
       askCmo(wireRef.current, "voice").then((reply) => {
         if (callRef.current !== "live") return;
         const raw =
@@ -275,80 +251,54 @@ export default function CmoPanel() {
           (noFounderRef.current
             ? ONBOARDING_PROMPT
             : "Sorry — I didn't catch that. Say it again?");
-        const say = oneLine(raw); // one spoken sentence — conversational, not a memo
+        const say = oneLine(raw); // a short spoken line — conversational, not a memo
         setTranscript((t) => [...t, { who: "cmo", text: say }]);
         wireRef.current = [...wireRef.current, { role: "assistant", content: say }];
-        speak(say, beginListening);
+        speak(say, startListening);
       });
     },
-    [askCmo, speak, beginListening],
-  );
-
-  // (re)start the silence timer — a pause this long ends the founder's turn
-  const armSilence = useCallback(
-    (interimText: string) => {
-      if (silenceRef.current) clearTimeout(silenceRef.current);
-      silenceRef.current = setTimeout(() => {
-        const turn = finalRef.current.trim() || interimText.trim();
-        finalRef.current = "";
-        if (turn) handleFounderTurn(turn);
-      }, SILENCE_MS);
-    },
-    [handleFounderTurn],
+    [askCmo, speak, startListening, stopListening],
   );
 
   // wire the recognition handlers once
   const attachHandlers = useCallback(
     (rec: SpeechRecognitionLike) => {
       rec.onresult = (e: SREvent) => {
-        if (callRef.current !== "live") return;
-        const ph = phaseRef.current;
-        if (ph === "thinking") return; // ignore input while the reply is composing
-
-        let finals = "";
+        // ignore our own voice echoing back (speaking), AND any late/buffered result
+        // that arrives after a turn was already submitted (listening is false once
+        // handleFounderTurn → stopListening runs) — otherwise it double-fires.
+        if (speakingRef.current || !listeningRef.current) return;
         let interimText = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i];
           const said = r[0]?.transcript ?? "";
-          if (r.isFinal) finals += said + " ";
+          if (r.isFinal) finalRef.current += said + " ";
           else interimText += said;
         }
-
-        if (ph === "speaking") {
-          // the mic is also hearing the CMO's own TTS — only a clear phrase that
-          // ISN'T the CMO echoing counts as the founder cutting in.
-          const heard = (finals + interimText).trim();
-          const words = heard ? heard.split(/\s+/).length : 0;
-          if (words < BARGE_MIN_WORDS || isEcho(heard, speakTextRef.current)) return;
-          window.speechSynthesis?.cancel(); // stop the CMO, let the founder talk
-          speakingRef.current = false;
-          speakTextRef.current = "";
-          setPhase("listening");
-          phaseRef.current = "listening";
-          finalRef.current = finals;
-          setInterim(interimText);
-          armSilence(interimText);
-          return;
-        }
-
-        // listening — the founder's turn
-        finalRef.current += finals;
         setInterim(interimText);
-        armSilence(interimText);
+        if (silenceRef.current) clearTimeout(silenceRef.current);
+        silenceRef.current = setTimeout(() => {
+          const turn = finalRef.current.trim() || interimText.trim();
+          finalRef.current = "";
+          if (turn) handleFounderTurn(turn);
+        }, SILENCE_MS);
       };
       rec.onerror = (e: SRErrorEvent) => {
         if (e.error === "not-allowed" || e.error === "service-not-allowed") {
           setError("Microphone blocked — allow mic access and try again.");
           endCallRef.current();
         }
-        // "no-speech"/"aborted" are normal; onend re-arms the mic
+        // "no-speech"/"aborted" are normal; the flow restarts listening itself
       };
       rec.onend = () => {
-        micOnRef.current = false;
-        if (callRef.current === "live") armMic(); // keep the mic hot the whole call
+        listeningRef.current = false;
+        // keep the mic open across natural pauses while it's our turn to listen
+        if (callRef.current === "live" && !speakingRef.current && phaseRef.current === "listening") {
+          startListening();
+        }
       };
     },
-    [armMic, armSilence],
+    [handleFounderTurn, startListening],
   );
 
   useEffect(() => {
@@ -376,24 +326,21 @@ export default function CmoPanel() {
       return;
     }
     recRef.current = rec;
-    micOnRef.current = false;
     attachHandlers(rec);
     wireRef.current = [];
     setTranscript([]);
     setInterim("");
     setCall("live");
     callRef.current = "live";
-    armMic(); // mic hot from the first word, so the founder can cut in
     // the CMO speaks first — instant, templated, zero API wait — then listens
     setTranscript([{ who: "cmo", text: GREETING }]);
     wireRef.current = [{ role: "assistant", content: GREETING }];
-    speak(GREETING, beginListening);
-  }, [attachHandlers, speak, beginListening, armMic]);
+    speak(GREETING, startListening);
+  }, [attachHandlers, speak, startListening]);
 
   const endCall = useCallback(() => {
-    stopMic();
+    stopListening();
     speakingRef.current = false;
-    speakTextRef.current = "";
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     try {
       recRef.current?.abort();
@@ -417,7 +364,7 @@ export default function CmoPanel() {
       ]);
     }
     setTranscript([]);
-  }, [stopMic, transcript.length]);
+  }, [stopListening, transcript.length]);
 
   // keep endCallRef pointing at the latest endCall (onerror is wired once)
   useEffect(() => {
