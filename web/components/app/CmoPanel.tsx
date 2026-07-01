@@ -16,17 +16,30 @@ const GREETING =
   "Hey — good to actually talk. What's the one marketing thing on your mind right now?";
 const ONBOARDING_PROMPT =
   "Complete your onboarding first — your CMO activates once your workspace is set up.";
-const RECOGNITION_LANG = "en-IN";
-const SILENCE_MS = 900; // pause this long → treat the founder's turn as finished
-
-// When an ElevenLabs agent is configured, ElevenCmoCall handles the live voice call
-// (better STT + male voice + native barge-in); this panel just routes to it.
+// When an ElevenLabs agent is configured, ElevenCmoCall handles the live voice call;
+// this panel just routes to it. Without it, the FREE engine below runs the call:
+// mic → Groq Whisper (STT) → the grounded CMO brain → MS/Groq male voice (TTS).
 const ELEVEN = !!process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
 
-// Real voice barge-in: watch the mic's loudness on an echo-cancelled stream (so the
-// CMO's own voice is filtered out) and cut in the instant the founder talks over it.
-const BARGE_RMS = 0.03; // mic loudness above this = the founder is actually speaking
-const BARGE_FRAMES = 3; // sustained this many ~60ms frames (~180ms) before we cut in
+// One 60ms volume loop (on an echo-cancelled mic) drives the whole conversation:
+// while the CMO speaks it detects barge-in; while listening it detects when the
+// founder starts and stops talking (endpointing).
+const TICK_MS = 60;
+const BARGE_RMS = 0.03; // louder bar to cut the CMO off (its own voice is echo-cancelled)
+const BARGE_FRAMES = 3; // ~180ms sustained → interrupt
+const TALK_RMS = 0.015; // softer bar to count as speech while it's the founder's turn
+const MIN_SPEECH_FRAMES = 3; // ~180ms of voice → they really said something
+const TURN_SILENCE_FRAMES = 15; // ~900ms of quiet after speech → their turn is done
+const MAX_TURN_MS = 30_000; // hard stop so a turn can't record forever
+
+// Best supported MediaRecorder container (Chrome/Edge/Firefox → webm; Safari → mp4).
+function pickMime(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  for (const m of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]) {
+    if (MediaRecorder.isTypeSupported(m)) return m;
+  }
+  return "";
+}
 
 // A pure acknowledgement ("Got it.", "Sure.") isn't an answer on its own — if the
 // CMO opens with one, we keep the next sentence too so the spoken line has substance.
@@ -44,38 +57,6 @@ function oneLine(text: string): string {
   }
   if (out.length > 240) out = `${out.slice(0, 237).trimEnd()}…`;
   return out || clean;
-}
-
-/* ── Minimal Web Speech typings (not in the default TS lib) ──────────────── */
-type SRAlt = { transcript: string };
-type SRResult = { isFinal: boolean; 0: SRAlt };
-type SRResultList = { length: number; [i: number]: SRResult };
-type SREvent = { resultIndex: number; results: SRResultList };
-type SRErrorEvent = { error: string };
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((e: SREvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e: SRErrorEvent) => void) | null;
-  onstart: (() => void) | null;
-};
-type SRCtor = new () => SpeechRecognitionLike;
-
-function makeRecognition(): SpeechRecognitionLike | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor };
-  const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-  if (!Ctor) return null;
-  const r = new Ctor();
-  r.lang = RECOGNITION_LANG;
-  r.continuous = true;
-  r.interimResults = true;
-  return r;
 }
 
 // Known male voice names across Windows / macOS / Chrome (voices don't expose a
@@ -112,28 +93,28 @@ export default function CmoPanel() {
   const [call, setCall] = useState<CallState>("idle");
   const [phase, setPhase] = useState<Phase>("listening");
   const [transcript, setTranscript] = useState<Turn[]>([]);
-  const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
-  // refs that callbacks read (state is stale inside SpeechRecognition handlers)
-  const recRef = useRef<SpeechRecognitionLike | null>(null);
+  // refs that callbacks read (state is stale inside recorder/audio handlers)
   const callRef = useRef<CallState>("idle");
   const speakingRef = useRef(false);
-  const listeningRef = useRef(false);
   const wireRef = useRef<Wire[]>([]); // running [{role,content}] sent to the backend
-  const finalRef = useRef(""); // buffered final words for the current founder turn
   const noFounderRef = useRef(false); // last askCmo failed because there's no workspace yet
-  const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
-  const maleVoiceRef = useRef(false); // is the chosen TTS voice already male?
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null); // browser-TTS fallback voice
+  const maleVoiceRef = useRef(false); // is the chosen fallback voice already male?
   const phaseRef = useRef<Phase>("listening"); // handlers read the latest phase
-  const endCallRef = useRef<() => void>(() => {}); // set once endCall is defined
-  // voice barge-in: an echo-cancelled mic stream + a volume meter that only fires
-  // while the CMO is speaking
+  // the free voice engine: an echo-cancelled mic stream + one volume loop that
+  // detects both barge-in (while speaking) and end-of-turn (while listening)
   const micStreamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const vadRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null); // records the founder's turn
+  const heardRef = useRef(0); // speech frames heard this turn
+  const quietRef = useRef(0); // consecutive silence frames after speech
+  const turnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null); // plays the CMO's voice
+  const mimeRef = useRef(""); // recorder container picked at connect time
 
   useEffect(() => {
     callRef.current = call;
@@ -190,8 +171,10 @@ export default function CmoPanel() {
   }, []);
 
   /* ── speech out (TTS) ─────────────────────────────────────────────────── */
-  const speak = useCallback((text: string, onDone: () => void) => {
+  // last resort: the browser's own voice (male-picked) if the backend TTS is down
+  const browserSpeak = useCallback((text: string, onDone: () => void) => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
+      speakingRef.current = false;
       onDone();
       return;
     }
@@ -199,13 +182,9 @@ export default function CmoPanel() {
     const u = new SpeechSynthesisUtterance(text);
     if (voiceRef.current) u.voice = voiceRef.current;
     u.rate = 1.02;
-    // a real male voice sounds natural at pitch 1; if only a female voice is
-    // available, drop the pitch so it still reads as male.
-    u.pitch = maleVoiceRef.current ? 1.0 : 0.82;
-    speakingRef.current = true;
-    setPhase("speaking");
+    u.pitch = maleVoiceRef.current ? 1.0 : 0.82; // read as male even without a male voice
     const finish = () => {
-      if (!speakingRef.current) return; // already interrupted (e.g. founder cut in)
+      if (!speakingRef.current) return; // already interrupted (founder cut in)
       speakingRef.current = false;
       onDone();
     };
@@ -214,43 +193,151 @@ export default function CmoPanel() {
     window.speechSynthesis.speak(u);
   }, []);
 
-  /* ── listening (STT) ──────────────────────────────────────────────────── */
+  // The CMO's real voice: backend TTS (free MS en-IN male neural voice, Groq male
+  // fallback) played through an <audio> element — instantly pausable for barge-in.
+  const speak = useCallback(
+    async (text: string, onDone: () => void) => {
+      speakingRef.current = true;
+      setPhase("speaking");
+      phaseRef.current = "speaking";
+      try {
+        const res = await fetch("/api/cmo/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) throw new Error("tts unavailable");
+        const blob = await res.blob();
+        if (!speakingRef.current) return; // interrupted while the audio was being made
+        const url = URL.createObjectURL(blob);
+        const el = audioElRef.current ?? new Audio();
+        audioElRef.current = el;
+        const finish = () => {
+          URL.revokeObjectURL(url);
+          if (!speakingRef.current) return; // interrupted mid-playback
+          speakingRef.current = false;
+          onDone();
+        };
+        el.onended = finish;
+        el.onerror = finish;
+        el.src = url;
+        await el.play();
+      } catch {
+        browserSpeak(text, onDone); // still speaks — just with the browser's voice
+      }
+    },
+    [browserSpeak],
+  );
+
+  /* ── listening (record the turn → Groq Whisper transcribes it) ─────────── */
+  // set below once their targets exist — breaks the listen→turn→speak→listen cycle
+  const startListeningRef = useRef<() => void>(() => {});
+  const turnHandlerRef = useRef<(text: string) => void>(() => {});
+
   const startListening = useCallback(() => {
-    if (callRef.current !== "live" || speakingRef.current || listeningRef.current) return;
-    const rec = recRef.current;
-    if (!rec) return;
+    if (callRef.current !== "live" || speakingRef.current) return;
+    const stream = micStreamRef.current;
+    if (!stream || recorderRef.current?.state === "recording") return;
+    heardRef.current = 0;
+    quietRef.current = 0;
+    setPhase("listening");
+    phaseRef.current = "listening";
+    let rec: MediaRecorder;
     try {
-      finalRef.current = "";
-      setInterim("");
-      setPhase("listening");
-      listeningRef.current = true;
-      rec.start();
+      rec = mimeRef.current
+        ? new MediaRecorder(stream, { mimeType: mimeRef.current })
+        : new MediaRecorder(stream);
     } catch {
-      // start() throws if already started — safe to ignore
+      setError("Recording isn't supported in this browser.");
+      return;
+    }
+    const chunks: Blob[] = [];
+    rec.ondataavailable = (e) => {
+      if (e.data && e.data.size) chunks.push(e.data);
+    };
+    rec.onstop = async () => {
+      if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
+      recorderRef.current = null;
+      // ended mid-listen (endCall / barge path reset) → nothing to transcribe
+      if (callRef.current !== "live" || phaseRef.current !== "listening") return;
+      const blob = new Blob(chunks, { type: rec.mimeType || mimeRef.current || "audio/webm" });
+      if (heardRef.current < MIN_SPEECH_FRAMES || blob.size < 1000) {
+        startListeningRef.current(); // heard nothing real — keep listening
+        return;
+      }
+      setPhase("thinking");
+      phaseRef.current = "thinking";
+      try {
+        const res = await fetch("/api/cmo/stt", {
+          method: "POST",
+          headers: { "Content-Type": blob.type },
+          body: blob,
+        });
+        const data = await res.json().catch(() => ({}));
+        const text = res.ok && typeof data.text === "string" ? data.text.trim() : "";
+        if (callRef.current !== "live") return;
+        if (!text) {
+          startListeningRef.current(); // couldn't make out words — listen again
+          return;
+        }
+        turnHandlerRef.current(text);
+      } catch {
+        if (callRef.current === "live") startListeningRef.current();
+      }
+    };
+    recorderRef.current = rec;
+    rec.start();
+    turnTimerRef.current = setTimeout(() => {
+      if (recorderRef.current === rec && rec.state === "recording") rec.stop();
+    }, MAX_TURN_MS);
+  }, []);
+
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
+
+  // the volume loop decided the founder finished talking → flush the recording
+  // (its onstop transcribes and hands the text to the turn handler)
+  const finishTurn = useCallback(() => {
+    const rec = recorderRef.current;
+    if (rec && rec.state === "recording") {
+      try {
+        rec.stop();
+      } catch {
+        /* already stopped */
+      }
     }
   }, []);
 
-  const stopListening = useCallback(() => {
-    listeningRef.current = false;
-    if (silenceRef.current) clearTimeout(silenceRef.current);
+  // abandon any in-flight recording without transcribing it (endCall)
+  const stopRecorder = useCallback(() => {
+    if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
+    const rec = recorderRef.current;
+    recorderRef.current = null;
     try {
-      recRef.current?.stop();
+      if (rec && rec.state !== "inactive") rec.stop();
     } catch {
       /* already stopped */
     }
   }, []);
 
-  // founder cuts in (tapped the orb, OR the mic heard them over the CMO) → stop the
-  // CMO immediately and hand them the turn.
+  // founder cuts in (talks over the CMO, or taps the orb) → stop the CMO's voice
+  // immediately and hand them the turn.
   const interrupt = useCallback(() => {
     if (callRef.current !== "live" || !speakingRef.current) return;
-    speakingRef.current = false; // so the utterance's onend no-ops (no double-listen)
+    speakingRef.current = false; // the audio's onended no-ops (no double-listen)
+    try {
+      audioElRef.current?.pause();
+    } catch {
+      /* no audio element yet */
+    }
     if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     startListening();
   }, [startListening]);
 
-  // Watch the echo-cancelled mic while the CMO talks; when the founder's voice rises
-  // over it for ~180ms, interrupt() cuts the CMO off and starts listening.
+  // One 60ms loop on the echo-cancelled mic drives the conversation:
+  // • CMO speaking → founder's voice sustained ~180ms = barge-in → interrupt()
+  // • founder's turn → speech followed by ~900ms of quiet = turn done → finishTurn()
   const setupVad = useCallback(
     (stream: MediaStream) => {
       try {
@@ -265,10 +352,9 @@ export default function CmoPanel() {
         ctx.createMediaStreamSource(stream).connect(analyser);
         audioCtxRef.current = ctx;
         const buf = new Float32Array(analyser.fftSize);
-        let hot = 0;
+        let hot = 0; // sustained-voice frames while the CMO is talking
         vadRef.current = setInterval(() => {
-          // only listen for a cut-in while the CMO is actually speaking
-          if (callRef.current !== "live" || !speakingRef.current) {
+          if (callRef.current !== "live") {
             hot = 0;
             return;
           }
@@ -276,21 +362,37 @@ export default function CmoPanel() {
           let sum = 0;
           for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
           const rms = Math.sqrt(sum / buf.length);
-          if (rms > BARGE_RMS) {
-            hot += 1;
-            if (hot >= BARGE_FRAMES) {
+
+          if (speakingRef.current) {
+            // CMO talking — listen for the founder cutting in
+            if (rms > BARGE_RMS) {
+              hot += 1;
+              if (hot >= BARGE_FRAMES) {
+                hot = 0;
+                interrupt();
+              }
+            } else {
               hot = 0;
-              interrupt(); // founder is talking over the CMO → hand them the turn
             }
-          } else {
-            hot = 0;
+            return;
           }
-        }, 60);
+          hot = 0;
+
+          // founder's turn — endpointing on the live recording
+          if (phaseRef.current !== "listening" || recorderRef.current?.state !== "recording") return;
+          if (rms > TALK_RMS) {
+            heardRef.current += 1;
+            quietRef.current = 0;
+          } else if (heardRef.current >= MIN_SPEECH_FRAMES) {
+            quietRef.current += 1;
+            if (quietRef.current >= TURN_SILENCE_FRAMES) finishTurn();
+          }
+        }, TICK_MS);
       } catch {
-        /* WebAudio unavailable — tap-to-interrupt still works */
+        /* WebAudio unavailable — tap-to-interrupt still works; turns end at MAX_TURN_MS */
       }
     },
-    [interrupt],
+    [interrupt, finishTurn],
   );
 
   const teardownVad = useCallback(() => {
@@ -313,11 +415,10 @@ export default function CmoPanel() {
     (text: string) => {
       const clean = text.trim();
       if (!clean || callRef.current !== "live") return;
-      stopListening();
-      setInterim("");
       setTranscript((t) => [...t, { who: "founder", text: clean }]);
       wireRef.current = [...wireRef.current, { role: "user", content: clean }];
       setPhase("thinking");
+      phaseRef.current = "thinking";
       askCmo(wireRef.current, "voice").then((reply) => {
         if (callRef.current !== "live") return;
         const raw =
@@ -331,49 +432,13 @@ export default function CmoPanel() {
         speak(say, startListening);
       });
     },
-    [askCmo, speak, startListening, stopListening],
+    [askCmo, speak, startListening],
   );
 
-  // wire the recognition handlers once
-  const attachHandlers = useCallback(
-    (rec: SpeechRecognitionLike) => {
-      rec.onresult = (e: SREvent) => {
-        // ignore our own voice echoing back (speaking), AND any late/buffered result
-        // that arrives after a turn was already submitted (listening is false once
-        // handleFounderTurn → stopListening runs) — otherwise it double-fires.
-        if (speakingRef.current || !listeningRef.current) return;
-        let interimText = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const r = e.results[i];
-          const said = r[0]?.transcript ?? "";
-          if (r.isFinal) finalRef.current += said + " ";
-          else interimText += said;
-        }
-        setInterim(interimText);
-        if (silenceRef.current) clearTimeout(silenceRef.current);
-        silenceRef.current = setTimeout(() => {
-          const turn = finalRef.current.trim() || interimText.trim();
-          finalRef.current = "";
-          if (turn) handleFounderTurn(turn);
-        }, SILENCE_MS);
-      };
-      rec.onerror = (e: SRErrorEvent) => {
-        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-          setError("Microphone blocked — allow mic access and try again.");
-          endCallRef.current();
-        }
-        // "no-speech"/"aborted" are normal; the flow restarts listening itself
-      };
-      rec.onend = () => {
-        listeningRef.current = false;
-        // keep the mic open across natural pauses while it's our turn to listen
-        if (callRef.current === "live" && !speakingRef.current && phaseRef.current === "listening") {
-          startListening();
-        }
-      };
-    },
-    [handleFounderTurn, startListening],
-  );
+  // the recorder's onstop hands the transcribed turn to the latest handler
+  useEffect(() => {
+    turnHandlerRef.current = handleFounderTurn;
+  }, [handleFounderTurn]);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -382,16 +447,16 @@ export default function CmoPanel() {
   /* ── call lifecycle ───────────────────────────────────────────────────── */
   const connect = useCallback(async () => {
     setError(null);
-    const rec = makeRecognition();
-    if (!rec) {
-      setError("Voice needs Chrome or Edge on desktop. Use the text box below for now.");
+    mimeRef.current = pickMime();
+    if (!mimeRef.current || !navigator.mediaDevices?.getUserMedia) {
+      setError("Voice calls need a modern browser. Use the text box below for now.");
       return;
     }
     setCall("connecting");
     callRef.current = "connecting";
     try {
-      // keep an echo-cancelled mic stream open for the whole call — it powers the
-      // barge-in volume meter (the recognizer captures the actual words separately).
+      // one echo-cancelled mic stream powers the whole call: the turn recorder
+      // AND the volume loop (barge-in + end-of-turn detection).
       micStreamRef.current = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
@@ -402,34 +467,29 @@ export default function CmoPanel() {
       return;
     }
     setupVad(micStreamRef.current);
-    recRef.current = rec;
-    attachHandlers(rec);
     wireRef.current = [];
     setTranscript([]);
-    setInterim("");
     setCall("live");
     callRef.current = "live";
     // the CMO speaks first — instant, templated, zero API wait — then listens
     setTranscript([{ who: "cmo", text: GREETING }]);
     wireRef.current = [{ role: "assistant", content: GREETING }];
     speak(GREETING, startListening);
-  }, [attachHandlers, speak, startListening, setupVad]);
+  }, [speak, startListening, setupVad]);
 
   const endCall = useCallback(() => {
-    stopListening();
+    stopRecorder();
     teardownVad();
     speakingRef.current = false;
-    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     try {
-      recRef.current?.abort();
+      audioElRef.current?.pause();
     } catch {
-      /* noop */
+      /* no audio element */
     }
-    recRef.current = null;
+    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
     const turns = transcript.length;
     setCall("idle");
     callRef.current = "idle";
-    setInterim("");
     if (turns > 1) {
       setMessages((m) => [
         ...m,
@@ -442,25 +502,21 @@ export default function CmoPanel() {
       ]);
     }
     setTranscript([]);
-  }, [stopListening, teardownVad, transcript.length]);
-
-  // keep endCallRef pointing at the latest endCall (onerror is wired once)
-  useEffect(() => {
-    endCallRef.current = endCall;
-  }, [endCall]);
+  }, [stopRecorder, teardownVad, transcript.length]);
 
   // cleanup on unmount
   useEffect(() => {
     return () => {
+      stopRecorder();
       try {
-        recRef.current?.abort();
+        audioElRef.current?.pause();
       } catch {
         /* noop */
       }
       if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
       teardownVad();
     };
-  }, [teardownVad]);
+  }, [stopRecorder, teardownVad]);
 
   // the concierge greeting's "Yes" → open the panel and start a live call
   useEffect(() => {
@@ -658,10 +714,10 @@ export default function CmoPanel() {
                       <span className="text-ink/90">{t.text}</span>
                     </p>
                   ))}
-                  {interim && (
+                  {phase === "thinking" && (
                     <p className="text-[12px] leading-snug opacity-60">
-                      <span className="font-data text-[10px] text-mute-2">You · </span>
-                      <span className="text-ink/70">{interim}</span>
+                      <span className="font-data text-[10px] text-mute-2">CMO · </span>
+                      <span className="text-ink/70">thinking…</span>
                     </p>
                   )}
                 </div>
