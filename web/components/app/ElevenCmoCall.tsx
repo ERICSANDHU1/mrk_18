@@ -49,12 +49,18 @@ async function founderBrief(): Promise<string> {
   }
 }
 
+// The CMO persona used when prompt overrides are enabled (full system-prompt control).
+const PERSONA =
+  "You are the founder's AI Chief Marketing Officer on a live voice call — sharp, warm, decisive, India-first (rupees, Indian platforms). Keep every turn to one or two short spoken sentences; it's a real back-and-forth, not a memo.";
+
 function CallInner() {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const startingRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
+  const briefRef = useRef(""); // the founder's business brief, fed to the agent on connect
+  const sentCtxRef = useRef(false); // have we injected the brief for this call yet?
 
   const conv = useConversation({
     onError: (message: string) => setError(message || "The call hit an error."),
@@ -72,30 +78,48 @@ function CallInner() {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
   }, [transcript]);
 
+  // Once connected, feed the founder's business to the agent as a contextual update
+  // (no Security toggle needed — unlike prompt overrides). Skipped when OVERRIDES is on
+  // since the brief is already baked into the system prompt then.
+  useEffect(() => {
+    if (conv.status === "disconnected") {
+      sentCtxRef.current = false;
+      return;
+    }
+    if (conv.status !== "connected" || OVERRIDES || sentCtxRef.current || !briefRef.current) return;
+    sentCtxRef.current = true;
+    try {
+      conv.sendContextualUpdate(
+        `Reference information about the founder you are advising — use it to give specific, grounded advice, and do not ask them to repeat what's here. ${briefRef.current}`,
+      );
+    } catch {
+      /* older SDK without contextual updates — grounding then needs OVERRIDES */
+    }
+  }, [conv.status, conv]);
+
   const start = useCallback(async () => {
     if (!AGENT_ID || startingRef.current || conv.status !== "disconnected") return;
     startingRef.current = true;
     setError(null);
     setTranscript([]);
     setActive(true);
-    // Default: connect with the agent's own dashboard voice + prompt (no overrides,
-    // so ElevenLabs never rejects the session). Only inject per-founder context when
-    // NEXT_PUBLIC_ELEVENLABS_OVERRIDES=1 AND overrides are enabled on the agent.
+    sentCtxRef.current = false;
+    // Pull the founder's business brief from their onboarding profile — it's fed to the
+    // agent so the CMO talks about THEIR company (via the connect effect above, or the
+    // system prompt when OVERRIDES is on).
+    briefRef.current = await founderBrief();
+
     const opts: StartOpts = {
       agentId: AGENT_ID,
       connectionType: "webrtc", // real-time voice — ElevenLabs handles STT, TTS + barge-in
     };
+    // OVERRIDES (opt-in): bake the brief straight into the system prompt. Needs prompt
+    // overrides allow-listed in the agent's Security tab, or ElevenLabs rejects the call.
     if (OVERRIDES) {
-      const brief = await founderBrief();
       const overrides: NonNullable<StartOpts["overrides"]> = {};
-      if (brief) {
+      if (briefRef.current) {
         overrides.agent = {
-          prompt: {
-            prompt:
-              "You are the founder's AI Chief Marketing Officer on a live voice call — sharp, warm, decisive, India-first (rupees, Indian platforms). Keep every turn to one or two short spoken sentences; it's a real back-and-forth, not a memo. Ground everything in THEIR business: " +
-              brief +
-              ".",
-          },
+          prompt: { prompt: `${PERSONA} Ground everything in THEIR business: ${briefRef.current}.` },
         };
       }
       if (VOICE_ID) overrides.tts = { voiceId: VOICE_ID };
