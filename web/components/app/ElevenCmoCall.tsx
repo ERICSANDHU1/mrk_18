@@ -59,12 +59,19 @@ function CallInner() {
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const startingRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
+  const errorRef = useRef<string | null>(null); // callbacks read the latest error
+
+  const fail = useCallback((msg: string) => {
+    errorRef.current = msg;
+    setError(msg);
+  }, []);
 
   const conv = useConversation({
-    onError: (message: string) => setError(message || "The call hit an error."),
+    onError: (message: string) => fail(message || "The call hit an error."),
     onDisconnect: () => {
       startingRef.current = false;
-      setActive(false);
+      // keep the panel open on error so the founder can actually read what happened
+      if (!errorRef.current) setActive(false);
     },
     onMessage: (m: { message: string; source: "user" | "ai" }) => {
       if (!m?.message) return;
@@ -76,9 +83,27 @@ function CallInner() {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
   }, [transcript]);
 
+  // The ElevenLabs SDK crashes ("reading 'error_type'") when the server sends an
+  // error event it doesn't expect — swallowing the real reason and dropping the
+  // call. Catch that rejection and show what it actually means instead.
+  useEffect(() => {
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const msg = e?.reason?.message || "";
+      if (!/error_type/.test(msg)) return; // not the ElevenLabs error-event crash
+      e.preventDefault(); // keep the console clean — we're handling it
+      startingRef.current = false;
+      fail(
+        "ElevenLabs rejected the call server-side. Usual causes: your free minutes for the month are used up, or the agent's LLM has a problem (e.g. its API key). Open your agent's Call History in the ElevenLabs dashboard to see the exact reason.",
+      );
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => window.removeEventListener("unhandledrejection", onRejection);
+  }, [fail]);
+
   const start = useCallback(async () => {
     if (!AGENT_ID || startingRef.current || conv.status !== "disconnected") return;
     startingRef.current = true;
+    errorRef.current = null;
     setError(null);
     setTranscript([]);
     setActive(true);
@@ -116,6 +141,8 @@ function CallInner() {
       /* noop */
     }
     startingRef.current = false;
+    errorRef.current = null;
+    setError(null);
     setActive(false);
   }, [conv]);
 
