@@ -2,7 +2,7 @@
 
 import Logo from "@/components/app/Logo";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Phone, Send, X } from "lucide-react";
 import type { ChatMsg } from "@/lib/mock/console";
@@ -18,7 +18,6 @@ export default function CmoPanel() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const pathname = usePathname();
 
   // Tell the app shell to make room while the panel is open: it collapses the left
@@ -66,15 +65,14 @@ export default function CmoPanel() {
     }
   }, [draft, sending, messages]);
 
-  // the live call lives in Chat — go there and start it
+  // start the call where the user is: /chat → into the real thread; any other
+  // page → the floating call dock (no navigation)
   const startCall = useCallback(() => {
     setOpen(false);
-    if (pathname.startsWith("/chat")) {
-      window.dispatchEvent(new Event("mrk18:cmo-call")); // ChatClient starts the call
-    } else {
-      router.push("/chat?call=1");
-    }
-  }, [pathname, router]);
+    window.dispatchEvent(
+      new Event(pathname.startsWith("/chat") ? "mrk18:cmo-call" : "mrk18:cmo-call-dock"),
+    );
+  }, [pathname]);
 
   return (
     <>

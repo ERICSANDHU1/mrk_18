@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Rail from "./Rail";
 import CmoPanel from "./CmoPanel";
 import CmoConcierge from "./CmoConcierge";
+import CmoCallDock from "./CmoCallDock";
 import ElevenCmoCall from "./ElevenCmoCall";
 import { RightPanelCtx } from "./right-panel-slot";
 
@@ -197,10 +198,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </div>
-      {/* the floating CMO + its proactive concierge greeting — on every app page.
-          ElevenCmoCall renders only when an ElevenLabs agent is configured; otherwise
-          CmoPanel's own browser voice call is used. */}
+      {/* the floating CMO pieces, on every app page: the text drawer, the proactive
+          concierge greeting, and the call dock (live calls on NON-chat pages — on
+          /chat the call renders into the real thread instead). ElevenCmoCall only
+          renders when an ElevenLabs agent is configured. */}
       <CmoPanel />
+      <CmoCallDock />
       <ElevenCmoCall />
       <CmoConcierge />
     </RightPanelCtx.Provider>

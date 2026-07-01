@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Phone, X } from "lucide-react";
 import Logo from "@/components/app/Logo";
@@ -23,7 +23,6 @@ const LINES = [
  *  until the next tab switch. */
 export default function CmoConcierge() {
   const pathname = usePathname();
-  const router = useRouter();
   // which of the three tabs we're on — the greeting re-toggles whenever this changes
   const tab = pathname.startsWith("/chief")
     ? "chief"
@@ -50,14 +49,13 @@ export default function CmoConcierge() {
 
   // hides until the next switch between the three tabs
   const close = () => setShow(false);
-  // "Yes" → the live call starts IN THE CHAT SECTION, turns landing in the thread
+  // "Yes" → the call starts WHERE THE USER IS: on /chat it renders into the real
+  // thread; on any other page the floating call dock opens — no navigation.
   const accept = () => {
     setShow(false);
-    if (pathname.startsWith("/chat")) {
-      window.dispatchEvent(new Event("mrk18:cmo-call")); // ChatClient starts the call
-    } else {
-      router.push("/chat?call=1");
-    }
+    window.dispatchEvent(
+      new Event(pathname.startsWith("/chat") ? "mrk18:cmo-call" : "mrk18:cmo-call-dock"),
+    );
   };
 
   return (
