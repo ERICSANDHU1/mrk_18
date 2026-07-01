@@ -9,6 +9,19 @@ import Logo from "@/components/app/Logo";
 // Set these in .env.local to switch the CMO call over to ElevenLabs Agents.
 const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
 const VOICE_ID = process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID; // optional male-voice override
+// Per-founder prompt/voice overrides are OFF unless you set this to "1". ElevenLabs
+// REJECTS a session that sends overrides that aren't allow-listed in the agent's
+// Security settings — sending them anyway is what causes the immediate disconnect.
+const OVERRIDES = process.env.NEXT_PUBLIC_ELEVENLABS_OVERRIDES === "1";
+
+type StartOpts = {
+  agentId: string;
+  connectionType: "webrtc" | "websocket";
+  overrides?: {
+    agent?: { prompt: { prompt: string } };
+    tts?: { voiceId: string };
+  };
+};
 
 type Turn = { who: "cmo" | "founder"; text: string };
 
@@ -65,27 +78,31 @@ function CallInner() {
     setError(null);
     setTranscript([]);
     setActive(true);
-    const brief = await founderBrief();
+    // Default: connect with the agent's own dashboard voice + prompt (no overrides,
+    // so ElevenLabs never rejects the session). Only inject per-founder context when
+    // NEXT_PUBLIC_ELEVENLABS_OVERRIDES=1 AND overrides are enabled on the agent.
+    const opts: StartOpts = {
+      agentId: AGENT_ID,
+      connectionType: "webrtc", // real-time voice — ElevenLabs handles STT, TTS + barge-in
+    };
+    if (OVERRIDES) {
+      const brief = await founderBrief();
+      const overrides: NonNullable<StartOpts["overrides"]> = {};
+      if (brief) {
+        overrides.agent = {
+          prompt: {
+            prompt:
+              "You are the founder's AI Chief Marketing Officer on a live voice call — sharp, warm, decisive, India-first (rupees, Indian platforms). Keep every turn to one or two short spoken sentences; it's a real back-and-forth, not a memo. Ground everything in THEIR business: " +
+              brief +
+              ".",
+          },
+        };
+      }
+      if (VOICE_ID) overrides.tts = { voiceId: VOICE_ID };
+      if (Object.keys(overrides).length) opts.overrides = overrides;
+    }
     try {
-      conv.startSession({
-        agentId: AGENT_ID,
-        connectionType: "webrtc", // real-time voice — ElevenLabs handles STT, TTS + barge-in
-        overrides: {
-          ...(brief
-            ? {
-                agent: {
-                  prompt: {
-                    prompt:
-                      "You are the founder's AI Chief Marketing Officer on a live voice call — sharp, warm, decisive, India-first (rupees, Indian platforms). Keep every turn to one or two short spoken sentences; it's a real back-and-forth, not a memo. Ground everything in THEIR business: " +
-                      brief +
-                      ".",
-                  },
-                },
-              }
-            : {}),
-          ...(VOICE_ID ? { tts: { voiceId: VOICE_ID } } : {}),
-        },
-      });
+      conv.startSession(opts);
     } catch {
       setError("Couldn't start the call — check mic permission and try again.");
       setActive(false);
