@@ -36,7 +36,9 @@ const ONBOARDING_PROMPT =
 
 // Claude-style time-aware greeting for the empty chat
 function greetingFor(hour: number, name?: string | null): string {
-  if (hour < 5 || hour >= 22) return "Hello, night owl";
+  if (hour < 5 || hour >= 22) {
+    return name ? `Burning the midnight oil, ${name}?` : "Burning the midnight oil?";
+  }
   const base = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return name ? `${base}, ${name}` : base;
 }
