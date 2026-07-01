@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Sora, Space_Grotesk, JetBrains_Mono, Fraunces, Hanken_Grotesk } from "next/font/google";
+import {
+  Sora,
+  Space_Grotesk,
+  JetBrains_Mono,
+  Fraunces,
+  Hanken_Grotesk,
+  Source_Serif_4,
+  Familjen_Grotesk,
+} from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 // Clash Display (headlines) is self-hosted via @font-face in globals.css
@@ -35,6 +43,22 @@ const hanken = Hanken_Grotesk({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-hanken",
+});
+
+// App pages (Chat / Comrk / Chief) — the Claude-like pairing: a warm bookish
+// serif for greetings + CMO prose (≈Copernicus) and a friendly grotesk for the
+// UI (≈Styrene). The real Claude fonts are proprietary; these are the closest
+// open equivalents.
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  display: "swap",
+  style: ["normal", "italic"],
+  variable: "--font-claude-serif",
+});
+const familjen = Familjen_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-claude-sans",
 });
 
 const description =
@@ -85,7 +109,7 @@ export default function RootLayout({
       <html
         lang="en"
         suppressHydrationWarning
-        className={`${sora.variable} ${spaceGrotesk.variable} ${jbMono.variable} ${fraunces.variable} ${hanken.variable} h-full antialiased`}
+        className={`${sora.variable} ${spaceGrotesk.variable} ${jbMono.variable} ${fraunces.variable} ${hanken.variable} ${sourceSerif.variable} ${familjen.variable} h-full antialiased`}
       >
         <body className="theme-sand min-h-full flex flex-col bg-bg text-ink">
           {/* no-flash: apply the saved Appearance (System/Light/Dark) before paint */}

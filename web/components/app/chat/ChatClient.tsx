@@ -3,6 +3,7 @@
 import Logo from "@/components/app/Logo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import {
   ArrowUp,
   AudioLines,
@@ -32,6 +33,13 @@ const PILLS = [
 
 const ONBOARDING_PROMPT =
   "Finish onboarding first — your CMO activates once your workspace is set up.";
+
+// Claude-style time-aware greeting for the empty chat
+function greetingFor(hour: number, name?: string | null): string {
+  if (hour < 5 || hour >= 22) return "Hello, night owl";
+  const base = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  return name ? `${base}, ${name}` : base;
+}
 
 /* ── minimal Web Speech typings (not in the default TS lib) ─────────────── */
 type SRAlt = { transcript: string };
@@ -66,6 +74,13 @@ export default function ChatClient() {
   const hydratedIdRef = useRef<string | null>(null); // what the URL ?id is in sync with
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useUser();
+
+  // time-aware greeting, set after mount so SSR and client can't disagree
+  const [greeting, setGreeting] = useState("");
+  useEffect(() => {
+    setGreeting(greetingFor(new Date().getHours(), user?.firstName));
+  }, [user?.firstName]);
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
@@ -459,15 +474,12 @@ export default function ChatClient() {
         /* empty — centered greeting + composer + word-pills (Claude-style) */
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
           <div className="w-full max-w-2xl">
-            <div className="mb-7 flex flex-col items-center text-center">
-              <span className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-line bg-surface">
-                <Logo width={30} height={23} />
-              </span>
-              <h1 className="font-display text-[26px] leading-tight text-ink">Talk to your CMO</h1>
-              <p className="mt-2 max-w-sm text-[13.5px] leading-relaxed text-mute">
-                Ask anything about your marketing — positioning, content, competitors, your next
-                move. Grounded in your company.
-              </p>
+            {/* Claude-style greeting: mark + big warm serif, straight to the point */}
+            <div className="mb-9 flex items-center justify-center gap-3.5">
+              <Logo width={34} height={26} className="shrink-0" />
+              <h1 className="font-display text-[30px] font-medium leading-tight text-ink sm:text-[34px]">
+                {greeting || " "}
+              </h1>
             </div>
 
             {error && <p className="mb-2 px-1 text-center text-[12px] text-ember">{error}</p>}
@@ -496,10 +508,10 @@ export default function ChatClient() {
               {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed ${
+                    className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 leading-relaxed ${
                       m.role === "cmo"
-                        ? "rounded-tl-sm border border-molten/20 bg-molten/[0.07] text-ink"
-                        : "rounded-tr-sm bg-surface-2 text-ink"
+                        ? "font-claude-serif rounded-tl-sm border border-molten/20 bg-molten/[0.07] text-[15px] text-ink"
+                        : "rounded-tr-sm bg-surface-2 text-[14px] text-ink"
                     }`}
                   >
                     {m.role === "cmo" ? cleanCmoText(m.text) : m.text}

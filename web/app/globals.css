@@ -265,12 +265,22 @@ body {
 }
 
 /* ---------- app shell (console) ---------- */
+/* Claude-like type on app pages: Familjen Grotesk UI (≈Styrene) with the
+   Source Serif 4 display face (≈Copernicus) for greetings and CMO prose.
+   The landing page keeps Fraunces + Hanken untouched. */
 .app-scope {
-  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-family: var(--font-claude-sans), var(--font-hanken), system-ui, sans-serif;
 }
 .font-display {
   font-family: var(--font-fraunces), Georgia, serif;
   letter-spacing: -0.005em;
+}
+.app-scope .font-display {
+  font-family: var(--font-claude-serif), Georgia, serif;
+  letter-spacing: -0.01em;
+}
+.font-claude-serif {
+  font-family: var(--font-claude-serif), Georgia, serif;
 }
 .font-data {
   font-family: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
