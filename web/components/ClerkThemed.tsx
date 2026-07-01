@@ -24,15 +24,17 @@ export default function ClerkThemed({ children }: { children: React.ReactNode })
   return (
     <ClerkProvider
       appearance={{
-        baseTheme: isDark ? dark : undefined,
+        theme: isDark ? dark : undefined,
         variables: isDark
           ? {
               // the app's night palette — warm dark grays, quiet accent
               colorPrimary: "#d6d3ca",
+              colorPrimaryForeground: "#232220",
               colorBackground: "#30302e",
-              colorInputBackground: "#262624",
-              colorText: "#e8e6e1",
-              colorTextSecondary: "#b3b1a8",
+              colorInput: "#262624",
+              colorInputForeground: "#e8e6e1",
+              colorForeground: "#e8e6e1",
+              colorMutedForeground: "#b3b1a8",
               colorNeutral: "#e8e6e1",
               borderRadius: "0.6rem",
               fontFamily: "var(--font-claude-sans), system-ui, sans-serif",
