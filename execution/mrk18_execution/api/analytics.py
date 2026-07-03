@@ -83,6 +83,16 @@ class DiagnoseBody(BaseModel):
     csv: str | None = Field(default=None, max_length=400_000)  # OR a campaign CSV export
     source: str = Field(default="manual", max_length=32)  # manual | csv | meta | google | ...
     period: str | None = Field(default=None, max_length=80)
+    clarifications: list[str] | None = Field(default=None, max_length=30)  # founder follow-ups
+
+    @field_validator("clarifications")
+    @classmethod
+    def _cap_clarifications(cls, v: list[str] | None) -> list[str] | None:
+        # trim + bound each note and the count, so a chat loop can't balloon the prompt
+        if not v:
+            return None
+        out = [s.strip()[:600] for s in v if isinstance(s, str) and s.strip()]
+        return out[:30] or None
 
     @field_validator("metrics")
     @classmethod
@@ -121,7 +131,7 @@ async def diagnose(
         raise HTTPException(status_code=422, detail="no campaign data found in the metrics")
 
     try:
-        diag, _usage = await diagnose_metrics(socket, metrics)
+        diag, _usage = await diagnose_metrics(socket, metrics, context=body.clarifications)
     except Exception as exc:  # noqa: BLE001 — surface engine failures as 502, never 500
         raise HTTPException(status_code=502, detail=f"analytics engine error: {exc}")
 
@@ -139,7 +149,11 @@ async def diagnose(
         agent_id=AGENT,
         founder_id=founder.id,
         outcome="analytics_diagnosed",
-        detail={"source": source, "campaigns": len(metrics.get("campaigns", []))},
+        detail={
+            "source": source,
+            "campaigns": len(metrics.get("campaigns", [])),
+            "clarifications": len(body.clarifications or []),
+        },
     )
     await session.commit()
     return {

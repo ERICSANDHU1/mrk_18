@@ -55,10 +55,26 @@ ANALYTICS_SYS = (
 )
 
 
-async def diagnose_metrics(socket: LLMSocket, metrics: dict) -> tuple[AdDiagnosis, Usage]:
-    """Run the founder's metrics through the analytics adapter -> AdDiagnosis."""
+async def diagnose_metrics(
+    socket: LLMSocket, metrics: dict, context: list[str] | None = None
+) -> tuple[AdDiagnosis, Usage]:
+    """Run the founder's metrics through the analytics adapter -> AdDiagnosis.
+
+    `context` carries the founder's follow-up clarifications (e.g. "a 'result'
+    means a completed purchase"). Each is treated as ground truth and folded into
+    the prompt so the interpreter RE-READS the same numbers with the new meaning —
+    this is what turns a one-shot diagnosis into a refining conversation.
+    """
     user = (
         "Ad / marketing performance data (JSON). Diagnose it:\n"
         + json.dumps(metrics, ensure_ascii=False, indent=2)
     )
+    if context:
+        notes = "\n".join(f"- {c.strip()}" for c in context if isinstance(c, str) and c.strip())
+        if notes:
+            user += (
+                "\n\nThe founder has since clarified the following. Treat each as "
+                "GROUND TRUTH and re-read the numbers accordingly — a clarification "
+                "can change what counts as working, leaking, or a real CAC:\n" + notes
+            )
     return await socket.complete(AgentRole.ANALYTICS, ANALYTICS_SYS, user, AdDiagnosis)
