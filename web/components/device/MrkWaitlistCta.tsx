@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
-import Waitlist, { queuePosition } from "@/components/sections/Waitlist";
+import Waitlist from "@/components/sections/Waitlist";
+import { fetchInLine, WAITLIST_FALLBACK } from "@/lib/waitlist";
 
 /** Top FOMO bar on the /mrk page — a live-feeling waitlist position + a button
  *  that opens the Founding-500 apply form RIGHT HERE (the modal is rendered on
  *  this page), so it never bounces the founder out to the landing. */
 export default function MrkWaitlistCta() {
-  const [pos, setPos] = useState(247); // stable SSR value; the real (climbing) one lands on mount
-  useEffect(() => setPos(queuePosition()), []);
+  const [pos, setPos] = useState(WAITLIST_FALLBACK); // seed for SSR; the real count lands on mount
+  useEffect(() => {
+    fetchInLine().then(setPos);
+  }, []);
 
   const openForm = () => window.dispatchEvent(new Event("mrk18:open-waitlist"));
 

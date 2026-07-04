@@ -128,13 +128,18 @@
   <!-- form logic -->
   <script>
     var POST_URL = "https://www.mrk18.com/api/apply";
-    function queuePosition(){
-      var start = Date.UTC(2026,5,20);
-      var days = Math.max(0, Math.floor((Date.now()-start)/86400000));
-      return Math.min(489, 220 + days*2 + (days%3));
+
+    // Live queue position — the REAL count (seed + applications) via GET POST_URL.
+    var inLine = 78;
+    function renderPos(n){
+      inLine = n;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pos]'), function(el){ el.textContent = n; });
     }
-    var pos = queuePosition();
-    Array.prototype.forEach.call(document.querySelectorAll('[data-pos]'), function(el){ el.textContent = pos; });
+    renderPos(inLine);
+    fetch(POST_URL, { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (d && typeof d.in_line === 'number') renderPos(d.in_line); })
+      .catch(function(){});
 
     var form = document.getElementById('applyForm');
     var btn = document.getElementById('submitBtn');
@@ -151,7 +156,7 @@
         if(res.ok){
           document.getElementById('headBlock').style.display = 'none';
           form.style.display = 'none';
-          document.getElementById('successPos').textContent = pos;
+          document.getElementById('successPos').textContent = inLine + 1;
           document.getElementById('success').style.display = 'block';
         } else {
           return res.json().catch(function(){ return {}; }).then(function(d){

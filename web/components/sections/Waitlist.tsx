@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
+import { fetchInLine, WAITLIST_FALLBACK } from "@/lib/waitlist";
 
 /** The Apply / Free pill in the pricing table — opens the application modal. */
 export function WaitlistTrigger({
@@ -27,13 +28,8 @@ export function WaitlistTrigger({
 const FIELD =
   "w-full rounded-xl border border-stroke bg-surface-2 px-4 py-3 text-[14px] text-ink placeholder:text-muted focus:border-molten/50 focus:outline-none";
 
-// Display queue position — climbs slowly by date (front-end only, not the real
-// applications count), so the line feels live instead of a frozen number.
-export function queuePosition(): number {
-  const start = Date.UTC(2026, 5, 20); // 20 Jun 2026
-  const days = Math.max(0, Math.floor((Date.now() - start) / 86_400_000));
-  return Math.min(489, 220 + days * 2 + (days % 3)); // ~247 today, stays under the 500 cap
-}
+// The "#N in line" position now reads the REAL application count via fetchInLine
+// (GET /api/apply → seed + rows). No more front-end date math.
 
 /** Founding-500 application modal — posts to /api/apply, which stores it for the
  *  team in Supabase. Opened by any WaitlistTrigger via a window event. */
@@ -42,7 +38,7 @@ export default function Waitlist() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [position, setPosition] = useState(247);
+  const [position, setPosition] = useState(WAITLIST_FALLBACK);
   const [f, setF] = useState({ email: "", phone: "", company: "", issue: "", hp: "" });
 
   useEffect(() => {
@@ -50,7 +46,7 @@ export default function Waitlist() {
       setOpen(true);
       setSent(false);
       setErr(null);
-      setPosition(queuePosition());
+      fetchInLine().then(setPosition); // live count each time the modal opens
     };
     window.addEventListener("mrk18:open-waitlist", onOpen);
     return () => window.removeEventListener("mrk18:open-waitlist", onOpen);
@@ -80,8 +76,10 @@ export default function Waitlist() {
           hp: f.hp,
         }),
       });
-      if (res.ok) setSent(true);
-      else {
+      if (res.ok) {
+        setPosition((p) => p + 1); // their row is now counted — tick the number up
+        setSent(true);
+      } else {
         const d = await res.json().catch(() => ({}));
         setErr(d.error || "Something went wrong — try again.");
       }

@@ -9,13 +9,25 @@ import { backendFetch } from "@/lib/server/backend";
  *  and returns nothing sensitive, so an open CORS policy here is safe. */
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
 };
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS });
+}
+
+/** Live queue size (real applications + seed) for the "#N in line" counter. */
+export async function GET() {
+  try {
+    const res = await backendFetch("/apply/count");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return NextResponse.json({ count: 0, in_line: 78 }, { headers: CORS });
+    return NextResponse.json(data, { headers: CORS });
+  } catch {
+    return NextResponse.json({ count: 0, in_line: 78 }, { headers: CORS });
+  }
 }
 
 export async function POST(req: Request) {

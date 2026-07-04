@@ -7,12 +7,25 @@ Rows land in the `applications` table; read them in the Supabase Table Editor.
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.models import ApplicationRow
 from .deps import get_session
 
 router = APIRouter(tags=["apply"])
+
+# Marketing head-start for the public queue counter — REAL applications grow the
+# displayed position up from here. Server-side so every surface shows one number.
+WAITLIST_SEED = 78
+
+
+@router.get("/apply/count", response_model=dict)
+async def apply_count(session: AsyncSession = Depends(get_session)) -> dict:
+    """Public live queue size = real application rows + the seed. The landing modal,
+    the /mrk bar and the standalone /form site all read this, so it's real-time."""
+    n = int(await session.scalar(select(func.count()).select_from(ApplicationRow)) or 0)
+    return {"count": n, "in_line": WAITLIST_SEED + n}
 
 
 class ApplyBody(BaseModel):
