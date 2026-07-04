@@ -461,7 +461,7 @@ export default function ChatClient() {
       {/* header */}
       <header className="flex shrink-0 items-center gap-2.5 border-b border-line px-5 py-3">
         <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
-          <Logo width={18} height={14} />
+          <Logo size={16} />
         </span>
         <div className="leading-tight">
           <p className="text-[13px] font-bold text-ink">Your CMO</p>
@@ -478,7 +478,7 @@ export default function ChatClient() {
           <div className="w-full max-w-2xl">
             {/* Claude-style greeting: mark + big warm serif, straight to the point */}
             <div className="mb-9 flex items-center justify-center gap-3.5">
-              <Logo width={34} height={26} className="shrink-0" />
+              <Logo size={28} className="shrink-0" />
               <h1 className="font-display text-[30px] font-medium leading-tight text-ink sm:text-[34px]">
                 {greeting || " "}
               </h1>

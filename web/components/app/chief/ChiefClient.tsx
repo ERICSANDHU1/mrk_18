@@ -4,10 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDownRight,
-  ArrowUp,
   ArrowUpRight,
+  CornerDownLeft,
   Loader2,
-  MessageSquare,
 } from "lucide-react";
 import {
   Area,
@@ -173,8 +172,9 @@ export default function ChiefClient() {
   const maxChannel = Math.max(...CHANNELS.map((c) => c.spend));
 
   return (
-    <div className="dash-scroll h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-4xl px-5 py-6">
+    <div className="flex h-full flex-col">
+      <div className="dash-scroll min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-4xl px-5 py-6">
         {/* header */}
         <div className="mb-5 flex items-start justify-between">
           <div>
@@ -275,6 +275,7 @@ export default function ChiefClient() {
                 <Tooltip
                   contentStyle={tooltipStyle}
                   labelStyle={{ color: "var(--mute-2)", fontSize: 11 }}
+                  itemStyle={{ color: "var(--ink)" }}
                   formatter={(value) => [fmtINR(Number(value)), "Spend"]}
                   cursor={{ stroke: "var(--line)" }}
                 />
@@ -311,6 +312,9 @@ export default function ChiefClient() {
                   />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    // Cell-filled bars give recharts no series color → item text
+                    // falls back to black; pin it to the theme ink
+                    itemStyle={{ color: "var(--ink)" }}
                     formatter={(value) => [fmtINR(Number(value)), "Spend"]}
                     cursor={{ fill: "var(--overlay-subtle)" }}
                   />
@@ -357,8 +361,13 @@ export default function ChiefClient() {
           </div>
         </div>
 
-        {/* chat — inline & real-time, no redirect */}
-        <div className="mt-5 rounded-2xl border border-line bg-surface transition-colors focus-within:border-molten/40">
+        </div>
+      </div>
+
+      {/* chat — pinned to the bottom so it stays put while the dashboard scrolls above */}
+      <div className="shrink-0 bg-bg">
+        <div className="mx-auto w-full max-w-4xl px-5 pb-4 pt-1">
+          <div className="rounded-2xl border border-line bg-surface transition-colors focus-within:border-molten/40">
           {chat.length > 0 && (
             <div
               ref={threadRef}
@@ -392,8 +401,7 @@ export default function ChiefClient() {
             </div>
           )}
           {chatErr && <p className="px-4 pt-3 text-[12px] text-ember">{chatErr}</p>}
-          <div className="flex items-center gap-3 px-4 py-3">
-            <MessageSquare size={16} className="shrink-0 text-mute-2" aria-hidden />
+          <div className="flex items-center gap-2 px-4 py-3.5">
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -405,20 +413,23 @@ export default function ChiefClient() {
               }}
               placeholder={chat.length ? "Reply to your chief…" : 'Ask your chief anything — "why is CAC up?"'}
               style={{ outline: "none" }}
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-mute-2"
+              className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink placeholder:text-mute-2"
             />
             <button
               onClick={() => submitChat(draft)}
               disabled={!draft.trim() || sendingChat}
               aria-label="Ask your chief"
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-molten text-white transition-opacity hover:opacity-90 disabled:bg-surface-2 disabled:text-mute-2"
+              className={`grid h-6 w-6 shrink-0 place-items-center rounded-md transition-colors ${
+                draft.trim() ? "text-molten hover:text-ember" : "text-mute-2"
+              } disabled:text-mute-2`}
             >
               {sendingChat ? (
                 <Loader2 size={14} className="animate-spin" aria-hidden />
               ) : (
-                <ArrowUp size={15} aria-hidden />
+                <CornerDownLeft size={15} aria-hidden />
               )}
             </button>
+          </div>
           </div>
         </div>
       </div>

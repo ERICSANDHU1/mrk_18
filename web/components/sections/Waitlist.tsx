@@ -27,6 +27,14 @@ export function WaitlistTrigger({
 const FIELD =
   "w-full rounded-xl border border-stroke bg-surface-2 px-4 py-3 text-[14px] text-ink placeholder:text-muted focus:border-molten/50 focus:outline-none";
 
+// Display queue position — climbs slowly by date (front-end only, not the real
+// applications count), so the line feels live instead of a frozen number.
+export function queuePosition(): number {
+  const start = Date.UTC(2026, 5, 20); // 20 Jun 2026
+  const days = Math.max(0, Math.floor((Date.now() - start) / 86_400_000));
+  return Math.min(489, 220 + days * 2 + (days % 3)); // ~247 today, stays under the 500 cap
+}
+
 /** Founding-500 application modal — posts to /api/apply, which stores it for the
  *  team in Supabase. Opened by any WaitlistTrigger via a window event. */
 export default function Waitlist() {
@@ -34,6 +42,7 @@ export default function Waitlist() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [position, setPosition] = useState(247);
   const [f, setF] = useState({ email: "", phone: "", company: "", issue: "", hp: "" });
 
   useEffect(() => {
@@ -41,6 +50,7 @@ export default function Waitlist() {
       setOpen(true);
       setSent(false);
       setErr(null);
+      setPosition(queuePosition());
     };
     window.addEventListener("mrk18:open-waitlist", onOpen);
     return () => window.removeEventListener("mrk18:open-waitlist", onOpen);
@@ -113,18 +123,28 @@ export default function Waitlist() {
             >
               <Check size={22} aria-hidden />
             </span>
-            <h3 className="text-xl font-extrabold tracking-tight text-ink">You're on the list.</h3>
+            <h3 className="text-xl font-extrabold tracking-tight text-ink">
+              You&apos;re #{position} of 500.
+            </h3>
             <p className="mt-2 text-[14px] leading-relaxed text-muted">
-              We'll reach out about your Founding 500 spot. Thanks for the marketing issue — your CMO
-              will be ready for it.
+              You&apos;re in early — we&apos;ll reach out about your Founding 500 spot. Thanks for the
+              marketing issue; your CMO will be ready for it.
             </p>
           </div>
         ) : (
           <form onSubmit={submit}>
-            <h3 className="text-2xl font-extrabold tracking-tight text-ink">Apply for Founding 500</h3>
+            {/* FOMO strip — scarcity up top before they even start typing */}
+            <span className="inline-flex items-center gap-2 rounded-full border border-molten/30 bg-molten/[0.07] px-3 py-1 text-[11.5px] font-bold uppercase tracking-wide text-molten">
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-molten opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-molten" />
+              </span>
+              You&apos;re #{position} in line · founder pricing closes at 500
+            </span>
+            <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-ink">Apply for Founding 500</h3>
             <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
-              Founder pricing locked for life — and seats are limited. Tell us where to reach you and
-              your biggest marketing headache.
+              Founder pricing locked for life — and once 500 are in, this door closes for good. Tell
+              us where to reach you and your biggest marketing headache.
             </p>
             <div className="mt-5 space-y-3">
               <input

@@ -11,10 +11,11 @@ import { RightPanelCtx } from "./right-panel-slot";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-const LEFT = { min: 200, max: 340, def: 232, rail: 64 };
+const LEFT = { min: 240, max: 360, def: 300, rail: 64 };
 const RIGHT = { min: 260, max: 480, def: 340, rail: 44 };
 const CMO_W = 360; // the floating CmoPanel drawer width (w-[360px])
-const K = { lc: "mrk18.leftCollapsed", lw: "mrk18.leftWidth", rw: "mrk18.rightWidth" };
+// lw key versioned: the wider default must supersede widths saved under the old key
+const K = { lc: "mrk18.leftCollapsed", lw: "mrk18.leftWidth.v2", rw: "mrk18.rightWidth" };
 
 /** Drag-to-resize / click-to-collapse handle with a hover hint. */
 function Handle({ side, shortcut, onResizeStart }: { side: "left" | "right"; shortcut: string; onResizeStart: (e: React.MouseEvent) => void }) {

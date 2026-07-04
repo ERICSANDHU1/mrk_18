@@ -17,7 +17,7 @@ type LayerDef = { src: string; label: string; scale: number };
 // closed — only the dark shell rim + glass rim show around the smile screen.
 const LAYERS: LayerDef[] = [
   { src: "/device/device-1-glass.png?v=3", label: "Front Glass Cover", scale: 1.0 },
-  { src: "/device/device-2-display.png", label: "Dot-Matrix Display", scale: 0.94 },
+  { src: "/device/device-2-display.png?v=2", label: "Dot-Matrix Display", scale: 0.94 },
   { src: "/device/device-3-sensor.png", label: "Sensor Array Puck", scale: 0.86 },
   { src: "/device/device-4-pcb.png", label: "Main Logic Board", scale: 0.92 },
   { src: "/device/device-5-haptic.png", label: "Haptic Motor", scale: 0.8 },
@@ -48,9 +48,10 @@ function Layer({
   // narrow viewports have no width to open horizontally → fall back to vertical
   const sx = narrow ? 14 : SPREAD_X;
   const sy = narrow ? 62 : SPREAD_Y;
-  const x = useTransform(progress, [0, 1], [d * sx * COMPACT, d * sx]);
-  const y = useTransform(progress, [0, 1], [d * sy * COMPACT, d * sy]);
-  const rotate = useTransform(progress, [0, 1], [0, narrow ? 0 : d * FAN]);
+  // hold the stack CLOSED until the hero photo has dissolved (~0.1), then explode
+  const x = useTransform(progress, [0.1, 1], [d * sx * COMPACT, d * sx]);
+  const y = useTransform(progress, [0.1, 1], [d * sy * COMPACT, d * sy]);
+  const rotate = useTransform(progress, [0.1, 1], [0, narrow ? 0 : d * FAN]);
 
   const start = 0.22 + i * 0.04;
   const labelOpacity = useTransform(progress, [start, start + 0.1], [0, 1]);
@@ -89,7 +90,7 @@ function Layer({
               style={{
                 height: 24,
                 margin: above ? "5px 0 0" : "0 0 5px",
-                background: "rgba(27,24,21,0.32)",
+                background: "rgba(27,24,21,0.6)",
                 scaleY: lineScale,
                 originY: above ? 0 : 1,
               }}
@@ -112,6 +113,8 @@ export default function DeviceShowcase() {
   // spring-smoothed scrub → buttery, premium motion with a touch of momentum
   const progress = useSpring(scrollYProgress, { stiffness: 70, damping: 18, mass: 0.4 });
   const stageScale = useTransform(progress, [0, 1], [0.95, 1.0]);
+  // the assembled device photo sits on top when closed, then dissolves into the explode
+  const heroOpacity = useTransform(progress, [0, 0.1], [1, 0]);
 
   const [narrow, setNarrow] = useState(false);
 
@@ -129,29 +132,24 @@ export default function DeviceShowcase() {
     return (
       <section id="device" aria-label="CMO in your pocket" className="relative overflow-hidden px-6 py-20">
         <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-ink">
             01 — CMO in your pocket
           </span>
           <h2 className="mt-5 text-[clamp(1.9rem,7vw,2.6rem)] font-semibold leading-[1.14] text-ink">
             <span className="block">Your marketing brain —</span>
             <span className="block text-gradient">now a device you carry.</span>
           </h2>
-          <p className="mt-5 max-w-md text-[1rem] leading-relaxed text-muted">
+          <p className="mt-5 max-w-md text-[1rem] leading-relaxed text-ink">
             Nine layers of hardware, one glanceable companion — your CMO, distilled into
             something small enough to live in your pocket.
           </p>
           <div className="relative mt-12 aspect-square w-[min(72vw,300px)]">
-            {LAYERS.map((layer, i) => (
-              <img
-                key={i}
-                src={layer.src}
-                alt=""
-                aria-hidden
-                draggable={false}
-                className="pointer-events-none absolute left-0 top-0 w-full select-none"
-                style={{ zIndex: N - i, transform: `scale(${layer.scale})` }}
-              />
-            ))}
+            <img
+              src="/device/new-smile.png"
+              alt="the mrk device"
+              draggable={false}
+              className="pointer-events-none h-full w-full select-none object-contain"
+            />
           </div>
         </div>
       </section>
@@ -165,19 +163,21 @@ export default function DeviceShowcase() {
           {/* copy — aligned to the same max-w-6xl container as the other sections */}
           <div
             className={`pointer-events-none absolute inset-x-0 top-0 z-10 flex h-full flex-col ${
-              narrow ? "items-center pt-24 text-center" : "justify-center"
+              // justify-start: a centered copy block leaves the sticky screen's whole
+              // top half empty while the section scrolls in — the ugly gap after the marquee
+              narrow ? "items-center pt-24 text-center" : "justify-start pt-[16vh]"
             }`}
           >
             <div className="mx-auto w-full max-w-6xl px-6">
               <div className={narrow ? "mx-auto max-w-xl" : "max-w-[clamp(20rem,30vw,24rem)]"}>
-                <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
+                <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-ink">
                   01 — CMO in your pocket
                 </span>
                 <h2 className="mt-5 text-[clamp(1.7rem,3.1vw,2.35rem)] font-semibold leading-[1.12] text-ink">
                   <span className="block">Your marketing brain —</span>
                   <span className="block text-gradient">now a device you carry.</span>
                 </h2>
-                <p className="mt-6 max-w-md text-[1.05rem] leading-relaxed text-muted">
+                <p className="mt-6 max-w-md text-[1.05rem] leading-relaxed text-ink">
                   Nine layers of hardware, one glanceable companion — your CMO, distilled
                   into something small enough to live in your pocket.
                 </p>
@@ -191,6 +191,14 @@ export default function DeviceShowcase() {
               {LAYERS.map((_, i) => (
                 <Layer key={i} progress={progress} i={i} narrow={narrow} />
               ))}
+              {/* the real device, assembled — the closed hero; dissolves as the explode begins */}
+              <motion.img
+                src="/device/new-smile.png"
+                alt="the mrk device"
+                draggable={false}
+                style={{ opacity: heroOpacity, zIndex: 40 }}
+                className="pointer-events-none absolute left-1/2 top-1/2 w-[min(27vw,330px)] -translate-x-1/2 -translate-y-1/2 select-none"
+              />
             </motion.div>
           </div>
         </div>

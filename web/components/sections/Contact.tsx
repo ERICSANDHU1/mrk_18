@@ -35,7 +35,7 @@ export default function Contact() {
                 rel={card.href.startsWith("http") ? "noopener noreferrer" : undefined}
                 className="glass group block rounded-2xl p-7 transition-colors duration-300 hover:border-amber/40"
               >
-                <span className="text-[11px] uppercase tracking-[0.24em] text-muted">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">
                   {card.label}
                 </span>
                 <span className="mt-3 block text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-amber">

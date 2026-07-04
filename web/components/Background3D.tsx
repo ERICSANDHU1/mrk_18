@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 
 const Scene = dynamic(() => import("./Scene"), { ssr: false });
 
-export default function Background3D() {
+export default function Background3D({
+  variant = "landing",
+  className = "pointer-events-none fixed inset-0 -z-10",
+}: {
+  variant?: "landing" | "column";
+  className?: string;
+}) {
   const [supported, setSupported] = useState(false);
 
   useEffect(() => {
@@ -21,8 +27,8 @@ export default function Background3D() {
 
   // The objects float over the light page backdrop — no dark vignette anymore.
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
-      <Scene />
+    <div className={className} aria-hidden>
+      <Scene variant={variant} />
     </div>
   );
 }

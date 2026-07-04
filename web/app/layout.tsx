@@ -65,7 +65,7 @@ const description =
   "The marketing brain founders can't afford to hire — yet. mrk18 reads your real numbers, flags what's leaking money, and hands you the next move in plain language.";
 
 export const metadata: Metadata = {
-  title: "mrk18 — CMO in your pocket",
+  title: { default: "mrk18", template: "mrk18 %s" },
   description,
   metadataBase: new URL("https://mrk18.com"),
   openGraph: {

@@ -11,7 +11,7 @@ const archivo = Archivo({
 const dmMono = DM_Mono({ variable: "--font-dmmono", subsets: ["latin"], weight: ["400", "500"] });
 
 export const metadata: Metadata = {
-  title: "Chat — MRK18",
+  title: { absolute: "mrk18 Chat" },
   robots: { index: false, follow: false },
 };
 

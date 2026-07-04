@@ -24,7 +24,7 @@ const STEPS: Step[] = [
   },
   {
     num: "02",
-    title: "WATCHDOG",
+    title: "EXAMINE",
     line: "Watches weekly, flags what's leaking money before it's a crisis.",
     pills: ["spend", "CAC", "activation", "retention"],
     icon: "eye",
@@ -232,7 +232,7 @@ function Card({
               return (
                 <span
                   key={pill}
-                  className="relative rounded-full border border-[rgba(27,24,21,0.18)] px-4 py-1.5 text-[12.5px] text-muted"
+                  className="relative rounded-full border border-[rgba(27,24,21,0.26)] px-4 py-1.5 text-[12.5px] text-muted"
                 >
                   <span className="invisible">{pill}</span>
                   <span className="absolute inset-y-0 left-4 right-4 flex items-center">

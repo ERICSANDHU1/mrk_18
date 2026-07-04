@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import MagneticButton from "../ui/MagneticButton";
 import FoundersPopover from "./FoundersPopover";
+import Wordmark from "@/components/app/Wordmark";
 
 const EXPLORE = [
   { label: "How it works", href: "#how" },
@@ -30,8 +31,8 @@ export default function Footer() {
                 Your CMO is almost <span className="text-gradient">in your pocket.</span>
               </h2>
               <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-                Just 500 founder seats — locked-in pricing for life. India-first, built to tell you the
-                bitter truth — get in before they&apos;re gone.
+                Just 500 founder seats — locked-in pricing for life. Built to tell you the bitter
+                truth — get in before the seats are gone.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-5">
@@ -46,16 +47,16 @@ export default function Footer() {
       <div className="mx-auto mt-16 grid max-w-6xl grid-cols-1 gap-12 md:grid-cols-[1.6fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-3">
-            <Image src="/logo-light.svg" alt="mrk18 logo" width={30} height={23} />
-            <span className="text-[17px] font-extrabold tracking-tight text-[#1b1815]">mrk18</span>
+            <Image src="/logo-light.svg" alt="mrk18 logo" width={17} height={26} />
+            <Wordmark className="text-[17px] font-extrabold tracking-tight text-[#1b1815]" />
           </div>
           <p className="mt-6 max-w-xs text-[15px] leading-snug text-[#1b1815]">
             The marketing brain founders can&apos;t afford to hire —{" "}
-            <span className="italic" style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}>
+            <span className="italic" style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}>
               yet.
             </span>
           </p>
-          <p className="mt-3 text-[13px] text-[#6b6357]">Built India-first. Tells the bitter truth.</p>
+          <p className="mt-3 text-[13px] text-muted">Built for founders everywhere. Tells the bitter truth.</p>
         </div>
 
         <div>
@@ -112,13 +113,12 @@ export default function Footer() {
           © 2026 mrk18 <span className="text-amber">·</span> CMO in your pocket
         </p>
         <div className="flex items-center gap-6">
-          {/* TODO: wire Privacy / Terms to real pages when they exist */}
-          <a href="#" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
+          <Link href="/privacy" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
             Privacy
-          </a>
-          <a href="#" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
+          </Link>
+          <Link href="/terms" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
             Terms
-          </a>
+          </Link>
           <a
             href="mailto:mrk18ai@gmail.com"
             className="text-[13px] text-muted transition-colors hover:text-[#1b1815]"

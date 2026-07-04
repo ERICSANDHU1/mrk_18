@@ -87,6 +87,14 @@ export default function CmoPanel() {
     );
   }, [pathname]);
 
+  // The immersive run deck (/cowork/run/[id]) and the report preview own the full
+  // bottom bar and carry their own per-slide CMO chat — so the floating launcher
+  // would sit right on top of their Next/Done control (and be redundant). Step
+  // aside on those routes so nothing overlaps the deck's own navigation.
+  const onImmersiveDeck =
+    pathname.startsWith("/cowork/run/") || pathname.startsWith("/cowork/preview");
+  if (onImmersiveDeck) return null;
+
   return (
     <>
       {/* launcher — the small circular MRK18 button (default state) */}
@@ -96,7 +104,7 @@ export default function CmoPanel() {
           aria-label="Open your CMO"
           className="fixed bottom-5 right-5 z-40 grid h-14 w-14 place-items-center rounded-full border border-line bg-surface shadow-lg shadow-[var(--shadow-color)] transition-transform duration-200 hover:scale-105 active:scale-95"
         >
-          <Logo width={26} height={20} />
+          <Logo size={22} />
         </button>
       )}
 
@@ -114,7 +122,7 @@ export default function CmoPanel() {
             <header className="flex items-center justify-between border-b border-line px-4 py-3">
               <div className="flex items-center gap-2.5">
                 <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
-                  <Logo width={18} height={14} />
+                  <Logo size={16} />
                 </span>
                 <div>
                   <p className="text-[13px] font-bold leading-tight">Your CMO</p>
@@ -138,7 +146,7 @@ export default function CmoPanel() {
               {messages.length === 0 && !sending && (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                   <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl border border-line bg-surface">
-                    <Logo width={26} height={20} />
+                    <Logo size={22} />
                   </span>
                   <p className="text-[13px] font-semibold">Talk to your CMO</p>
                   <p className="mt-1 text-[12px] leading-relaxed text-mute">

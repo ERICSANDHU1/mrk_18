@@ -28,6 +28,17 @@ const SHAPES: ShapeDef[] = [
   { kind: "icosa", color: "#FF9E2C", pos: [1.7, 3.5, -5.6], size: 0.9, speed: 0.24 },
 ];
 
+// Same cast, restaged for a narrow column (e.g. the auth page's card side):
+// positions hug the edges so the centre stays clear for foreground content.
+const COLUMN_SHAPES: ShapeDef[] = [
+  { kind: "icosa", color: "#FF6A00", pos: [-2.3, 2.9, -2.5], size: 0.85, speed: 0.22 },
+  { kind: "sphere", color: "#F2C879", pos: [2.4, 3.1, -3.0], size: 0.6, speed: 0.3 },
+  { kind: "capsule", color: "#FF9E2C", pos: [-2.6, -0.2, -3.5], size: 0.5, speed: 0.2 },
+  { kind: "torus", color: "#E0490E", pos: [2.6, -0.6, -2.8], size: 0.65, speed: 0.18 },
+  { kind: "icosa", color: "#8C5A2B", pos: [-2.2, -3.1, -2.6], size: 0.7, speed: 0.26 },
+  { kind: "sphere", color: "#E0490E", pos: [2.3, -3.3, -2.4], size: 0.45, speed: 0.34 },
+];
+
 function Shape({ def }: { def: ShapeDef }) {
   const ref = useRef<THREE.Mesh>(null);
 
@@ -118,7 +129,8 @@ function CameraRig() {
   return null;
 }
 
-export default function Scene() {
+export default function Scene({ variant = "landing" }: { variant?: "landing" | "column" }) {
+  const shapes = variant === "column" ? COLUMN_SHAPES : SHAPES;
   return (
     <Canvas
       dpr={[1, 1.75]}
@@ -130,7 +142,7 @@ export default function Scene() {
       <directionalLight position={[5, 6, 4]} intensity={2.1} color="#FFF3E4" />
       <directionalLight position={[-6, -3, -5]} intensity={1.1} color="#FF9E2C" />
       <pointLight position={[0, 2, 3]} intensity={0.7} color="#F2C879" />
-      {SHAPES.map((s, i) => (
+      {shapes.map((s, i) => (
         <Shape key={i} def={s} />
       ))}
       <Dust />

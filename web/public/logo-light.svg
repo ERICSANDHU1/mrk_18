@@ -1,17 +1,6 @@
-<svg width="512" height="384" viewBox="0 0 512 384" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="m-orange" x1="120" y1="40" x2="240" y2="300" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF6A00"/>
-      <stop offset="0.6" stop-color="#FF5E08"/>
-      <stop offset="1" stop-color="#E0490E"/>
-    </linearGradient>
-  </defs>
-  <!-- right diagonal + right leg (ink — dark for the light canvas) -->
-  <path d="M404 348 L404 36 L256 296 Z" fill="#1B1815"/>
-  <path d="M340 348 L404 36 L404 348 Z" fill="#1B1815"/>
-  <path d="M348 348 L404 240 L404 348 Z" fill="#1B1815"/>
-  <!-- slash gap: light-colored stroke under the orange stroke creates the signature split -->
-  <path d="M108 348 L108 64 L262 292" stroke="#FFFFFF" stroke-width="104" stroke-linecap="butt" stroke-linejoin="miter" fill="none"/>
-  <!-- left leg + left diagonal (orange gradient) -->
-  <path d="M108 348 L108 64 L256 284" stroke="url(#m-orange)" stroke-width="72" stroke-linecap="butt" stroke-linejoin="miter" fill="none"/>
+<svg width="52" height="80" viewBox="24 10 52 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="24,40 76,40 50,10" fill="#a8322f"/>
+  <polygon points="24,40 50,40 50,90" fill="#1c1917" fill-opacity="0.5"/>
+  <polygon points="50,40 76,40 50,90" fill="#1c1917" fill-opacity="0.82"/>
+  <line x1="50" y1="40" x2="50" y2="90" stroke="#1c1917" stroke-width="1.4" stroke-opacity="0.25"/>
 </svg>

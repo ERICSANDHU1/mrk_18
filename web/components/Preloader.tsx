@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Logo from "@/components/app/Logo";
+import Wordmark from "@/components/app/Wordmark";
 
 type Phase = "count" | "split" | "done";
 
@@ -64,17 +66,23 @@ export default function Preloader() {
 
           {/* counter */}
           <motion.div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-4"
+            className="absolute inset-0 flex flex-col items-center justify-center"
             animate={phase === "split" ? { opacity: 0, scale: 0.96 } : { opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <span className="text-[11px] uppercase tracking-[0.3em] text-muted">
-              mrk18 · your AI CMO
-            </span>
-            <span className="text-gradient text-7xl font-extrabold tabular-nums tracking-tight md:text-8xl">
+            {/* brand lockup — the prism mark + wordmark (oxblood 18) */}
+            <div className="flex items-center gap-2.5">
+              <Logo size={26} />
+              <Wordmark className="text-[22px] font-extrabold tracking-tight text-ink" />
+            </div>
+
+            {/* count-up to 100 */}
+            <span className="mt-9 text-gradient text-7xl font-extrabold leading-none tracking-tight tabular-nums md:text-8xl">
               {progress}
             </span>
-            <div className="h-px w-48 overflow-hidden rounded-full bg-surface-2">
+
+            {/* progress bar */}
+            <div className="mt-8 h-px w-56 overflow-hidden rounded-full bg-surface-2">
               <div
                 className="h-full"
                 style={{

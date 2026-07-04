@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  CornerDownLeft,
   Gem,
   Image as ImageIcon,
   Loader2,
@@ -60,11 +61,80 @@ type DeckSlide =
   | { kind: "image"; item: Item; index: number; total: number }
   | { kind: "summary"; count: number };
 
+type ChatMsg = { id: string; role: "you" | "cmo"; text: string };
+
+// each slide's chat routes to THIS adapter (confirmed design: 1 slide = 1 adapter,
+// the verdict/synthesis seat orchestrates the whole-run questions).
+const SECTION_ADAPTER: Record<string, string> = {
+  "Market Intelligence": "market_intel",
+  "Audience & Positioning": "audience",
+  "USP & Differentiation": "usp",
+  "Content Strategy": "strategy",
+};
+const ADAPTER_LABEL: Record<string, string> = {
+  verdict: "Strategy",
+  market_intel: "Market intel",
+  audience: "Audience",
+  usp: "USP",
+  strategy: "Content strategy",
+  content: "Ad copy",
+};
+
+/** Which adapter the current slide's chat hits + the context that grounds it. */
+function chatMetaFor(slide: DeckSlide): { key: string; adapter: string; context: string; label: string } {
+  switch (slide.kind) {
+    case "verdict":
+      return { key: "verdict", adapter: "verdict", context: slide.synthesis, label: "the Verdict" };
+    case "section":
+      return {
+        key: `sec-${slide.n}`,
+        adapter: SECTION_ADAPTER[slide.title] ?? "verdict",
+        context: `${slide.title}\n\n${slide.section.summary}\n\n${slide.section.claims.map((c) => `• ${c.text}`).join("\n")}`,
+        label: slide.title,
+      };
+    case "post": {
+      const it = slide.item;
+      const body = it.thread?.length ? it.thread.join("\n\n") : (it.body ?? "");
+      return {
+        key: `post-${it.item_id}`,
+        adapter: "content",
+        context: `${PLATFORM[it.platform] ?? it.platform} ${it.format.replace(/_/g, " ")}:\n${body}${it.first_comment ? `\n\nFirst comment: ${it.first_comment}` : ""}`,
+        label: "this post",
+      };
+    }
+    case "image": {
+      const it = slide.item;
+      return {
+        key: `img-${it.item_id}`,
+        adapter: "content",
+        context: `Image brief for the ${PLATFORM[it.platform] ?? it.platform} post: ${it.image_prompt ?? it.media?.[0]?.alt_text ?? "the visual"}`,
+        label: "this visual",
+      };
+    }
+    case "summary":
+      return {
+        key: "summary",
+        adapter: "verdict",
+        context: `The finished campaign: ${slide.count} approved posts ready to ship.`,
+        label: "this run",
+      };
+  }
+}
+
 /** The whole finished run as a swipeable deck: analysis → each post → each image. */
 export default function RunDeck({ report, runId }: { report: Report | null; runId: string }) {
   const reduce = useReducedMotion();
   const [items, setItems] = useState<Item[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // per-slide follow-up chat — one independent thread per slide, each routed to
+  // that slide's adapter. Serialized (one request in flight) to respect cold starts.
+  const [threads, setThreads] = useState<Record<string, ChatMsg[]>>({});
+  const [draft, setDraft] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [warming, setWarming] = useState(false);
+  const [chatErr, setChatErr] = useState<string | null>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
 
   // CMO narration — speaks a block and highlights the word being spoken; tapping
   // a jargon term opens a spoken definition.
@@ -109,6 +179,23 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
   );
   const paginate = useCallback((d: number) => go(index + d, d), [go, index]);
 
+  // deep-link: /cowork/run/<id>?item=<item_id> opens straight on that post's
+  // slide (e.g. from the Content & scripts list) instead of the verdict. Runs
+  // once, after the posts load, then leaves navigation to the founder.
+  const jumpedRef = useRef(false);
+  useEffect(() => {
+    if (jumpedRef.current || items === null) return;
+    let target: string | null = null;
+    try {
+      target = new URLSearchParams(window.location.search).get("item");
+    } catch {}
+    if (target) {
+      const i = slides.findIndex((s) => s.kind === "post" && s.item.item_id === target);
+      if (i > 0) setState([i, 0]);
+    }
+    jumpedRef.current = true; // items are loaded now — don't fight the user after this
+  }, [slides, items]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") paginate(1);
@@ -123,7 +210,71 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
   useEffect(() => {
     stop();
     setDef(null);
+    setDraft("");
+    setChatErr(null); // each slide keeps its own thread; the composer resets
   }, [index, stop]);
+
+  useEffect(() => {
+    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
+  }, [threads, asking]);
+
+  useEffect(() => {
+    if (!asking) {
+      setWarming(false);
+      return;
+    }
+    const t = setTimeout(() => setWarming(true), 12_000);
+    return () => clearTimeout(t);
+  }, [asking]);
+
+  // ask this slide's adapter — appends to the slide's own thread, cold-start-aware
+  const ask = useCallback(
+    async (raw: string) => {
+      const q = raw.trim();
+      if (!q || asking) return;
+      const meta = chatMetaFor(slides[Math.min(index, slides.length - 1)]);
+      const key = meta.key;
+      const prior = threads[key] ?? [];
+      setThreads((t) => ({ ...t, [key]: [...prior, { id: `u-${Date.now()}`, role: "you", text: q }] }));
+      setDraft("");
+      setChatErr(null);
+      setAsking(true);
+      const msgs = [
+        ...prior.map((m) => ({ role: m.role === "cmo" ? "assistant" : "user", content: m.text })),
+        { role: "user", content: q },
+      ].slice(-20);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 150_000);
+      try {
+        const res = await fetch(`/api/runs/${runId}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adapter: meta.adapter, context: meta.context, messages: msgs }),
+          signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setChatErr(data?.error || "The CMO couldn't respond — try again.");
+        } else if (typeof data.reply === "string") {
+          setThreads((t) => ({
+            ...t,
+            [key]: [...(t[key] ?? []), { id: `c-${Date.now()}`, role: "cmo", text: data.reply }],
+          }));
+        }
+      } catch (e) {
+        clearTimeout(timer);
+        setChatErr(
+          e instanceof DOMException && e.name === "AbortError"
+            ? "The engine's warming up (a cold start can take a minute) — try again in a moment."
+            : "Couldn't reach the CMO.",
+        );
+      } finally {
+        setAsking(false);
+      }
+    },
+    [asking, index, runId, slides, threads],
+  );
 
   const copy = (it: Item) => {
     const text = it.thread?.length ? it.thread.join("\n\n") : it.body ?? "";
@@ -158,6 +309,8 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
 
   const slide = slides[Math.min(index, slides.length - 1)];
   const last = slides.length - 1;
+  const chatMeta = chatMetaFor(slide);
+  const thread = threads[chatMeta.key] ?? [];
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-bg">
@@ -241,7 +394,67 @@ export default function RunDeck({ report, runId }: { report: Report | null; runI
         )}
       </AnimatePresence>
 
-      <footer className="relative z-10 flex items-center justify-between px-5 pb-5 sm:px-8">
+      {/* per-slide chat — routed to THIS slide's adapter (verdict orchestrates) */}
+      <div className="relative z-10 mx-auto w-full max-w-3xl px-5 sm:px-8">
+        {thread.length > 0 && (
+          <div ref={chatRef} className="dash-scroll mb-2 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-line bg-surface p-3.5 shadow-lg shadow-[var(--shadow-color)]">
+            {thread.map((m) => (
+              <div key={m.id} className={`flex ${m.role === "you" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${
+                    m.role === "cmo"
+                      ? "rounded-tl-sm border border-molten/20 bg-molten/[0.07] text-ink"
+                      : "rounded-tr-sm bg-surface-2 text-ink"
+                  }`}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {asking && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl rounded-tl-sm border border-molten/20 bg-molten/[0.07] px-3 py-1.5 text-[12px] text-mute">
+                  {warming ? "engine warming up…" : "thinking…"}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {chatErr && <p className="mb-1.5 px-1 text-[11.5px] text-ember">{chatErr}</p>}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface px-4 py-3 shadow-lg shadow-[var(--shadow-color)] transition-colors focus-within:border-molten/50">
+          <span
+            className="font-data hidden shrink-0 items-center gap-1 rounded-md bg-molten/[0.08] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-molten sm:inline-flex"
+            title="This chat is routed to this slide's adapter"
+          >
+            <span aria-hidden>◆</span> {ADAPTER_LABEL[chatMeta.adapter]}
+          </span>
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                ask(draft);
+              }
+            }}
+            placeholder={`Ask about ${chatMeta.label}…`}
+            style={{ outline: "none" }}
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-ink placeholder:text-mute"
+          />
+          <button
+            onClick={() => ask(draft)}
+            disabled={!draft.trim() || asking}
+            aria-label="Ask this slide's adapter"
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+              draft.trim() && !asking ? "bg-molten text-white hover:opacity-90" : "bg-surface-2 text-mute-2"
+            }`}
+          >
+            {asking ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <CornerDownLeft size={16} aria-hidden />}
+          </button>
+        </div>
+      </div>
+
+      <footer className="relative z-10 flex items-center justify-between px-5 pb-5 pt-3 sm:px-8">
         <button onClick={() => paginate(-1)} disabled={index === 0} aria-label="Previous" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-mute transition hover:bg-[var(--overlay-subtle)] disabled:opacity-30">
           <ChevronLeft size={18} aria-hidden />
         </button>

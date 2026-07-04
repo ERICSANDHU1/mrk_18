@@ -19,9 +19,10 @@ export default function Hero() {
   const watermarkY = useTransform(scrollY, [0, 900], [0, 140]);
 
   return (
-    <section id="top" className="relative flex min-h-screen flex-col justify-center overflow-hidden px-6 pb-24 pt-40">
-      {/* white-grid backdrop — sits behind the revolving 3D objects so they float over it */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 bg-[#f3ecdc]">
+    <section id="top" className="relative flex min-h-screen flex-col justify-center overflow-hidden px-6 pb-14 pt-40">
+      {/* grid backdrop — transparent so the page's taupe gradient shows through;
+          only the hairlines live here */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-20">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
       </div>
 
@@ -40,11 +41,11 @@ export default function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 2.6, duration: 1 }}
-        style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
+        style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
         className="pointer-events-none absolute right-[5%] top-20 z-0 hidden select-none text-[clamp(3rem,6.5vw,6.5rem)] font-bold leading-none tracking-[-0.005em] lg:block"
       >
         <span style={{ color: "rgba(27,24,21,0.88)" }}>mrk</span>
-        <span style={{ color: "#b4532a" }}>18</span>
+        <span style={{ color: "var(--oxblood)" }}>18</span>
       </motion.div>
 
       <div className="relative z-10 mx-auto w-full max-w-6xl">
@@ -53,7 +54,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.2, duration: 0.6 }}
-          className="glass inline-flex items-center gap-2.5 rounded-full px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-muted"
+          className="glass inline-flex items-center gap-2.5 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted"
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--gradient-brand)" }} />
           CMO IN YOUR POCKET · BUILT FOR FOUNDERS
@@ -89,7 +90,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.75, duration: 0.7 }}
-          className="mt-8 max-w-xl text-lg leading-relaxed text-muted"
+          className="mt-8 max-w-xl text-lg leading-relaxed text-ink"
         >
           The marketing brain founders can&apos;t afford to hire — yet. mrk18 reads your real
           numbers, flags what&apos;s leaking money, and hands you the next move in plain language.

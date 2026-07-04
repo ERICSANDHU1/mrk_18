@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import Wordmark from "@/components/app/Wordmark";
 
 const LINKS = [
   { label: "How it works", href: "#how" },
@@ -9,7 +10,11 @@ const LINKS = [
   { label: "Pricing", href: "#pricing" },
 ];
 
-export default function Navbar() {
+/** `subpage` = rendered off the landing (e.g. /terms, /privacy): the in-page
+ *  anchors become absolute `/#…` so they navigate home first, and the logo
+ *  goes to `/` instead of the (non-existent) `#top` anchor. */
+export default function Navbar({ subpage = false }: { subpage?: boolean }) {
+  const base = subpage ? "/" : "";
   return (
     <motion.header
       initial={{ opacity: 0 }}
@@ -18,17 +23,17 @@ export default function Navbar() {
       className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4"
     >
       <nav className="feature-glass flex w-full max-w-5xl items-center justify-between rounded-2xl px-5 py-3">
-        <a href="#top" className="flex items-center gap-2.5" aria-label="mrk18 home">
-          <Image src="/logo-light.svg" alt="mrk18 logo" width={30} height={23} priority />
-          <span className="text-[17px] font-extrabold tracking-tight text-[#1b1815]">mrk18</span>
+        <a href={subpage ? "/" : "#top"} className="flex items-center gap-2.5" aria-label="mrk18 home">
+          <Image src="/logo-light.svg" alt="mrk18 logo" width={17} height={26} priority />
+          <Wordmark className="text-[17px] font-extrabold tracking-tight text-[#1b1815]" />
         </a>
 
         <div className="hidden items-center gap-7 md:flex">
           {LINKS.map((l) => (
             <a
               key={l.href}
-              href={l.href}
-              className="text-[13.5px] text-[#6b6357] transition-colors duration-200 hover:text-[#1b1815]"
+              href={`${base}${l.href}`}
+              className="text-[13.5px] text-[#514a41] transition-colors duration-200 hover:text-[#1b1815]"
             >
               {l.label}
             </a>
@@ -38,7 +43,7 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           <a
             href="/sign-in"
-            className="hidden text-[13.5px] font-medium text-[#6b6357] transition-colors duration-200 hover:text-[#1b1815] sm:inline"
+            className="hidden text-[13.5px] font-medium text-[#514a41] transition-colors duration-200 hover:text-[#1b1815] sm:inline"
           >
             Sign in
           </a>

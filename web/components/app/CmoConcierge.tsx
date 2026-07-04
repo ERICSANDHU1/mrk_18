@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
 import { Phone, X } from "lucide-react";
 import Logo from "@/components/app/Logo";
@@ -17,12 +18,18 @@ const LINES = [
   "Your CMO, in your ear. Tell me what's slowing your growth right now.",
 ];
 
+// "Not now" mutes the greeting for the CURRENT login session only — keyed by the
+// Clerk session id, so a fresh login (a new session) greets the founder again.
+const K_PREFIX = "mrk18.conciergeMuted.";
+
 /** Proactive CMO concierge: a SILENT chat bubble that re-appears on every switch
  *  between Chat / Comrk / Chief, asking how the CMO can help. "Yes" fires
- *  mrk18:cmo-call → the live voice call starts. "Not now" / ✕ just hides it
- *  until the next tab switch. */
+ *  mrk18:cmo-call → the live voice call starts. ✕ hides it until the next tab
+ *  switch; "Not now" mutes it for this login session (until the next sign-in). */
 export default function CmoConcierge() {
   const pathname = usePathname();
+  const { isLoaded, session } = useSession();
+  const muteKey = session?.id ? `${K_PREFIX}${session.id}` : null;
   // which of the three tabs we're on — the greeting re-toggles whenever this changes
   const tab = pathname.startsWith("/chief")
     ? "chief"
@@ -37,7 +44,12 @@ export default function CmoConcierge() {
 
   useEffect(() => {
     setShow(false); // hide the previous bubble the instant the tab changes
-    if (!tab) return;
+    if (!tab || !isLoaded) return; // wait for Clerk so the session-mute check is correct
+    if (muteKey) {
+      try {
+        if (localStorage.getItem(muteKey) === "1") return; // muted for THIS login session
+      } catch {}
+    }
     const picked = LINES[Math.floor(Math.random() * LINES.length)];
     const t = setTimeout(() => {
       setLine(picked);
@@ -45,10 +57,23 @@ export default function CmoConcierge() {
       setShow(true); // appears silently — voice only starts after "Yes"
     }, 700);
     return () => clearTimeout(t);
-  }, [tab]);
+  }, [tab, isLoaded, muteKey]);
 
-  // hides until the next switch between the three tabs
+  // ✕ — hides until the next switch between the three tabs
   const close = () => setShow(false);
+  // "Not now" — mute for THIS login session only; a new sign-in greets again
+  const dismissSession = () => {
+    setShow(false);
+    if (!muteKey) return;
+    try {
+      // drop stale mutes from previous sessions, keep only the current one
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(K_PREFIX) && k !== muteKey) localStorage.removeItem(k);
+      }
+      localStorage.setItem(muteKey, "1");
+    } catch {}
+  };
   // "Yes" → the call starts WHERE THE USER IS: on /chat it renders into the real
   // thread; on any other page the floating call dock opens — no navigation.
   const accept = () => {
@@ -74,7 +99,7 @@ export default function CmoConcierge() {
             <div className="p-4">
               <div className="flex items-center gap-2.5">
                 <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
-                  <Logo width={18} height={14} />
+                  <Logo size={16} />
                 </span>
                 <div className="leading-tight">
                   <p className="text-[12.5px] font-bold text-ink">Your CMO</p>
@@ -102,7 +127,7 @@ export default function CmoConcierge() {
                   <Phone size={14} aria-hidden /> Yes, let&apos;s talk
                 </button>
                 <button
-                  onClick={close}
+                  onClick={dismissSession}
                   className="rounded-lg px-3 py-2 text-[12.5px] font-semibold text-mute-2 transition-colors hover:text-ink"
                 >
                   Not now

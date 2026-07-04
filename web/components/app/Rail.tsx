@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Logo from "@/components/app/Logo";
+import Wordmark from "@/components/app/Wordmark";
 import ChatRecents from "@/components/app/ChatRecents";
 import CoworkRecents from "@/components/app/CoworkRecents";
 import Link from "next/link";
@@ -13,6 +14,7 @@ import {
   Droplet,
   Eye,
   Files,
+  FileSpreadsheet,
   Filter,
   LayoutDashboard,
   type LucideIcon,
@@ -38,14 +40,65 @@ const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDash
 
 // Chief's rooms — the command-center areas, one page each (shown in the sidebar
 // when the Chief tab is active; the Chief page itself is the visual overview).
-const CHIEF_NAV: (NavItem & { soon?: boolean })[] = [
-  { href: "/console/leaks", label: "Leaks", icon: Droplet, exact: false },
-  { href: "/chief/eagleview", label: "Eagle view", icon: Eye, exact: false },
-  { href: "/console/channels", label: "Channels & connectors", icon: Plug, exact: false },
-  { href: "/chief/content", label: "Content & scripts", icon: Files, exact: false },
-  { href: "/console/funnel", label: "Funnel", icon: Filter, exact: false },
-  { href: "/chief/watchdog", label: "Watchdog", icon: Radar, exact: false, soon: true },
+// `desc` feeds the hover hint so a founder never has to guess what a room is.
+const CHIEF_NAV: (NavItem & { soon?: boolean; desc: string })[] = [
+  {
+    href: "/console/leaks",
+    label: "Leaks",
+    icon: Droplet,
+    exact: false,
+    desc: "Where your money quietly bleeds — the spends bringing nothing back.",
+  },
+  {
+    href: "/chief/eagleview",
+    label: "Eagle view",
+    icon: Eye,
+    exact: false,
+    desc: "Every published post tracked — reach, engagement, and what it taught the brain.",
+  },
+  {
+    href: "/console/channels",
+    label: "Channels & connectors",
+    icon: Plug,
+    exact: false,
+    desc: "Plug in Meta, LinkedIn and X — see what's connected and what it feeds.",
+  },
+  {
+    href: "/chief/content",
+    label: "Content & scripts",
+    icon: Files,
+    exact: false,
+    desc: "Everything your CMO has written for you — posts, threads and reel scripts.",
+  },
+  {
+    href: "/console/funnel",
+    label: "Funnel",
+    icon: Filter,
+    exact: false,
+    desc: "Visitors → signups → paying: where people drop off, stage by stage.",
+  },
+  {
+    href: "/chief/watchdog",
+    label: "Watchdog",
+    icon: Radar,
+    exact: false,
+    soon: true,
+    desc: "Always-on alerts when spend spikes or performance dives. Coming soon.",
+  },
 ];
+
+/** Flyout hint to the right of a sidebar row — appears on hover or keyboard
+ *  focus, after a short delay so quick mouse passes stay quiet. */
+function HoverHint({ text }: { text: string }) {
+  return (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 w-56 -translate-y-1/2 rounded-xl border border-line bg-surface px-3 py-2 text-[11.5px] font-medium leading-relaxed text-ink opacity-0 shadow-lg shadow-[var(--shadow-color)] transition-opacity duration-150 group-hover:opacity-100 group-hover:delay-300 group-focus-visible:opacity-100"
+    >
+      {text}
+    </span>
+  );
+}
 
 // Each tab's Recents are fetched live, per founder: Chat → /api/chats (ChatRecents),
 // Comrk → /api/runs (CoworkRecents). No more shared placeholder rows.
@@ -125,8 +178,8 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
       {/* header — logo (+ wordmark) and collapse toggle */}
       <div className={`mb-4 flex items-center ${collapsed ? "flex-col gap-2.5" : "justify-between px-3"}`}>
         <Link href="/console" aria-label="MRK18 home" className="flex items-center gap-2.5">
-          <Logo width={30} height={23} className="shrink-0" />
-          {!collapsed && <span className="text-[17px] font-extrabold tracking-tight text-ink">mrk18</span>}
+          <Logo size={26} className="shrink-0" />
+          {!collapsed && <Wordmark className="text-[17px] font-extrabold tracking-tight text-ink" />}
         </Link>
         <button
           onClick={onToggle}
@@ -150,7 +203,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             {renderRow(BOTTOM)}
           </>
         ) : (
-          /* expanded — Chat / Comrk tabs + the active tab's session list */
+          /* expanded — Chat / Comrk / Chief segment (all three labelled) + the active tab's session list */
           <>
             <div className="mt-1 flex gap-1 rounded-xl border border-line bg-surface-2 p-1">
               {TOP.map((t) => {
@@ -162,12 +215,12 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                     href={t.href}
                     title={t.label}
                     aria-current={on ? "page" : undefined}
-                    className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
-                      on ? "flex-1 bg-surface text-ink shadow-sm" : "px-2.5 text-mute-2 hover:text-ink"
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
+                      on ? "bg-surface text-ink shadow-sm" : "text-mute-2 hover:bg-surface/50 hover:text-ink"
                     }`}
                   >
-                    <Icon size={15} aria-hidden />
-                    {on && t.label}
+                    <Icon size={14} aria-hidden />
+                    {t.label}
                   </Link>
                 );
               })}
@@ -176,6 +229,26 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             {activeTab === "/chief" ? (
               /* Chief's rooms — overview on the tab itself, one page per room */
               <>
+                {/* featured — the analytics interpreter, always one click away */}
+                <Link
+                  href="/chief/analytics"
+                  aria-current={pathname.startsWith("/chief/analytics") ? "page" : undefined}
+                  className={`group relative mt-3 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-200 ${
+                    pathname.startsWith("/chief/analytics")
+                      ? "border-molten/40 bg-molten/[0.08]"
+                      : "border-line bg-surface hover:border-molten/40"
+                  }`}
+                >
+                  <HoverHint text="Upload your Meta ads export, see the numbers instantly, and get the CMO's diagnosis — it runs only when you click." />
+                  <FileSpreadsheet size={16} className="shrink-0 text-molten" aria-hidden />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block text-[12.5px] font-bold text-ink">Analytics interpreter</span>
+                    <span className="block truncate text-[10.5px] text-mute-2">
+                      Upload Meta CSV → diagnosis
+                    </span>
+                  </span>
+                </Link>
+
                 <p className="font-data mt-4 px-1 text-[10px] uppercase tracking-[0.18em] text-mute-2">
                   Command center
                 </p>
@@ -188,10 +261,11 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                         key={item.href}
                         href={item.href}
                         aria-current={active ? "page" : undefined}
-                        className={`flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors duration-200 ${
+                        className={`group relative flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors duration-200 ${
                           active ? "bg-molten/10 text-molten" : "text-mute-2 hover:bg-surface hover:text-ink"
                         }`}
                       >
+                        <HoverHint text={item.desc} />
                         <Icon size={15} aria-hidden />
                         <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
                           {item.label}
@@ -264,23 +338,9 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
         )}
       </nav>
 
-      {/* footer — settings, appearance toggle, and the workspace block */}
+      {/* footer — appearance toggle and the workspace block (Settings lives in the
+          user popover below, next to Manage account / Sign out) */}
       <div className={`mt-2 ${collapsed ? "flex flex-col items-center gap-2" : "space-y-2 px-2"}`}>
-        <Link
-          href="/console/settings"
-          title="Settings"
-          aria-current={pathname.startsWith("/console/settings") ? "page" : undefined}
-          className={`group flex items-center rounded-xl transition-colors duration-200 ${
-            collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
-          } ${
-            pathname.startsWith("/console/settings")
-              ? "bg-molten/10 text-molten"
-              : "text-mute-2 hover:bg-surface hover:text-ink"
-          }`}
-        >
-          <Settings size={18} aria-hidden />
-          {!collapsed && <span className="text-[13.5px] font-semibold">Settings</span>}
-        </Link>
         {!collapsed && (
           <div className="flex items-center justify-between gap-2 px-1">
             <span className="text-[11px] font-medium text-mute-2">Appearance</span>
@@ -293,7 +353,18 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
             collapsed ? "" : "w-full gap-2.5 rounded-xl border border-line bg-surface px-2 py-1.5"
           }`}
         >
-          <UserButton appearance={{ elements: { avatarBox: "h-9 w-9 rounded-xl border border-line" } }} />
+          <UserButton appearance={{ elements: { avatarBox: "h-9 w-9 rounded-xl border border-line" } }}>
+            {/* Settings merged into the account popover, above the two Clerk defaults */}
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="Settings"
+                labelIcon={<Settings size={15} aria-hidden />}
+                href="/console/settings"
+              />
+              <UserButton.Action label="manageAccount" />
+              <UserButton.Action label="signOut" />
+            </UserButton.MenuItems>
+          </UserButton>
           {!collapsed && (
             <div className="min-w-0 flex-1 leading-tight">
               <p className="truncate text-[13px] font-semibold text-ink">

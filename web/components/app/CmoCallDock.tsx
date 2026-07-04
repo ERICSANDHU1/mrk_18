@@ -92,7 +92,7 @@ export default function CmoCallDock() {
             {/* header */}
             <div className="flex items-center gap-2.5 px-4 pt-3">
               <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
-                <Logo width={18} height={14} />
+                <Logo size={16} />
               </span>
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="text-[12.5px] font-bold text-ink">Your CMO</p>

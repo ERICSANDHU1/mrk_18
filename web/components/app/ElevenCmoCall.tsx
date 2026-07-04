@@ -183,7 +183,7 @@ function CallInner() {
             <header className="flex items-center justify-between border-b border-line px-5 py-3.5">
               <div className="flex items-center gap-2.5">
                 <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
-                  <Logo width={18} height={14} />
+                  <Logo size={16} />
                 </span>
                 <div className="leading-tight">
                   <p className="text-[13px] font-bold text-ink">Your CMO</p>

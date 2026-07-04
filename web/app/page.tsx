@@ -17,8 +17,12 @@ import Footer from "../components/sections/Footer";
 export default function Home() {
   return (
     <SmoothScroll>
-      {/* warm cream page backdrop ("Warm sand" Background) — sits behind the floating 3D objects */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-30 bg-[#f3ecdc]" />
+      {/* bone/greige page backdrop (founder-supplied swatch v2, 2026-07-02) — a soft
+          light drift replacing the old flat cream; sits behind the 3D objects */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
+      />
       <Preloader />
       <Background3D />
       <CursorFluid />
@@ -28,7 +32,7 @@ export default function Home() {
       <div className="theme-sand">
         <main className="overflow-x-clip">
           <Hero />
-          <Marquee items={["ADVISE", "WATCHDOG", "EXECUTE", "MRK18"]} variant="gradient" />
+          <Marquee items={["ADVISE", "EXAMINE", "EXECUTE", "MRK18"]} variant="gradient" />
           <DeviceShowcase />
           <HowItWorks />
           <Features />

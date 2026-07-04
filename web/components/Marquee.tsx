@@ -21,7 +21,7 @@ export default function Marquee({
   );
 
   return (
-    <div className="relative -mx-[5%] w-[110%] rotate-[1.2deg] overflow-hidden py-10" aria-hidden>
+    <div className="relative -mx-[5%] w-[110%] rotate-[1.2deg] overflow-hidden py-5" aria-hidden>
       <div
         className={`marquee overflow-hidden border-y ${
           variant === "gradient"

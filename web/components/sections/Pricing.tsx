@@ -1,5 +1,6 @@
 import Reveal from "../ui/Reveal";
 import Waitlist, { WaitlistTrigger } from "./Waitlist";
+import LiquidGlassGrid from "./LiquidGlassGrid";
 
 const ROWS = [
   {
@@ -28,7 +29,7 @@ const ROWS = [
 export default function Pricing() {
   return (
     <section id="pricing" className="relative px-6 py-20">
-      <div className="mx-auto max-w-6xl">
+      <div className="relative z-10 mx-auto max-w-6xl">
         <Reveal>
           <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
             05 — Pricing
@@ -52,11 +53,14 @@ export default function Pricing() {
         </Reveal>
 
         <Reveal delay={0.12}>
-          <div className="mt-16 border-t border-stroke">
+          {/* the glass hugs ONLY the three plan rows — the section header stays bare */}
+          <div className="relative mt-16">
+            <LiquidGlassGrid />
+            <div className="relative z-10 px-5 md:px-8">
             {ROWS.map((row) => (
               <div
                 key={row.name}
-                className="grid grid-cols-1 items-center gap-3 border-b border-stroke py-9 transition-transform duration-300 ease-out hover:translate-x-3 md:grid-cols-[1.2fr_2fr_auto]"
+                className="grid grid-cols-1 items-center gap-3 border-b border-stroke py-9 transition-transform duration-300 ease-out last:border-b-0 hover:translate-x-3 md:grid-cols-[1.2fr_2fr_auto]"
               >
                 <h3 className={`text-2xl font-extrabold tracking-tight md:text-3xl ${row.highlight ? "text-gradient" : ""}`}>
                   {row.name}
@@ -71,6 +75,7 @@ export default function Pricing() {
                 )}
               </div>
             ))}
+            </div>
           </div>
         </Reveal>
       </div>

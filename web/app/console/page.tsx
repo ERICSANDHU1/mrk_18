@@ -221,9 +221,7 @@ export default async function ConsoleDashboard() {
                         <span className="font-semibold">{STATUS_LABEL[r.status] ?? r.status}</span>
                         <span className="text-mute-2">· {fmtDate(r.started_at)}</span>
                       </span>
-                      <span className="font-data text-[11px] text-mute-2">
-                        ₹{Number(r.cost_inr).toFixed(2)}
-                      </span>
+                      <ArrowRight size={14} className="text-mute-2" aria-hidden />
                     </Link>
                   </li>
                 );

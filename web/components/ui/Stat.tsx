@@ -39,7 +39,8 @@ export default function Stat({
       <span ref={numRef} className="block text-3xl font-extrabold tracking-tight md:text-4xl">
         {prefix}0{suffix}
       </span>
-      <span className="mt-1 block text-[13px] leading-snug text-muted">{label}</span>
+      {/* font-medium: the body's global weight-300 made these captions look fainter than their color */}
+      <span className="mt-1 block text-[13px] font-medium leading-snug text-muted">{label}</span>
     </div>
   );
 }

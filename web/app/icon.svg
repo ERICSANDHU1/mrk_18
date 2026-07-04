@@ -1,19 +1,9 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="m-orange" x1="120" y1="40" x2="240" y2="300" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF6A00" />
-      <stop offset="0.6" stop-color="#FF5E08" />
-      <stop offset="1" stop-color="#E0490E" />
-    </linearGradient>
-  </defs>
-  <!-- dark rounded tile so the mark reads on any browser tab -->
-  <rect width="512" height="512" rx="112" fill="#0A0A0B" />
-  <!-- the mrk18 "M" mark, centered + enlarged -->
-  <g transform="translate(256 256) scale(1.2) translate(-256 -192)">
-    <path d="M404 348 L404 36 L256 296 Z" fill="#F4F1EC" />
-    <path d="M340 348 L404 36 L404 348 Z" fill="#F4F1EC" />
-    <path d="M348 348 L404 240 L404 348 Z" fill="#F4F1EC" />
-    <path d="M108 348 L108 64 L262 292" stroke="#0A0A0B" stroke-width="104" stroke-linecap="butt" stroke-linejoin="miter" fill="none" />
-    <path d="M108 348 L108 64 L256 284" stroke="url(#m-orange)" stroke-width="72" stroke-linecap="butt" stroke-linejoin="miter" fill="none" />
+  <rect width="512" height="512" rx="128" fill="#e5dfd1"/>
+  <g transform="translate(26 26) scale(4.6)">
+    <polygon points="24,40 76,40 50,10" fill="#a8322f"/>
+    <polygon points="24,40 50,40 50,90" fill="#1c1917" fill-opacity="0.5"/>
+    <polygon points="50,40 76,40 50,90" fill="#1c1917" fill-opacity="0.82"/>
+    <line x1="50" y1="40" x2="50" y2="90" stroke="#1c1917" stroke-width="1.4" stroke-opacity="0.25"/>
   </g>
 </svg>

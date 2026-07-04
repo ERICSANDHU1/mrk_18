@@ -10,6 +10,8 @@
   --amber: #ff9e2c;
   --ember: #e0490e;
   --gold: #f2c879;
+  /* the wordmark "18" — raised oxblood, legible on the near-black/charcoal grounds */
+  --oxblood: #b23a3a;
   --stroke: rgba(244, 241, 236, 0.08);
   --glass: rgba(20, 20, 22, 0.55);
   --gradient-brand: linear-gradient(120deg, var(--molten), var(--amber) 55%, var(--ember));
@@ -37,6 +39,7 @@
   --color-amber: var(--amber);
   --color-ember: var(--ember);
   --color-gold: var(--gold);
+  --color-oxblood: var(--oxblood);
   --color-stroke: var(--stroke);
   --color-good: var(--good);
   --color-watch: var(--watch);
@@ -214,6 +217,65 @@ body {
   border-radius: 4px;
 }
 
+/* ---------- auth (sign-in / sign-up) ---------- */
+
+/* staggered load-in — elements are visible by default; the animation only
+   plays forward from hidden on mount (fill both), so reduced-motion just
+   shows the final state instantly */
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.auth-rise {
+  animation: auth-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* the "CMO is online" dot — soft white ring, no layout impact */
+@keyframes auth-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+  }
+}
+.auth-pulse {
+  animation: auth-pulse 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-rise,
+  .auth-pulse {
+    animation: none;
+  }
+}
+
+/* Clerk card on the auth pages (scoped by .auth-clerk): the pages render their
+   own serif heading, so Clerk's "Sign in to <app>" header goes away; the footer
+   strip stays clean white instead of Clerk's gray gradient. cl-* classes are
+   Clerk's stable styling API. */
+.auth-clerk .cl-header {
+  display: none;
+}
+.auth-clerk .cl-footer {
+  background: #ffffff;
+}
+/* Chrome autofill paints inputs pale blue — repaint to the sand input tint */
+.auth-clerk input:-webkit-autofill,
+.auth-clerk input:-webkit-autofill:hover,
+.auth-clerk input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #fdfbf6 inset;
+  -webkit-text-fill-color: #1b1815;
+  caret-color: #1b1815;
+}
+
 /* ---------- dashboard ---------- */
 
 /* skeleton shimmer */
@@ -272,7 +334,9 @@ body {
   font-family: var(--font-claude-sans), var(--font-hanken), system-ui, sans-serif;
 }
 .font-display {
-  font-family: var(--font-fraunces), Georgia, serif;
+  /* the Claude-style display serif (≈Copernicus) — founder picked it as the
+     site-wide display face 2026-07-02; Fraunces retired from the landing */
+  font-family: var(--font-claude-serif), Georgia, serif;
   letter-spacing: -0.005em;
 }
 .app-scope .font-display {
@@ -318,21 +382,25 @@ body {
    per-component in later phases. */
 .theme-sand {
   color: #1b1815;
-  font-family: var(--font-hanken), system-ui, sans-serif;
+  /* Claude-style pairing on the landing: Familjen (≈Styrene) carries body/UI,
+     the claude-serif display face carries headlines; Hanken stays as fallback */
+  font-family: var(--font-claude-sans), var(--font-hanken), system-ui, sans-serif;
   font-weight: 400;
-  --font-sans: var(--font-hanken);
-  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-claude-sans);
+  --font-display: var(--font-claude-serif);
   /* flip the ink/muted tokens to the warm-sand palette so `text-ink` / `text-muted`
      resolve dark on the light page — including opacity variants (e.g. text-ink/90)
      that never matched the explicit `.theme-sand .text-ink` rule below */
   --ink: #1b1815;
-  --muted: #6b6357;
+  --muted: #514a41;
   /* solid terracotta accent replaces the orange brand gradient */
   --molten: #b4532a;
   --amber: #b4532a;
   --ember: #b4532a;
   --gold: #c47a3c;
   --gradient-brand: #b4532a;
+  /* the wordmark "18" — deep oxblood, rich against the off-white landing */
+  --oxblood: #6b1a1a;
   /* surfaces + borders on light */
   --stroke: rgba(27, 24, 21, 0.12);
   --glass: rgba(255, 255, 255, 0.66);
@@ -373,6 +441,8 @@ body {
   --amber: #d6d3ca;
   --ember: #57544d;
   --gold: #c9c6bc;
+  /* the wordmark "18" — oxblood lifted one notch for the brighter warm-grey night field */
+  --oxblood: #c24a43;
   --gradient-brand: linear-gradient(120deg, #d6d3ca, #b5b2a9);
   --stroke: rgba(232, 230, 225, 0.1);
   --glass: rgba(28, 27, 25, 0.7);
@@ -428,8 +498,9 @@ body {
   color: #1b1815;
 }
 .theme-sand .text-muted {
-  /* darkened sibling of the palette muted (#877F73 → ~4:1) for ~5.9:1 AA on white */
-  color: #6b6357;
+  /* darkened for the greige backdrop (#d3ccbb…#e5dfd1): #514a41 holds ≥5.2:1 on
+     the gradient's darkest corner while staying clearly muted next to the ink */
+  color: #514a41;
 }
 .theme-sand .glass {
   background: rgba(255, 255, 255, 0.66);
@@ -442,7 +513,19 @@ body {
   -webkit-text-stroke: 1.5px rgba(27, 24, 21, 0.62);
 }
 .theme-sand .fill-on-hover {
-  -webkit-text-stroke: 1px rgba(27, 24, 21, 0.22);
+  /* outline-only display link ("GET STARTED") was ghost-faint on the greige */
+  -webkit-text-stroke: 1px rgba(27, 24, 21, 0.34);
+}
+
+/* legal-doc placeholder — every un-filled [BRACKET] token in the Terms/Privacy
+   markdown renders here so nothing ships blank; highlighted, never invisible. */
+.legal-ph {
+  background: rgba(180, 83, 42, 0.13);
+  color: #8a3f1e;
+  border-radius: 4px;
+  padding: 0 5px;
+  font-weight: 600;
+  font-size: 0.92em;
 }
 
 /* ---------- editorial type system (marketing page only) ----------

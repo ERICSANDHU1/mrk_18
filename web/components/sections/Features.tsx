@@ -24,7 +24,7 @@ function FeatureCard({ feat, big }: { feat: Feat; big?: boolean }) {
           {feat.pills.map((p) => (
             <span
               key={p}
-              className="rounded-full border border-[rgba(27,24,21,0.18)] px-4 py-1.5 text-[12.5px] text-muted"
+              className="rounded-full border border-[rgba(27,24,21,0.26)] px-4 py-1.5 text-[12.5px] text-muted"
             >
               {p}
             </span>
