@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Apply · Founding 500 — mrk18</title>
+  <meta name="description" content="Founder pricing locked for life. Once 500 founders are in, the door closes for good — claim your Founding 500 spot." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <!-- OpenGraph for link previews on LinkedIn / WhatsApp -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Founding 500 — mrk18" />
+  <meta property="og:description" content="Founder pricing locked for life. Once 500 are in, the door closes for good. Claim your spot." />
+  <meta property="og:image" content="og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --ink:#f4f1ec; --muted:#9a958c; --ox:#c0473d; --ox2:#8f2420; --rose:#dd9a8f;
+      --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      --serif:"Fraunces",Georgia,"Times New Roman",serif;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0}
+    body{
+      min-height:100dvh; color:var(--ink); font-family:var(--sans);
+      -webkit-font-smoothing:antialiased; line-height:1.5;
+      background:radial-gradient(125% 90% at 50% -12%, #241812 0%, #130f0c 42%, #090807 100%);
+      display:flex; align-items:center; justify-content:center;
+      padding:clamp(20px,5vw,56px);
+    }
+    #bg{position:fixed; inset:0; z-index:-10; opacity:.65; pointer-events:none}
+    .glow{position:fixed; top:-190px; left:50%; transform:translateX(-50%); width:760px; height:560px;
+      max-width:120vw; border-radius:50%; filter:blur(140px); z-index:-5; pointer-events:none;
+      background:radial-gradient(circle, rgba(176,58,58,.42), transparent 70%)}
+    .wrap{position:relative; z-index:10; width:100%; max-width:34rem}
+
+    .lockup{display:flex; align-items:center; gap:10px; margin-bottom:32px}
+    .lockup svg{display:block}
+    .wordmark{font-size:19px; font-weight:800; letter-spacing:-.035em}
+    .wordmark b{color:var(--ox)}
+
+    .head{font-family:var(--serif); font-weight:600; font-size:clamp(2.4rem,7.5vw,3.5rem);
+      line-height:1.0; letter-spacing:-.02em; margin:0; text-wrap:balance}
+    .head .rose{color:var(--rose)}
+    .sub{margin:16px 0 0; max-width:30rem; font-size:15px; line-height:1.6; color:var(--muted)}
+    .fomo{display:inline-flex; align-items:center; gap:8px; margin-top:20px;
+      padding:5px 12px; border-radius:999px; font-size:11.5px; font-weight:700;
+      text-transform:uppercase; letter-spacing:.04em; color:#e6a99f;
+      border:1px solid rgba(192,71,61,.4); background:rgba(192,71,61,.12)}
+    .dot{position:relative; display:inline-flex; width:8px; height:8px}
+    .dot::before{content:""; position:absolute; inset:0; border-radius:50%; background:var(--ox); opacity:.7; animation:ping 1.4s cubic-bezier(0,0,.2,1) infinite}
+    .dot::after{content:""; position:relative; width:8px; height:8px; border-radius:50%; background:var(--ox)}
+    @keyframes ping{75%,100%{transform:scale(2.2); opacity:0}}
+
+    .panel{margin-top:28px; padding:26px; border-radius:16px;
+      border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.05);
+      backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+      box-shadow:0 24px 60px rgba(0,0,0,.5)}
+    .field{width:100%; margin-bottom:12px; padding:12px 16px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.04);
+      color:var(--ink); font-size:15px; font-family:inherit; transition:border-color .15s, background .15s}
+    .field::placeholder{color:rgba(255,255,255,.35)}
+    .field:focus{outline:none; border-color:rgba(192,71,61,.7); background:rgba(255,255,255,.07)}
+    textarea.field{resize:none; min-height:84px}
+    .hp{position:absolute; left:-9999px; width:1px; height:1px; opacity:0}
+    .err{margin:2px 0 0; font-size:13px; color:#f0a59b; min-height:1px}
+    .cta{width:100%; margin-top:14px; padding:14px; border:0; border-radius:12px; cursor:pointer;
+      font-size:15px; font-weight:700; color:#fff; font-family:inherit;
+      background:linear-gradient(135deg,var(--ox),var(--ox2)); box-shadow:0 8px 30px rgba(176,58,58,.35);
+      transition:filter .15s}
+    .cta:hover{filter:brightness(1.1)}
+    .cta:disabled{opacity:.6; cursor:default}
+    .cta:focus-visible{outline:2px solid var(--ox); outline-offset:2px}
+    .fine{margin:12px 0 0; text-align:center; font-size:11px; line-height:1.5; color:rgba(255,255,255,.4)}
+
+    .success{display:none; padding:32px; text-align:center; border-radius:16px;
+      border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.05); backdrop-filter:blur(18px)}
+    .success .check{margin:0 auto 16px; display:grid; place-items:center; width:48px; height:48px;
+      border-radius:14px; color:#fff; background:linear-gradient(135deg,var(--ox),var(--ox2)); box-shadow:0 8px 30px rgba(176,58,58,.4)}
+    .success h2{font-family:var(--serif); font-weight:600; font-size:28px; margin:0}
+    .success p{margin:8px auto 0; max-width:20rem; font-size:14px; line-height:1.6; color:var(--muted)}
+  </style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="glow" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <div class="lockup">
+      <svg width="17" height="26" viewBox="24 10 52 80" fill="none" aria-hidden="true">
+        <polygon points="24,40 76,40 50,10" fill="#a8322f"/>
+        <polygon points="24,40 50,40 50,90" fill="#f4f1ec" fill-opacity="0.5"/>
+        <polygon points="50,40 76,40 50,90" fill="#f4f1ec" fill-opacity="0.82"/>
+        <line x1="50" y1="40" x2="50" y2="90" stroke="#f4f1ec" stroke-width="1.4" stroke-opacity="0.25"/>
+      </svg>
+      <span class="wordmark">mrk<b>18</b></span>
+    </div>
+
+    <div id="headBlock">
+      <h1 class="head">Founder pricing,<br><span class="rose">locked for life.</span></h1>
+      <p class="sub">Once 500 founders are in, this door closes for good. Tell us where to reach you and the marketing headache you keep running into.</p>
+      <span class="fomo"><span class="dot" aria-hidden="true"></span>You're #<span data-pos>247</span> in line · closes at 500</span>
+    </div>
+
+    <form id="applyForm" class="panel" novalidate>
+      <input class="field" name="email" type="email" required placeholder="you@company.com" autocomplete="email" />
+      <input class="field" name="phone" type="tel" placeholder="Phone (optional)" autocomplete="tel" />
+      <input class="field" name="company" type="text" placeholder="Company website or name" />
+      <textarea class="field" name="issue" required placeholder="One marketing issue you keep running into…"></textarea>
+      <input class="hp" name="hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <p class="err" id="err" role="alert"></p>
+      <button class="cta" id="submitBtn" type="submit">Apply for my spot</button>
+      <p class="fine">No account needed. We only use this to reach you about the Founding 500.</p>
+    </form>
+
+    <div class="success" id="success">
+      <div class="check" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h2>You're #<span id="successPos">247</span> of 500.</h2>
+      <p>You're in early — we'll reach out about your Founding 500 spot. Thanks for the headache; your CMO will be ready for it.</p>
+    </div>
+  </main>
+
+  <!-- form logic -->
+  <script>
+    var POST_URL = "https://www.mrk18.com/api/apply";
+    function queuePosition(){
+      var start = Date.UTC(2026,5,20);
+      var days = Math.max(0, Math.floor((Date.now()-start)/86400000));
+      return Math.min(489, 220 + days*2 + (days%3));
+    }
+    var pos = queuePosition();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pos]'), function(el){ el.textContent = pos; });
+
+    var form = document.getElementById('applyForm');
+    var btn = document.getElementById('submitBtn');
+    var errEl = document.getElementById('err');
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var email = form.email.value.trim(), issue = form.issue.value.trim();
+      if(!email || !issue) return;
+      btn.disabled = true; btn.textContent = 'Sending…'; errEl.textContent = '';
+      fetch(POST_URL, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email: email, phone: form.phone.value, company: form.company.value, marketing_issue: issue, hp: form.hp.value })
+      }).then(function(res){
+        if(res.ok){
+          document.getElementById('headBlock').style.display = 'none';
+          form.style.display = 'none';
+          document.getElementById('successPos').textContent = pos;
+          document.getElementById('success').style.display = 'block';
+        } else {
+          return res.json().catch(function(){ return {}; }).then(function(d){
+            errEl.textContent = d.error || 'Something went wrong — try again.';
+            btn.disabled = false; btn.textContent = 'Apply for my spot';
+          });
+        }
+      }).catch(function(){
+        errEl.textContent = "Couldn't reach the server — try again.";
+        btn.disabled = false; btn.textContent = 'Apply for my spot';
+      });
+    });
+  </script>
+
+  <!-- 3D background: the landing's revolving warm shapes + glowing dust, on dark -->
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canvas = document.getElementById('bg');
+    let renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true }); }
+    catch(e){ canvas.style.display='none'; }        // no WebGL → the gradient + glow carry it
+
+    if (renderer) {
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 100);
+      camera.position.set(0,0,9);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+      const d1 = new THREE.DirectionalLight(0xFFF3E4, 2.1); d1.position.set(5,6,4); scene.add(d1);
+      const d2 = new THREE.DirectionalLight(0xFF9E2C, 1.1); d2.position.set(-6,-3,-5); scene.add(d2);
+      const p1 = new THREE.PointLight(0xF2C879, 0.7); p1.position.set(0,2,3); scene.add(p1);
+
+      const SHAPES = [
+        {k:'icosa',  c:0xFF6A00, p:[-4.8, 1.7,-2.2], s:1.05, sp:0.22},
+        {k:'sphere', c:0xF2C879, p:[ 4.9, 2.3,-3.2], s:0.65, sp:0.30},
+        {k:'torus',  c:0xE0490E, p:[ 5.4,-1.9,-1.6], s:0.85, sp:0.18},
+        {k:'icosa',  c:0x8C5A2B, p:[-5.6,-2.3,-2.6], s:0.80, sp:0.26},
+        {k:'capsule',c:0xFF9E2C, p:[-2.7, 3.3,-4.2], s:0.55, sp:0.20},
+        {k:'sphere', c:0xE0490E, p:[ 2.5,-3.2,-2.2], s:0.50, sp:0.34},
+        {k:'torus',  c:0xF2C879, p:[-0.9,-2.8,-5.2], s:0.70, sp:0.16},
+        {k:'icosa',  c:0xFF9E2C, p:[ 1.7, 3.5,-5.6], s:0.90, sp:0.24}
+      ];
+      const geoms = {
+        icosa:  new THREE.IcosahedronGeometry(1,0),
+        sphere: new THREE.SphereGeometry(1,48,48),
+        torus:  new THREE.TorusGeometry(0.8,0.32,24,64),
+        capsule:new THREE.CapsuleGeometry(0.5,1,8,24)
+      };
+      const meshes = SHAPES.map(function(s){
+        const m = new THREE.Mesh(geoms[s.k], new THREE.MeshPhysicalMaterial({
+          color:s.c, metalness:0.55, roughness:0.22, clearcoat:0.65, clearcoatRoughness:0.3,
+          emissive:s.c, emissiveIntensity:0.06
+        }));
+        m.position.set(s.p[0], s.p[1], s.p[2]); m.scale.setScalar(s.s);
+        m.userData = { sp:s.sp, baseY:s.p[1], phase:Math.random()*Math.PI*2 };
+        scene.add(m); return m;
+      });
+
+      const N = 260, arr = new Float32Array(N*3);
+      for (let i=0;i<N;i++){ arr[i*3]=(Math.random()-0.5)*18; arr[i*3+1]=(Math.random()-0.5)*12; arr[i*3+2]=(Math.random()-0.5)*8-2; }
+      const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(arr,3));
+      const dust = new THREE.Points(dg, new THREE.PointsMaterial({
+        color:0xFFB36B, size:0.04, sizeAttenuation:true, transparent:true, opacity:0.5,
+        depthWrite:false, blending:THREE.AdditiveBlending
+      }));
+      scene.add(dust);
+
+      let px=0, py=0;
+      addEventListener('pointermove', function(e){ px=(e.clientX/innerWidth-0.5)*2; py=(e.clientY/innerHeight-0.5)*2; });
+      function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
+      addEventListener('resize', resize); resize();
+
+      const clock = new THREE.Clock();
+      (function tick(){
+        const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+        if (!reduced){
+          meshes.forEach(function(m){
+            m.rotation.x += dt*m.userData.sp; m.rotation.y += dt*m.userData.sp*0.7;
+            m.position.y = m.userData.baseY + Math.sin(t*1.1 + m.userData.phase)*0.35;
+          });
+          dust.rotation.y += dt*0.012;
+          const k = Math.min(1, dt*2.4);
+          camera.position.x += (px*0.85 - camera.position.x)*k;
+          camera.position.y += (-py*0.55 - camera.position.y)*k;
+          camera.lookAt(0,0,0);
+        }
+        renderer.render(scene,camera);
+        requestAnimationFrame(tick);
+      })();
+    }
+  </script>
+</body>
+</html>

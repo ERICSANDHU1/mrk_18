@@ -13,8 +13,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/terms",
   "/privacy",
-  "/form(.*)", // standalone shareable waitlist page — no account needed
-  "/api/apply", // the public Founding-500 application POST (honeypot + rate-limited server-side)
+  "/api/apply", // public Founding-500 POST (honeypot + rate-limited); also serves the standalone /form site via CORS
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
