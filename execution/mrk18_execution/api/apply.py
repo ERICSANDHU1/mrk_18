@@ -15,17 +15,19 @@ from .deps import get_session
 
 router = APIRouter(tags=["apply"])
 
-# Marketing head-start for the public queue counter — REAL applications grow the
-# displayed position up from here. Server-side so every surface shows one number.
-WAITLIST_SEED = 78
+# The public counter reads WAITLIST_START "now" and ticks up by one for every NEW
+# application from here. WAITLIST_BASELINE = the rows already in the table when the
+# counter went live, so pre-existing rows don't inflate the displayed number.
+WAITLIST_START = 78
+WAITLIST_BASELINE = 7  # application rows present on 2026-07-05
 
 
 @router.get("/apply/count", response_model=dict)
 async def apply_count(session: AsyncSession = Depends(get_session)) -> dict:
-    """Public live queue size = real application rows + the seed. The landing modal,
-    the /mrk bar and the standalone /form site all read this, so it's real-time."""
+    """Public live queue size — WAITLIST_START + new applications since baseline.
+    The landing modal, the /mrk bar and the standalone /form all read this, live."""
     n = int(await session.scalar(select(func.count()).select_from(ApplicationRow)) or 0)
-    return {"count": n, "in_line": WAITLIST_SEED + n}
+    return {"count": n, "in_line": WAITLIST_START + max(0, n - WAITLIST_BASELINE)}
 
 
 class ApplyBody(BaseModel):
