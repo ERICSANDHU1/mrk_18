@@ -164,7 +164,7 @@ export default function Waitlist() {
                 type="text"
                 value={f.company}
                 onChange={(e) => setF({ ...f, company: e.target.value })}
-                placeholder="Company website or name"
+                placeholder="Company website or name (optional)"
                 className={FIELD}
               />
               <textarea
