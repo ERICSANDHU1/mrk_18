@@ -11,6 +11,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.coverage
+htmlcov/
 
 # os junk
 .DS_Store

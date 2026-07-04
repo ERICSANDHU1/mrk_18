@@ -144,6 +144,51 @@ def cmo_system_prompt(profile: dict, mode: str = "voice") -> str:
     )
 
 
+# ── per-slide follow-up chat on a finished run ──────────────────────────────
+# Each output slide routes its follow-up to that slide's ADAPTER: the verdict is
+# the orchestrator (it already synthesises the whole run), the sections go to
+# their analysis seat, posts to the ad-copy seat. The socket maps AgentRole ->
+# the served adapter (Brain) or the pilot Groq seat, so this works today and
+# auto-upgrades when the trained Brain is wired.
+_SLIDE_ROLE: dict[str, AgentRole] = {
+    "verdict": AgentRole.SYNTHESIS,
+    "market_intel": AgentRole.MARKET_INTEL,
+    "audience": AgentRole.AUDIENCE,
+    "usp": AgentRole.USP,
+    "strategy": AgentRole.STRATEGY,
+    "content": AgentRole.CONTENT,
+}
+_SLIDE_PERSONA: dict[str, str] = {
+    "verdict": "the founder's AI CMO, giving the bottom-line read across their whole run",
+    "market_intel": "MRK18's market-intelligence analyst",
+    "audience": "MRK18's audience and positioning strategist",
+    "usp": "MRK18's differentiation (USP) strategist",
+    "strategy": "MRK18's content and funnel strategist",
+    "content": "MRK18's ad copywriter",
+}
+
+
+async def ask_about_run(
+    socket: LLMSocket, *, adapter: str, profile: dict, context: str, messages: list[dict]
+) -> tuple[str, Usage]:
+    """A follow-up chat scoped to ONE piece of a finished run, routed to that
+    piece's adapter. `context` is the slide's content; `messages` is the running
+    per-slide history. Returns the reply + usage."""
+    role = _SLIDE_ROLE.get(adapter, AgentRole.SYNTHESIS)
+    persona = _SLIDE_PERSONA.get(adapter, _SLIDE_PERSONA["verdict"])
+    system = (
+        f"You are {persona}, in a follow-up chat with the founder about a specific part of "
+        "their just-completed CMO run. Answer ONLY what they ask, grounded in the CONTEXT "
+        "below and their company. Bitter-truth CMO voice: sharp, concrete, plain language. "
+        "NEVER invent numbers, prices or results you don't have — reason from judgement and "
+        "say plainly when you'd need real data. A few short paragraphs at most; plain text, "
+        "no markdown headings, bold or tables.\n\n"
+        f"THE PART THEY'RE ASKING ABOUT:\n{context}\n\n"
+        f"THEIR COMPANY MEMORY:\n{_company_brief(profile)}"
+    )
+    return await socket.chat(role, system, messages, max_tokens=700, temperature=0.5)
+
+
 async def cmo_reply(
     socket: LLMSocket, *, profile: dict, messages: list[dict], mode: str = "voice"
 ) -> tuple[str, Usage]:

@@ -86,6 +86,50 @@ async def cmo_voice_turn(
     return {"reply": reply}
 
 
+class AskRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # which slide's adapter to route to (see agents.cmo._SLIDE_ROLE)
+    adapter: str = Field(pattern="^(verdict|market_intel|audience|usp|strategy|content)$")
+    context: str = Field(min_length=1, max_length=8000)  # the slide's content, grounding
+    messages: list[VoiceTurn] = Field(min_length=1, max_length=30)  # per-slide history
+
+
+@router.post("/founders/{founder_id}/runs/{run_id}/ask", response_model=dict)
+async def run_slide_ask(
+    founder_id: UUID,
+    run_id: UUID,
+    body: AskRequest,
+    request: Request,
+    founder=Depends(require_founder),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Per-slide follow-up on a finished run, routed to that slide's adapter. Uses
+    the MAIN socket (per-role registry -> the Brain's adapter, or the pilot Groq
+    seat), falling back to the fast voice socket. `context` is client-provided (the
+    founder's own slide), so no run data is loaded server-side."""
+    socket = getattr(request.app.state, "llm_socket", None) or getattr(
+        request.app.state, "voice_socket", None
+    )
+    if socket is None:
+        raise HTTPException(
+            status_code=503, detail="the CMO is unavailable — no model is configured (set GROQ_API_KEY)."
+        )
+    from ..agents.cmo import ask_about_run
+
+    profile = await _profile(session, founder.id)
+    messages = [{"role": t.role, "content": t.content} for t in body.messages]
+    try:
+        reply, _usage = await ask_about_run(
+            socket, adapter=body.adapter, profile=profile, context=body.context, messages=messages
+        )
+    except Exception as exc:  # noqa: BLE001 — fail soft with a clear reason
+        raise HTTPException(
+            status_code=502, detail=f"the CMO couldn't respond right now: {exc}"
+        ) from exc
+    return {"reply": reply}
+
+
 async def _whisper_transcribe(request: Request) -> dict:
     """Shared STT: raw audio body (webm/mp4/wav) → Groq Whisper large-v3-turbo
     → {text}. Free tier: 2k requests/day."""
