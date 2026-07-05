@@ -33,8 +33,8 @@ export default function Home() {
       <div className="theme-sand">
         <main className="overflow-x-clip">
           <Hero />
-          <ProductReel />
           <Marquee items={["ADVISE", "EXAMINE", "EXECUTE", "MRK18"]} variant="gradient" />
+          <ProductReel />
           <DeviceShowcase />
           <HowItWorks />
           <Features />

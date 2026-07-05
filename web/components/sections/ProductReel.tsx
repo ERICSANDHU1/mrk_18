@@ -3,7 +3,7 @@
  *  Muted + playsInline so mobile browsers allow the autoplay. */
 export default function ProductReel() {
   return (
-    <section aria-label="mrk18 — the product in 20 seconds" className="relative px-6 pb-16 pt-4">
+    <section aria-label="mrk18 — the product in 20 seconds" className="relative px-6 pb-16 pt-10">
       <div className="mx-auto max-w-6xl">
         <div className="overflow-hidden rounded-2xl border border-stroke bg-surface shadow-[0_28px_80px_rgba(27,24,21,0.2)]">
           <video
