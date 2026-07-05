@@ -67,7 +67,7 @@ type LayerDef = { src: string; label: string; scale: number };
 // closed — only the dark shell rim + glass rim show around the smile screen.
 const LAYERS: LayerDef[] = [
   { src: "/device/device-1-glass.png?v=3", label: "Front Glass Cover", scale: 1.0 },
-  { src: "/device/device-2-display.png?v=10", label: "Dot-Matrix Display", scale: 0.94 },
+  { src: "/device/device-2-display.png?v=11", label: "Dot-Matrix Display", scale: 0.94 },
   { src: "/device/device-3-sensor.png", label: "Sensor Array Puck", scale: 0.86 },
   { src: "/device/device-4-pcb.png", label: "Main Logic Board", scale: 0.92 },
   { src: "/device/device-5-haptic.png", label: "Haptic Motor", scale: 0.8 },
