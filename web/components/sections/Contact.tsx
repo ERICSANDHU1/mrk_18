@@ -1,10 +1,5 @@
 import Reveal from "../ui/Reveal";
 
-const CARDS = [
-  { label: "Email", value: "mrk18ai@gmail.com", href: "mailto:mrk18ai@gmail.com" },
-  { label: "LinkedIn", value: "mrk ai", href: "https://www.linkedin.com/in/mrk-ai-4a78a9409" },
-];
-
 export default function Contact() {
   return (
     <section id="waitlist" className="relative px-6 py-24">
@@ -26,25 +21,6 @@ export default function Contact() {
           </a>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-1 gap-6 md:grid-cols-2">
-          {CARDS.map((card, i) => (
-            <Reveal key={card.label} delay={0.15 + i * 0.08}>
-              <a
-                href={card.href}
-                target={card.href.startsWith("http") ? "_blank" : undefined}
-                rel={card.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                className="glass group block rounded-2xl p-7 transition-colors duration-300 hover:border-amber/40"
-              >
-                <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted">
-                  {card.label}
-                </span>
-                <span className="mt-3 block text-lg font-semibold text-ink transition-colors duration-300 group-hover:text-amber">
-                  {card.value}
-                </span>
-              </a>
-            </Reveal>
-          ))}
-        </div>
       </div>
     </section>
   );

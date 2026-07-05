@@ -125,11 +125,20 @@ body {
   color: transparent;
 }
 
+/* Glassmorphism 2.0 — four interacting layers, never a flat frost:
+   1. surface fill: a 135deg gradient (light catches the top-left of the pane)
+   2. background blur: 20px + saturation lift
+   3. inner border: 1px light-catching edge — this is what gives the pane
+      "thickness"; without it the element melts into the background
+   4. soft glow: a wide, low-alpha shadow lifting the pane off the page */
 .glass {
-  background: var(--glass);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--stroke);
+  background: linear-gradient(135deg, rgba(34, 34, 38, 0.62), rgba(16, 16, 18, 0.42));
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 .gradient-border-l {
@@ -502,9 +511,20 @@ body {
      the gradient's darkest corner while staying clearly muted next to the ink */
   color: #514a41;
 }
+/* Glassmorphism 2.0, light adaptation: same four layers on the cream page —
+   the gradient fill brightens toward the top-left, the 1px WHITE border is the
+   light catching the pane's edge (a dark border here is the "frosted plastic"
+   mistake), the inset highlight gives thickness, the warm shadow is the glow. */
 .theme-sand .glass {
-  background: rgba(255, 255, 255, 0.66);
-  border-color: rgba(27, 24, 21, 0.12);
+  /* transparent enough that the 3D objects visibly frost THROUGH the pane —
+     an opaque fill is why glass reads as a flat white sticker on light pages */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.2));
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(27, 24, 21, 0.05),
+    0 12px 40px rgba(27, 24, 21, 0.16);
 }
 .theme-sand .border-stroke {
   border-color: rgba(27, 24, 21, 0.12);
@@ -602,20 +622,23 @@ body {
   }
 }
 
-/* ---------- features cards — same cream liquid glass as "How it works" ---------- */
+/* ---------- features cards — Glassmorphism 2.0, same recipe as .glass ----------
+   The old 3px blur left the 3D shapes nearly sharp behind the titles; 20px turns
+   them into soft frosted color. Fill is translucent (not opaque) so the pane still
+   reads as glass, and the bright edge + hairline dark rim give it thickness. */
 .feature-glass {
   position: relative;
   overflow: hidden;
   border-radius: 1.5rem;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
-  -webkit-backdrop-filter: blur(3px) saturate(150%) brightness(1.05);
-  backdrop-filter: blur(3px) saturate(150%) brightness(1.05);
-  border: 1px solid rgba(255, 255, 255, 0.58);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.2));
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow:
-    0 22px 55px rgba(27, 24, 21, 0.1),
-    inset 0 1px 1px rgba(255, 255, 255, 0.92),
-    inset 0 -1px 3px rgba(255, 255, 255, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3),
+    0 0 0 1px rgba(27, 24, 21, 0.05),
+    0 12px 40px rgba(27, 24, 21, 0.16);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .feature-glass {

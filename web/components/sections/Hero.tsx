@@ -90,7 +90,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.75, duration: 0.7 }}
-          className="mt-8 max-w-xl text-lg leading-relaxed text-ink"
+          className="glass mt-8 max-w-xl rounded-2xl px-6 py-5 text-lg leading-relaxed text-ink"
         >
           The marketing brain founders can&apos;t afford to hire — yet. mrk18 reads your real
           numbers, flags what&apos;s leaking money, and hands you the next move in plain language.

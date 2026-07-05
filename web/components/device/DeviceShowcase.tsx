@@ -3,6 +3,56 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useSpring, useTransform, type MotionValue } from "framer-motion";
+import { ArrowRight, Brain, Camera, Mic } from "lucide-react";
+import Logo from "@/components/app/Logo";
+
+// the device's three organs — spec chips inside the copy pane
+const ORGANS = [
+  { icon: Mic, label: "Mic — hears the room" },
+  { icon: Camera, label: "Camera — sees it", tag: "V2" },
+  { icon: Brain, label: "Agent — your CMO inside" },
+] as const;
+
+// opens the Founding-500 modal (mounted by the Pricing section on this page)
+const openWaitlist = () => window.dispatchEvent(new Event("mrk18:open-waitlist"));
+
+/** The copy pane's lower half: divider, organ chips, CTA row. Shared by the
+ *  desktop sticky pane and the narrow static pane so both stay identical. */
+function PaneExtras({ centered = false }: { centered?: boolean }) {
+  return (
+    <>
+      <div
+        className={`mt-6 flex flex-wrap gap-2 border-t border-[rgba(27,24,21,0.12)] pt-6 ${
+          centered ? "justify-center" : ""
+        }`}
+      >
+        {ORGANS.map(({ icon: Icon, label, ...o }) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(27,24,21,0.2)] bg-white/40 px-3 py-1.5 text-[12px] font-semibold text-ink"
+          >
+            <Icon size={13} className="shrink-0 text-molten" aria-hidden />
+            {label}
+            {"tag" in o && (
+              <span className="text-[10px] font-bold uppercase text-mute-2">{o.tag}</span>
+            )}
+          </span>
+        ))}
+      </div>
+      <div className={`mt-7 flex flex-wrap items-center gap-3 ${centered ? "justify-center" : ""}`}>
+        <button
+          onClick={openWaitlist}
+          className="inline-flex items-center gap-1.5 rounded-full bg-molten px-4 py-2.5 text-[13px] font-bold text-white transition hover:opacity-90"
+        >
+          Reserve a Founding 500 seat <ArrowRight size={14} aria-hidden />
+        </button>
+        <span className="rounded-full border border-[rgba(27,24,21,0.2)] px-3 py-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted">
+          Launching soon
+        </span>
+      </div>
+    </>
+  );
+}
 
 /* ---------------------------------------------------------------------------
    "CMO in your pocket" — 2.5D exploded device on the cream page.
@@ -17,7 +67,7 @@ type LayerDef = { src: string; label: string; scale: number };
 // closed — only the dark shell rim + glass rim show around the smile screen.
 const LAYERS: LayerDef[] = [
   { src: "/device/device-1-glass.png?v=3", label: "Front Glass Cover", scale: 1.0 },
-  { src: "/device/device-2-display.png?v=2", label: "Dot-Matrix Display", scale: 0.94 },
+  { src: "/device/device-2-display.png?v=10", label: "Dot-Matrix Display", scale: 0.94 },
   { src: "/device/device-3-sensor.png", label: "Sensor Array Puck", scale: 0.86 },
   { src: "/device/device-4-pcb.png", label: "Main Logic Board", scale: 0.92 },
   { src: "/device/device-5-haptic.png", label: "Haptic Motor", scale: 0.8 },
@@ -113,7 +163,7 @@ export default function DeviceShowcase() {
   // spring-smoothed scrub → buttery, premium motion with a touch of momentum
   const progress = useSpring(scrollYProgress, { stiffness: 70, damping: 18, mass: 0.4 });
   const stageScale = useTransform(progress, [0, 1], [0.95, 1.0]);
-  // the assembled device photo sits on top when closed, then dissolves into the explode
+  // the assembled device photo opens the section, then dissolves into the explode
   const heroOpacity = useTransform(progress, [0, 0.1], [1, 0]);
 
   const [narrow, setNarrow] = useState(false);
@@ -132,17 +182,23 @@ export default function DeviceShowcase() {
     return (
       <section id="device" aria-label="CMO in your pocket" className="relative overflow-hidden px-6 py-20">
         <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-ink">
-            01 — CMO in your pocket
-          </span>
-          <h2 className="mt-5 text-[clamp(1.9rem,7vw,2.6rem)] font-semibold leading-[1.14] text-ink">
-            <span className="block">Your marketing brain —</span>
-            <span className="block text-gradient">now a device you carry.</span>
-          </h2>
-          <p className="mt-5 max-w-md text-[1rem] leading-relaxed text-ink">
-            Nine layers of hardware, one glanceable companion — your CMO, distilled into
-            something small enough to live in your pocket.
-          </p>
+          {/* same glass pane as the desktop copy block */}
+          <div className="glass flex flex-col items-center rounded-2xl p-6 sm:p-7">
+            <span className="flex items-center gap-2.5 text-[12px] font-semibold uppercase tracking-[0.3em] text-ink">
+              <Logo size={15} className="shrink-0" />
+              01 — CMO in your pocket
+            </span>
+            <h2 className="mt-5 text-[clamp(1.9rem,7vw,2.6rem)] font-semibold leading-[1.14] text-ink">
+              <span className="block">Your marketing brain —</span>
+              <span className="block text-gradient">now a device you carry.</span>
+            </h2>
+            <p className="mt-5 max-w-md text-[1rem] leading-relaxed text-ink">
+              Nine layers of hardware, one glanceable companion — your CMO, distilled into
+              something small enough to live in your pocket.
+            </p>
+            <PaneExtras centered />
+          </div>
+          {/* the assembled device — same opening shot as the desktop sequence */}
           <div className="relative mt-12 aspect-square w-[min(72vw,300px)]">
             <img
               src="/device/new-smile.png"
@@ -165,22 +221,27 @@ export default function DeviceShowcase() {
             className={`pointer-events-none absolute inset-x-0 top-0 z-10 flex h-full flex-col ${
               // justify-start: a centered copy block leaves the sticky screen's whole
               // top half empty while the section scrolls in — the ugly gap after the marquee
-              narrow ? "items-center pt-24 text-center" : "justify-start pt-[16vh]"
+              narrow ? "items-center pt-24 text-center" : "justify-start pt-[12vh]"
             }`}
           >
             <div className="mx-auto w-full max-w-6xl px-6">
-              <div className={narrow ? "mx-auto max-w-xl" : "max-w-[clamp(20rem,30vw,24rem)]"}>
-                <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-ink">
+              {/* one glass pane for the whole copy block — the drifting 3D shapes
+                  frost through it instead of colliding with the text. Fuller card:
+                  brand mark, organ chips + a real CTA so the column earns its space. */}
+              <div className={narrow ? "mx-auto max-w-xl" : "glass pointer-events-auto max-w-[clamp(22rem,34vw,28rem)] rounded-2xl p-7 md:p-8"}>
+                <span className="flex items-center gap-2.5 text-[12px] font-semibold uppercase tracking-[0.3em] text-ink">
+                  <Logo size={15} className="shrink-0" />
                   01 — CMO in your pocket
                 </span>
                 <h2 className="mt-5 text-[clamp(1.7rem,3.1vw,2.35rem)] font-semibold leading-[1.12] text-ink">
                   <span className="block">Your marketing brain —</span>
                   <span className="block text-gradient">now a device you carry.</span>
                 </h2>
-                <p className="mt-6 max-w-md text-[1.05rem] leading-relaxed text-ink">
+                <p className="mt-5 text-[1.02rem] leading-relaxed text-ink">
                   Nine layers of hardware, one glanceable companion — your CMO, distilled
                   into something small enough to live in your pocket.
                 </p>
+                <PaneExtras />
               </div>
             </div>
           </div>
@@ -191,7 +252,7 @@ export default function DeviceShowcase() {
               {LAYERS.map((_, i) => (
                 <Layer key={i} progress={progress} i={i} narrow={narrow} />
               ))}
-              {/* the real device, assembled — the closed hero; dissolves as the explode begins */}
+              {/* the assembled device — the opening shot; fades as scrolling begins */}
               <motion.img
                 src="/device/new-smile.png"
                 alt="the mrk device"
