@@ -141,7 +141,7 @@ export default function MrkPage() {
                 className="pointer-events-none absolute inset-[10%] rounded-full bg-white/[0.06] blur-2xl"
               />
               <Image
-                src="/device/new-smile1.png"
+                src="/device/new-smile.png"
                 alt="the mrk device"
                 fill
                 sizes="(max-width: 1024px) 70vw, 320px"
