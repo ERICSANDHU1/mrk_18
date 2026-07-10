@@ -11,7 +11,14 @@
 ## 0. Verify the adapters FIRST (30 min, do not skip)
 
 The 4 adapters are **not in this repo** — they live in your training environment.
-Before anything else, check each adapter folder:
+Once they're saved locally, one command runs this whole section's checklist and
+prints the RunPod env values:
+
+```
+python scripts/verify_taster_adapters.py C:\path\to\adapters
+```
+
+What it checks (the manual version):
 
 1. **Format.** Each adapter needs `adapter_config.json` + `adapter_model.safetensors`
    (PEFT format). If you only have **GGUF** files, they will NOT work with vLLM —
