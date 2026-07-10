@@ -6,7 +6,7 @@ import CustomCursor from "../components/CustomCursor";
 import ScrollProgress from "../components/ScrollProgress";
 import Navbar from "../components/Navbar";
 import Marquee from "../components/Marquee";
-import Hero from "../components/sections/Hero";
+import TasterHero from "../components/sections/TasterHero";
 import ProductReel from "../components/sections/ProductReel";
 import DeviceShowcase from "../components/device/DeviceShowcase";
 import HowItWorks from "../components/sections/HowItWorks";
@@ -32,7 +32,7 @@ export default function Home() {
       <Navbar />
       <div className="theme-sand">
         <main className="overflow-x-clip">
-          <Hero />
+          <TasterHero />
           <Marquee items={["ADVISE", "EXAMINE", "EXECUTE", "MRK18"]} variant="gradient" />
           <ProductReel />
           <DeviceShowcase />

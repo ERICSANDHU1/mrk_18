@@ -25,6 +25,8 @@ _CLASSES: list[tuple[re.Pattern, frozenset, str, int]] = [
     (re.compile(r"^/runs/[^/]+/publish$"), frozenset({"POST"}), "publish", 20),
     (re.compile(r"^/runs/[^/]+/review-link$"), frozenset({"GET"}), "review_link", 30),
     (re.compile(r"^/founders$"), frozenset({"POST"}), "signup", 20),
+    # the free taster burns Tavily credits + GPU seconds per call — strictest class
+    (re.compile(r"^/taster$"), frozenset({"POST"}), "taster", 5),
 ]
 DEFAULT_PER_MIN = 240
 ALERT_COOLDOWN_S = 300.0  # one alarm per key+class per 5 min, not one per request

@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     # before the analysis agents run. Unset → runs proceed with no web context.
     tavily_api_key: str = ""
 
+    # Free taster (public POST /taster) — the no-signup URL analysis in the
+    # landing hero. Served by a DEDICATED RunPod Serverless vLLM endpoint
+    # (Mistral-7B base + 4 LoRA adapters: usp, differentiation, brand_analysis,
+    # personality), separate from the main Brain so free traffic can never
+    # starve paying founders. Unset → /taster answers 503 in prod and a clearly
+    # labeled sample in dev, so the feature ships dormant. See TASTER_SETUP.md.
+    taster_base_url: str = ""  # e.g. https://api.runpod.ai/v2/<endpoint-id>/openai/v1
+    taster_api_key: str = ""  # RunPod API key (server-side only, never the browser)
+    taster_daily_per_ip: int = 3  # free analyses per IP per UTC day (0 disables the cap)
+    taster_cache_ttl_hours: int = 24  # per-domain result reuse window
+    taster_max_tokens: int = 380  # per-adapter output cap — the GPU-cost guard
+
     # Images (Slice 1.4) — engine picked by available credentials:
     # Cloudflare (free tier) > fal.ai (paid, production) > none (posts ship text-only)
     cf_account_id: str = ""

@@ -24,6 +24,7 @@ from .intake import router as intake_router
 from .privacy import router as privacy_router
 from .review import router as review_router
 from .runs import router as runs_router
+from .taster import router as taster_router
 from .webhooks import router as webhooks_router
 
 if sys.platform == "win32":
@@ -190,6 +191,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         settings.clerk_webhook_secret,
         settings.brain_api_key,
         settings.tavily_api_key,
+        settings.taster_api_key,
         settings.meta_app_secret,
     ]
     install_secret_scrubbing(exact_secrets=app.state.secret_values)
@@ -349,6 +351,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     from .signals import router as signals_router
 
     app.include_router(apply_router)
+    app.include_router(taster_router)
     app.include_router(intake_router)
     app.include_router(runs_router)
     app.include_router(meta_router)
