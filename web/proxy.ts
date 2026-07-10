@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/terms",
   "/privacy",
+  "/taster(.*)", // free no-signup analysis pages — the whole point is no auth
   "/api/apply", // public Founding-500 POST (honeypot + rate-limited); also serves the standalone /form site via CORS
 ]);
 

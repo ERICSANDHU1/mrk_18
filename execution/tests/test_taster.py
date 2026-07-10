@@ -43,12 +43,12 @@ def _fake_site(monkeypatch, text="We sell handmade oak desks to remote workers."
     )
 
 
-def _fake_research(monkeypatch, blocks=None, competitors=None):
+def _fake_research(monkeypatch, blocks=None, competitors=None, company="Acme", offer="desks"):
     calls: list[dict] = []
 
     async def gather(researcher, client, mini, site_text, url, domain, max_competitors):
         calls.append({"mini": mini, "domain": domain})
-        return dict(blocks or {}), list(competitors or [])
+        return dict(blocks or {}), list(competitors or []), company, offer
 
     monkeypatch.setattr(taster_mod, "_gather_context", gather)
     return calls
@@ -61,7 +61,8 @@ def _fake_verdicts(monkeypatch):
 
     async def combined(client, model, user_content, max_tokens):
         calls.append((model, "combined", user_content))
-        return {c: f"{c} verdict" for c in taster_mod.TASTER_ADAPTERS}
+        results = {c: f"{c} verdict" for c in taster_mod.TASTER_ADAPTERS}
+        return results, ["Insight one.", "Insight two.", "Insight three."]
 
     async def verdict(client, model, card, user_content, max_tokens):
         calls.append((model, card, user_content))
@@ -109,6 +110,9 @@ async def test_taster_analyzes_with_competitors_then_serves_cache(client, monkey
     assert body["domain"] == "acme.com"  # www stripped, path ignored
     assert body["cached"] is False
     assert body["competitors"] == ["Zed Desks"]
+    assert body["company"] == "Acme"
+    assert body["offer"] == "desks"
+    assert body["key_insights"] == ["Insight one.", "Insight two.", "Insight three."]
     assert body["results"]["usp"] == "usp verdict"
 
     # research ran once, on the fast mini model (Groq mode)
@@ -195,3 +199,16 @@ async def test_taster_engine_failure_is_503_and_spares_the_quota(client, monkeyp
     _fake_verdicts(monkeypatch)
     resp2 = await client.post("/taster", json={"url": "coldstart.com"})
     assert resp2.status_code == 200, resp2.text
+
+
+async def test_taster_recent_lists_latest_analyses(client, monkeypatch):
+    _configure(monkeypatch)
+    _fake_site(monkeypatch)
+    _fake_research(monkeypatch, company="Acme")
+    _fake_verdicts(monkeypatch)
+
+    assert (await client.post("/taster", json={"url": "acme.com"})).status_code == 200
+    resp = await client.get("/taster/recent")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert {"domain": "acme.com", "company": "Acme"} in items

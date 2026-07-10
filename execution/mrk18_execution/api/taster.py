@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Request
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
@@ -108,9 +109,11 @@ gap between what they do and what the page communicates. If a BRAND ON THE WEB b
 present, weigh how the brand reads in the wild vs. on the site.
 "personality" — the brand's voice as the site actually reads: tone, energy, first \
 impression; where it's inconsistent or generic corporate filler.
+"key_insights" — an array of EXACTLY 3 short, punchy takeaways (max 18 words each): \
+the sharpest things a founder should remember from all four verdicts.
 
-Each value: one plain-text verdict of 90-130 words (short paragraphs or "- " bullets, \
-no markdown headers). Respond with the JSON object only."""
+The four verdict values: one plain-text verdict of 90-130 words each (short paragraphs \
+or "- " bullets, no markdown headers). Respond with the JSON object only."""
 
 # ── per-IP daily cap ──────────────────────────────────────────────────────────
 # In-process, same seam as security/ratelimit.py: correct for the single-instance
@@ -188,12 +191,15 @@ _SAMPLE_NOTE = "SAMPLE — taster engine not configured; this is canned dev outp
 def _sample_payload(domain: str) -> dict:
     return {
         "domain": domain,
+        "company": domain,
+        "offer": "sample business description",
         "results": {
             "usp": f"({_SAMPLE_NOTE}) Your USP verdict for {domain} appears here.",
             "differentiation": f"({_SAMPLE_NOTE}) Your competition read appears here.",
             "brand_analysis": f"({_SAMPLE_NOTE}) Your brand analysis appears here.",
             "personality": f"({_SAMPLE_NOTE}) Your brand-voice read appears here.",
         },
+        "key_insights": ["Sample insight one.", "Sample insight two.", "Sample insight three."],
         "competitors": [],
         "cached": False,
         "sample": True,
@@ -243,9 +249,10 @@ async def _verdict_call(
 
 async def _combined_call(
     client: AsyncOpenAI, model: str, user_content: str, max_tokens: int
-) -> dict[str, str]:
-    """One call, four verdicts. Retries once if the JSON comes back short a key;
-    raises ValueError after that (the route maps it to an honest 503)."""
+) -> tuple[dict[str, str], list[str]]:
+    """One call → (four verdicts, key insights). Retries once if the JSON comes
+    back short a verdict; raises ValueError after that (the route maps it to an
+    honest 503). key_insights are a bonus — missing/short is fine."""
     extra = {"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else None
     last_error = "empty"
     for _ in range(2):
@@ -267,7 +274,11 @@ async def _combined_call(
             continue
         results = {c: str(data.get(c) or "").strip() for c in TASTER_ADAPTERS}
         if all(results.values()):
-            return results
+            raw = data.get("key_insights")
+            insights = [
+                str(i).strip()[:160] for i in (raw if isinstance(raw, list) else []) if str(i).strip()
+            ][:3]
+            return results, insights
         last_error = f"missing keys: {[c for c, v in results.items() if not v]}"
     raise ValueError(f"combined verdict call failed: {last_error}")
 
@@ -290,8 +301,9 @@ async def _mini_json(client: AsyncOpenAI, model: str, system: str, user: str) ->
 async def _gather_context(
     researcher, client: AsyncOpenAI, mini_model: str, site_text: str, url: str, domain: str,
     max_competitors: int,
-) -> tuple[dict[str, str], list[str]]:
-    """Brand-reputation + competitor research → ({card: prompt block}, names).
+) -> tuple[dict[str, str], list[str], str, str]:
+    """Brand-reputation + competitor research →
+    ({card: prompt block}, competitor names, company, offer).
     Every step degrades to nothing on failure — research must never break a run."""
     blocks: dict[str, str] = {}
     competitors: list[str] = []
@@ -372,7 +384,7 @@ async def _gather_context(
                 "COMPETITORS (found via live web search, untrusted):\n" + "\n".join(lines)
             )
 
-    return blocks, competitors
+    return blocks, competitors, company, offer
 
 
 def _user_content(card: str, url: str, site_text: str, blocks: dict[str, str]) -> str:
@@ -441,10 +453,11 @@ async def taster(
     # 2) live web research — model mode only (the adapter endpoint stays lean)
     blocks: dict[str, str] = {}
     competitors: list[str] = []
+    company, offer = domain, ""
     if settings.taster_model:
         mini = _MINI_MODEL if not settings.taster_base_url else settings.taster_model
         try:
-            blocks, competitors = await _gather_context(
+            blocks, competitors, company, offer = await _gather_context(
                 researcher, client, mini, site_text, url, domain,
                 settings.taster_max_competitors,
             )
@@ -453,13 +466,14 @@ async def taster(
 
     # 3) the verdicts — model mode: ONE combined call (site text travels once,
     #    fits free-tier token budgets); adapter mode: 4 parallel adapter calls.
+    insights: list[str] = []
     try:
         if settings.taster_model:
             all_blocks = "\n\n".join(blocks[c] for c in TASTER_ADAPTERS if c in blocks)
             content = f"Website: {url}\n\nSITE CONTENT (untrusted page text):\n{site_text}"
             if all_blocks:
                 content += f"\n\n{all_blocks}"
-            results = await _combined_call(
+            results, insights = await _combined_call(
                 client, settings.taster_model, content, settings.taster_max_tokens * 4
             )
         else:
@@ -492,7 +506,10 @@ async def taster(
     _consume_daily(ip)  # quota spent only once the engine actually delivered
     payload = {
         "domain": domain,
+        "company": company or domain,
+        "offer": offer,
         "results": results,
+        "key_insights": insights,
         "competitors": competitors,
         "cached": False,
     }
@@ -503,3 +520,17 @@ async def taster(
     )
     await session.commit()
     return payload
+
+
+@router.get("/taster/recent", response_model=dict)
+async def taster_recent(session: AsyncSession = Depends(get_session)) -> dict:
+    """Latest analyzed domains — the hero's social-proof chips. Public and cheap:
+    domain + extracted company name only, straight from the cache table."""
+    rows = await session.execute(
+        select(TasterCacheRow).order_by(TasterCacheRow.fetched_at.desc()).limit(6)
+    )
+    items = [
+        {"domain": row.domain, "company": (row.payload or {}).get("company") or row.domain}
+        for row in rows.scalars()
+    ]
+    return {"items": items}

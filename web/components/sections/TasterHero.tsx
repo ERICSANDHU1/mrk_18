@@ -1,136 +1,73 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
-/** The free taster hero — paste a URL, the CMO reads the site and hands back
- *  four verdicts (USP · Differentiation · Brand analysis · Personality), served
- *  by 4 LoRA adapters on the dedicated taster endpoint via the public backend
- *  POST /taster. No sign-up; the gate below the results is the conversion path
- *  (opens the existing Founding-500 waitlist modal).
- *
- *  The browser calls the FastAPI backend directly (NEXT_PUBLIC_BACKEND_URL,
- *  CORS-allowed) instead of proxying through a Next serverless function — a
- *  RunPod cold start can take ~30-40s, longer than serverless timeouts. Only
- *  the backend holds the RunPod/Tavily keys; nothing secret ships here. */
+/** The free taster hero — paste a URL and the analysis opens on its own page
+ *  (/taster/[domain], see components/taster/TasterExplore.tsx). This hero only
+ *  validates the shape of the input and navigates; the explore page runs the
+ *  pipeline. Below the form: live "recently analyzed" chips from the backend's
+ *  public cache (plus two always-good examples). */
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 
 const TAGLINE = "Drop your URL. Meet your CMO.";
 const TAGLINE_LINES = ["Drop your URL.", "Meet your CMO."];
 
-// Staged loader — the stages map to what the pipeline is genuinely doing
-// (site read → identity → competitor discovery → the four verdict calls).
-const STAGES = [
-  "Reading your site…",
-  "Identifying the business…",
-  "Finding your competitors…",
-  "Sizing your edge against them…",
-  "Writing four honest verdicts…",
-];
-const WARMING_MSG = "Waking the engine — a first run takes ~30 seconds…";
+const EXAMPLES = ["allbirds.com", "linear.app"];
 
-type TasterResults = {
-  usp: string;
-  differentiation: string;
-  brand_analysis: string;
-  personality: string;
-};
-type TasterResponse = {
-  domain: string;
-  results: TasterResults;
-  competitors?: string[];
-  cached?: boolean;
-  sample?: boolean;
-};
-
-const CARDS: { key: keyof TasterResults; title: string; hint: string }[] = [
-  { key: "usp", title: "USP", hint: "the one thing you actually own" },
-  { key: "differentiation", title: "Competition", hint: "your edge vs. who you're up against" },
-  { key: "brand_analysis", title: "Brand analysis", hint: "what your site really says" },
-  { key: "personality", title: "Personality", hint: "how you sound to a stranger" },
-];
-
-const openWaitlist = () => window.dispatchEvent(new Event("mrk18:open-waitlist"));
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+type RecentItem = { domain: string; company: string };
 
 export default function TasterHero() {
+  const router = useRouter();
   const { scrollY } = useScroll();
   const watermarkY = useTransform(scrollY, [0, 900], [0, 140]);
   const reduceMotion = useReducedMotion();
 
   const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [stage, setStage] = useState(0);
-  const [warming, setWarming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<TasterResponse | null>(null);
-  const alive = useRef(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [navigating, setNavigating] = useState(false);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
 
   useEffect(() => {
-    alive.current = true;
+    let alive = true;
+    fetch(`${BACKEND}/taster/recent`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && Array.isArray(d?.items)) setRecent(d.items.slice(0, 4));
+      })
+      .catch(() => {});
     return () => {
-      alive.current = false;
+      alive = false;
     };
   }, []);
 
-  // advance the staged loader while waiting; hold on the last stage
-  // (stage is reset to 0 in analyze(), where the wait actually starts)
-  useEffect(() => {
-    if (!loading) return;
-    const t = setInterval(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), 5500);
-    return () => clearInterval(t);
-  }, [loading]);
-
-  async function analyze(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading || !url.trim()) return;
-    setError(null);
-    setData(null);
-    setWarming(false);
-    setStage(0);
-    setLoading(true);
-
-    // one request + up to two honest cold-start retries (backend answers 503
-    // while the serverless worker boots)
-    for (let attempt = 0; attempt < 3; attempt++) {
-      let res: Response;
-      try {
-        res = await fetch(`${BACKEND}/taster`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: url.trim() }),
-        });
-      } catch {
-        if (!alive.current) return;
-        setError("We couldn't reach the analysis engine — try again in a minute.");
-        setLoading(false);
-        return;
-      }
-      if (!alive.current) return;
-
-      if (res.status === 503 && attempt < 2) {
-        setWarming(true);
-        await sleep(25_000);
-        if (!alive.current) return;
-        continue;
-      }
-
-      const body = await res.json().catch(() => null);
-      if (res.ok && body?.results) {
-        setData(body as TasterResponse);
-      } else {
-        setError(
-          typeof body?.detail === "string"
-            ? body.detail
-            : "Something broke on our side — try again in a minute.",
-        );
-      }
-      setLoading(false);
-      setWarming(false);
+  function go(target: string) {
+    const domain = target
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .split("/")[0]
+      .replace(/^www\./i, "");
+    if (!domain || !domain.includes(".")) {
+      setErr("that doesn't look like a website — try something like yourbusiness.com");
       return;
     }
+    setErr(null);
+    setNavigating(true);
+    router.push(`/taster/${encodeURIComponent(domain)}`);
   }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!navigating && url.trim()) go(url);
+  }
+
+  // examples fill the slots until real analyses exist; real ones take over
+  const chips: RecentItem[] =
+    recent.length >= 2
+      ? recent
+      : [...recent, ...EXAMPLES.map((d) => ({ domain: d, company: d })).slice(recent.length)];
 
   return (
     <section id="top" className="relative flex min-h-screen flex-col justify-center overflow-hidden px-6 pb-14 pt-40">
@@ -194,7 +131,7 @@ export default function TasterHero() {
                           animate={{ y: 0 }}
                           transition={{ delay: 2.3 + (offset + i) * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                         >
-                          {char === " " ? " " : char}
+                          {char === " " ? " " : char}
                         </motion.span>
                       </span>
                     ))}
@@ -212,13 +149,13 @@ export default function TasterHero() {
           transition={{ delay: 2.75, duration: 0.7 }}
           className="glass mt-8 max-w-xl rounded-2xl px-6 py-5 text-lg leading-relaxed text-ink"
         >
-          Paste your website. Your CMO reads it cold and hands you four honest verdicts —
-          your USP, your edge, your brand, your voice. No numbers invented, ever.
+          Paste your website. Your CMO reads it cold — finds your real competitors, and hands
+          you four honest verdicts: USP, competition, brand, voice. No numbers invented, ever.
         </motion.p>
 
-        {/* URL form */}
+        {/* URL form → /taster/[domain] */}
         <motion.form
-          onSubmit={analyze}
+          onSubmit={onSubmit}
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 2.9, duration: 0.7 }}
@@ -235,139 +172,67 @@ export default function TasterHero() {
             placeholder="yourbusiness.com"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            disabled={loading}
+            disabled={navigating}
             className="w-full flex-1 rounded-2xl border border-stroke bg-surface-2 px-5 py-4 text-[15px] text-ink placeholder:text-muted focus:border-molten/50 focus:outline-none disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={loading || !url.trim()}
+            disabled={navigating || !url.trim()}
             className="rounded-2xl px-7 py-4 text-[15px] font-semibold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_12px_44px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow duration-300 hover:shadow-[0_16px_56px_var(--cta-glow-strong,rgba(255,106,0,0.5))] disabled:cursor-not-allowed disabled:opacity-60"
             style={{ background: "var(--gradient-brand)" }}
           >
-            {loading ? "Analyzing…" : "Analyze free"}
+            {navigating ? "Opening…" : "Analyze free"}
           </button>
         </motion.form>
 
-        {/* staged loader / error */}
-        <div aria-live="polite" className="mt-5 min-h-[1.5rem] max-w-xl">
-          <AnimatePresence mode="wait">
-            {loading && (
-              <motion.p
-                key={warming ? "warming" : `stage-${stage}`}
-                initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2.5 text-[14px] font-medium text-muted"
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${reduceMotion ? "" : "animate-pulse"}`}
-                  style={{ background: "var(--gradient-brand)" }}
-                />
-                {warming ? WARMING_MSG : STAGES[stage]}
-              </motion.p>
-            )}
-            {error && !loading && (
-              <motion.p
-                key="error"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-[14px] font-medium text-oxblood"
-              >
-                {error}
-              </motion.p>
-            )}
-          </AnimatePresence>
+        <div aria-live="polite" className="mt-4 min-h-[1.25rem] max-w-xl">
+          {err && <p className="text-[13.5px] font-medium text-oxblood">{err}</p>}
         </div>
 
-        {/* results — 4 verdict cards + the gate */}
-        {data && (
-          <div className="mt-10">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="text-[13px] font-semibold uppercase tracking-[0.2em] text-muted">
-                The taster verdict — {data.domain}
-              </h2>
-              {data.cached && (
-                <span className="text-[11px] font-medium text-muted">
-                  analyzed in the last 24h — served from memory
-                </span>
-              )}
-              {data.sample && (
-                <span className="rounded-full border border-stroke px-2 py-0.5 text-[11px] font-semibold text-oxblood">
-                  SAMPLE OUTPUT
-                </span>
-              )}
-            </div>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {CARDS.map((card, i) => (
-                <motion.article
-                  key={card.key}
-                  initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: reduceMotion ? 0 : i * 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                  className="glass rounded-2xl p-6"
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="text-[15px] font-bold text-ink">{card.title}</h3>
-                    <span className="text-[11px] font-medium text-muted">{card.hint}</span>
-                  </div>
-                  {card.key === "differentiation" && (data.competitors?.length ?? 0) > 0 && (
-                    <p className="mt-2 text-[11.5px] font-semibold text-muted">
-                      compared against: {data.competitors!.join(" · ")}
-                    </p>
-                  )}
-                  <p className="mt-3 whitespace-pre-line text-[14.5px] leading-relaxed text-ink/90">
-                    {data.results[card.key]}
-                  </p>
-                </motion.article>
-              ))}
-            </div>
-
-            {/* the gate — visibly partial, deliberately */}
-            <motion.div
-              initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: reduceMotion ? 0 : 0.55, duration: 0.5 }}
-              className="glass mt-6 flex flex-col items-start gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between"
+        {/* recently analyzed (live from the public cache) + examples */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 3.05, duration: 0.7 }}
+          className="mt-8 flex flex-wrap items-center gap-2.5"
+        >
+          <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-muted">
+            {recent.length >= 2 ? "Recently analyzed" : "Try an example"}
+          </span>
+          {chips.map((c) => (
+            <button
+              key={c.domain}
+              onClick={() => go(c.domain)}
+              className="glass flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:border-amber/40"
             >
-              <div>
-                <p className="text-[15px] font-semibold text-ink">
-                  This is the taster — roughly 10% of the brain.
-                </p>
-                <p className="mt-1 text-[13.5px] text-muted">
-                  The full CMO reads your real numbers, flags what&apos;s leaking money, and
-                  executes with your approval. Pro — ₹3,499/mo (~$40).
-                </p>
-              </div>
-              <button
-                onClick={openWaitlist}
-                className="shrink-0 rounded-2xl px-6 py-3.5 text-[14px] font-semibold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_12px_44px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow duration-300 hover:shadow-[0_16px_56px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
-                style={{ background: "var(--gradient-brand)" }}
-              >
-                Unlock the full CMO →
-              </button>
-            </motion.div>
-          </div>
-        )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(c.domain)}&sz=32`}
+                alt=""
+                width={14}
+                height={14}
+                className="rounded-sm"
+              />
+              {c.company}
+            </button>
+          ))}
+        </motion.div>
 
-        {/* reassurance chips (idle only — results take the space once they exist) */}
-        {!data && (
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 3.05, duration: 0.7 }}
-            className="mt-14 flex flex-wrap gap-x-8 gap-y-3 text-[13px] font-medium text-muted"
-          >
-            <span>4 verdicts, founder-plain</span>
-            <span>·</span>
-            <span>~60 seconds</span>
-            <span>·</span>
-            <span>no sign-up, no card</span>
-            <span>·</span>
-            <span>zero invented numbers</span>
-          </motion.div>
-        )}
+        {/* reassurance chips */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 3.2, duration: 0.7 }}
+          className="mt-12 flex flex-wrap gap-x-8 gap-y-3 text-[13px] font-medium text-muted"
+        >
+          <span>4 verdicts + real competitors</span>
+          <span>·</span>
+          <span>~60 seconds</span>
+          <span>·</span>
+          <span>no sign-up, no card</span>
+          <span>·</span>
+          <span>zero invented numbers</span>
+        </motion.div>
       </div>
     </section>
   );
