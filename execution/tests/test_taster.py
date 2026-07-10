@@ -1,9 +1,10 @@
 """Public free taster (the landing-hero URL analysis) — POST /taster.
 
-The route is exercised with the Tavily fetch and the adapter calls faked at
-their seams (fetch_page / _call_adapter), so these tests cover the walls that
-matter: URL validation, dormant-until-configured, the per-domain cache, the
-per-IP daily cap, and honest cold-start degradation.
+The route is exercised with its seams faked (fetch_page / _gather_context /
+_verdict_call), so these tests cover the walls that matter: URL validation,
+dormant-until-configured, engine resolution (Groq fallback vs adapter mode),
+the per-domain cache, the per-IP daily cap, competitor grounding, and honest
+engine-failure degradation.
 """
 
 import httpx
@@ -22,11 +23,11 @@ def _reset_daily_cap():
 
 
 def _configure(monkeypatch, **overrides):
+    """Default = the shipping config: Groq engine via GROQ_API_KEY + Tavily."""
     defaults = dict(
         _env_file=None,
         tavily_api_key="tvly-test",
-        taster_base_url="https://api.runpod.ai/v2/test/openai/v1",
-        taster_api_key="rp-test",
+        groq_api_key="gsk-test",
     )
     settings = Settings(**{**defaults, **overrides})
     monkeypatch.setattr(taster_mod, "get_settings", lambda: settings)
@@ -42,14 +43,32 @@ def _fake_site(monkeypatch, text="We sell handmade oak desks to remote workers."
     )
 
 
-def _fake_adapters(monkeypatch):
-    calls: list[str] = []
+def _fake_research(monkeypatch, blocks=None, competitors=None):
+    calls: list[dict] = []
 
-    async def call_adapter(client, adapter, site_text, url, max_tokens):
-        calls.append(adapter)
-        return f"{adapter} verdict"
+    async def gather(researcher, client, mini, site_text, url, domain, max_competitors):
+        calls.append({"mini": mini, "domain": domain})
+        return dict(blocks or {}), list(competitors or [])
 
-    monkeypatch.setattr(taster_mod, "_call_adapter", call_adapter)
+    monkeypatch.setattr(taster_mod, "_gather_context", gather)
+    return calls
+
+
+def _fake_verdicts(monkeypatch):
+    """Fake BOTH verdict seams: the combined single call (model mode) and the
+    per-adapter calls (adapter mode)."""
+    calls: list[tuple[str, str, str]] = []  # (kind_or_model, card, user_content)
+
+    async def combined(client, model, user_content, max_tokens):
+        calls.append((model, "combined", user_content))
+        return {c: f"{c} verdict" for c in taster_mod.TASTER_ADAPTERS}
+
+    async def verdict(client, model, card, user_content, max_tokens):
+        calls.append((model, card, user_content))
+        return f"{card} verdict"
+
+    monkeypatch.setattr(taster_mod, "_combined_call", combined)
+    monkeypatch.setattr(taster_mod, "_verdict_call", verdict)
     return calls
 
 
@@ -60,7 +79,7 @@ async def test_taster_rejects_garbage_urls(client):
 
 
 async def test_taster_unconfigured_dev_returns_labeled_sample(client, monkeypatch):
-    _configure(monkeypatch, taster_base_url="", tavily_api_key="")
+    _configure(monkeypatch, groq_api_key="", tavily_api_key="")
     resp = await client.post("/taster", json={"url": "acme.com"})
     assert resp.status_code == 200
     body = resp.json()
@@ -69,35 +88,70 @@ async def test_taster_unconfigured_dev_returns_labeled_sample(client, monkeypatc
 
 
 async def test_taster_unconfigured_prod_is_dormant_503(client, monkeypatch):
-    _configure(monkeypatch, app_env="prod", taster_base_url="", tavily_api_key="")
+    _configure(monkeypatch, app_env="prod", groq_api_key="", tavily_api_key="")
     resp = await client.post("/taster", json={"url": "acme.com"})
     assert resp.status_code == 503
 
 
-async def test_taster_analyzes_then_serves_cache(client, monkeypatch):
+async def test_taster_analyzes_with_competitors_then_serves_cache(client, monkeypatch):
     _configure(monkeypatch)
     _fake_site(monkeypatch)
-    calls = _fake_adapters(monkeypatch)
+    research_calls = _fake_research(
+        monkeypatch,
+        blocks={"differentiation": "COMPETITORS (found via live web search):\n- Zed Desks: ..."},
+        competitors=["Zed Desks"],
+    )
+    verdicts = _fake_verdicts(monkeypatch)
 
     resp = await client.post("/taster", json={"url": "https://www.acme.com/"})
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["domain"] == "acme.com"  # www is stripped, path ignored
+    assert body["domain"] == "acme.com"  # www stripped, path ignored
     assert body["cached"] is False
+    assert body["competitors"] == ["Zed Desks"]
     assert body["results"]["usp"] == "usp verdict"
-    assert sorted(calls) == sorted(taster_mod.TASTER_ADAPTERS)
 
-    # repeat hit (any URL shape on the same domain) → cache, no new GPU calls
+    # research ran once, on the fast mini model (Groq mode)
+    assert research_calls == [{"mini": taster_mod._MINI_MODEL, "domain": "acme.com"}]
+    # model mode = ONE combined call on gpt-oss-120b carrying the competitor block
+    assert len(verdicts) == 1
+    model, kind, content = verdicts[0]
+    assert model == "openai/gpt-oss-120b"
+    assert kind == "combined"
+    assert "COMPETITORS" in content
+    assert "SITE CONTENT" in content
+
+    # repeat hit (any URL shape on the same domain) → cache, no new engine calls
     resp2 = await client.post("/taster", json={"url": "acme.com"})
     assert resp2.status_code == 200
     assert resp2.json()["cached"] is True
-    assert len(calls) == len(taster_mod.TASTER_ADAPTERS)
+    assert len(verdicts) == 1  # still just the one combined call
+
+
+async def test_taster_adapter_mode_uses_adapter_names_and_skips_research(client, monkeypatch):
+    _configure(
+        monkeypatch,
+        taster_model="",  # adapter mode
+        taster_base_url="https://api.runpod.ai/v2/test/openai/v1",
+        taster_api_key="rp-test",
+    )
+    _fake_site(monkeypatch)
+    research_calls = _fake_research(monkeypatch)
+    verdicts = _fake_verdicts(monkeypatch)
+
+    resp = await client.post("/taster", json={"url": "adapter-mode.com"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["competitors"] == []
+    assert research_calls == []  # no web research in adapter mode
+    # model name = adapter name, one per card
+    assert {m for m, _, _ in verdicts} == set(taster_mod.TASTER_ADAPTERS)
 
 
 async def test_taster_daily_cap_answers_429(client, monkeypatch):
     _configure(monkeypatch, taster_daily_per_ip=1)
     _fake_site(monkeypatch)
-    _fake_adapters(monkeypatch)
+    _fake_research(monkeypatch)
+    _fake_verdicts(monkeypatch)
 
     assert (await client.post("/taster", json={"url": "first.com"})).status_code == 200
     resp = await client.post("/taster", json={"url": "second.com"})
@@ -108,7 +162,8 @@ async def test_taster_daily_cap_answers_429(client, monkeypatch):
 async def test_taster_cache_hit_skips_the_daily_cap(client, monkeypatch):
     _configure(monkeypatch, taster_daily_per_ip=1)
     _fake_site(monkeypatch)
-    _fake_adapters(monkeypatch)
+    _fake_research(monkeypatch)
+    _fake_verdicts(monkeypatch)
 
     assert (await client.post("/taster", json={"url": "acme.com"})).status_code == 200
     # cap is spent, but the cached domain still answers — refreshes cost nothing
@@ -124,14 +179,19 @@ async def test_taster_unreadable_site_is_422(client, monkeypatch):
     assert resp.status_code == 422
 
 
-async def test_taster_cold_start_maps_to_honest_503(client, monkeypatch):
-    _configure(monkeypatch)
+async def test_taster_engine_failure_is_503_and_spares_the_quota(client, monkeypatch):
+    _configure(monkeypatch, taster_daily_per_ip=1)
     _fake_site(monkeypatch)
+    _fake_research(monkeypatch)
 
-    async def cold(client_, adapter, site_text, url, max_tokens):
-        raise APITimeoutError(request=httpx.Request("POST", "https://api.runpod.ai"))
+    async def down(client_, model, user_content, max_tokens):
+        raise APITimeoutError(request=httpx.Request("POST", "https://api.groq.com"))
 
-    monkeypatch.setattr(taster_mod, "_call_adapter", cold)
+    monkeypatch.setattr(taster_mod, "_combined_call", down)
     resp = await client.post("/taster", json={"url": "coldstart.com"})
     assert resp.status_code == 503
-    assert "warming up" in resp.json()["detail"]
+
+    # the failed attempt must NOT have consumed the caller's only free analysis
+    _fake_verdicts(monkeypatch)
+    resp2 = await client.post("/taster", json={"url": "coldstart.com"})
+    assert resp2.status_code == 200, resp2.text

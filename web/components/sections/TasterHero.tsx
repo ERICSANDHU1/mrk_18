@@ -19,14 +19,14 @@ const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 const TAGLINE = "Drop your URL. Meet your CMO.";
 const TAGLINE_LINES = ["Drop your URL.", "Meet your CMO."];
 
-// Staged loader masks the 10-40s wall clock — the stages map to what the
-// pipeline is genuinely doing (Tavily read, then the four adapters).
+// Staged loader — the stages map to what the pipeline is genuinely doing
+// (site read → identity → competitor discovery → the four verdict calls).
 const STAGES = [
   "Reading your site…",
-  "Finding your USP…",
-  "Measuring your edge…",
-  "Reading the brand…",
-  "Hearing your voice…",
+  "Identifying the business…",
+  "Finding your competitors…",
+  "Sizing your edge against them…",
+  "Writing four honest verdicts…",
 ];
 const WARMING_MSG = "Waking the engine — a first run takes ~30 seconds…";
 
@@ -39,13 +39,14 @@ type TasterResults = {
 type TasterResponse = {
   domain: string;
   results: TasterResults;
+  competitors?: string[];
   cached?: boolean;
   sample?: boolean;
 };
 
 const CARDS: { key: keyof TasterResults; title: string; hint: string }[] = [
   { key: "usp", title: "USP", hint: "the one thing you actually own" },
-  { key: "differentiation", title: "Differentiation", hint: "where you stand apart — or don't" },
+  { key: "differentiation", title: "Competition", hint: "your edge vs. who you're up against" },
   { key: "brand_analysis", title: "Brand analysis", hint: "what your site really says" },
   { key: "personality", title: "Personality", hint: "how you sound to a stranger" },
 ];
@@ -311,6 +312,11 @@ export default function TasterHero() {
                     <h3 className="text-[15px] font-bold text-ink">{card.title}</h3>
                     <span className="text-[11px] font-medium text-muted">{card.hint}</span>
                   </div>
+                  {card.key === "differentiation" && (data.competitors?.length ?? 0) > 0 && (
+                    <p className="mt-2 text-[11.5px] font-semibold text-muted">
+                      compared against: {data.competitors!.join(" · ")}
+                    </p>
+                  )}
                   <p className="mt-3 whitespace-pre-line text-[14.5px] leading-relaxed text-ink/90">
                     {data.results[card.key]}
                   </p>

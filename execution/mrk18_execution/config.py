@@ -54,8 +54,13 @@ class Settings(BaseSettings):
     # personality), separate from the main Brain so free traffic can never
     # starve paying founders. Unset → /taster answers 503 in prod and a clearly
     # labeled sample in dev, so the feature ships dormant. See TASTER_SETUP.md.
-    taster_base_url: str = ""  # e.g. https://api.runpod.ai/v2/<endpoint-id>/openai/v1
-    taster_api_key: str = ""  # RunPod API key (server-side only, never the browser)
+    taster_base_url: str = ""  # empty = Groq; or e.g. https://api.runpod.ai/v2/<id>/openai/v1
+    taster_api_key: str = ""  # empty = fall back to groq_api_key (server-side only)
+    # One model serves all 4 verdicts, differentiated by the specialist prompts.
+    # EMPTY string switches to multi-LoRA adapter mode (model name = adapter name,
+    # for the future RunPod endpoint) and skips the competitor web-research step.
+    taster_model: str = "openai/gpt-oss-120b"
+    taster_max_competitors: int = 3  # per-analysis Tavily budget guard
     taster_daily_per_ip: int = 3  # free analyses per IP per UTC day (0 disables the cap)
     taster_cache_ttl_hours: int = 24  # per-domain result reuse window
     taster_max_tokens: int = 380  # per-adapter output cap — the GPU-cost guard
