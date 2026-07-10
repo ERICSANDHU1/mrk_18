@@ -19,6 +19,7 @@ envVarGroups:
       - { key: AUTH_JWKS_URL, sync: false }
       - { key: AUTH_ISSUER, sync: false }
       - { key: GROQ_API_KEY, sync: false }
+      - { key: TAVILY_API_KEY, sync: false }   # web grounding + the free taster
       - { key: TOGETHER_API_KEY, sync: false }
       - { key: CF_ACCOUNT_ID, sync: false }
       - { key: CF_API_TOKEN, sync: false }
