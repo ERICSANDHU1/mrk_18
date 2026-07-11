@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # for the future RunPod endpoint) and skips the competitor web-research step.
     taster_model: str = "openai/gpt-oss-120b"
     taster_max_competitors: int = 3  # per-analysis Tavily budget guard
-    taster_daily_per_ip: int = 3  # free analyses per IP per UTC day (0 disables the cap)
+    taster_daily_per_ip: int = 4  # free analyses per IP per UTC day (0 disables the cap)
     # Global fresh-analysis budget per UTC day (0 disables) — the wall that keeps
     # the Groq TPD and the Tavily monthly credits from being drained by strangers:
     # ~4k Groq tokens + ~6 Tavily credits per FRESH analysis; cache hits are free.
