@@ -61,8 +61,16 @@ def _fake_verdicts(monkeypatch):
 
     async def combined(client, model, user_content, max_tokens):
         calls.append((model, "combined", user_content))
-        results = {c: f"{c} verdict" for c in taster_mod.TASTER_ADAPTERS}
-        return results, ["Insight one.", "Insight two.", "Insight three."]
+        results = {
+            c: {"verdict": f"{c} verdict", "points": [f"{c} point"], "score": 55}
+            for c in taster_mod.TASTER_ADAPTERS
+        }
+        extras = {
+            "key_insights": ["Insight one.", "Insight two.", "Insight three."],
+            "quick_wins": ["Win one.", "Win two.", "Win three."],
+            "positioning": "The headline your CMO would run.",
+        }
+        return results, extras
 
     async def verdict(client, model, card, user_content, max_tokens):
         calls.append((model, card, user_content))
@@ -113,7 +121,9 @@ async def test_taster_analyzes_with_competitors_then_serves_cache(client, monkey
     assert body["company"] == "Acme"
     assert body["offer"] == "desks"
     assert body["key_insights"] == ["Insight one.", "Insight two.", "Insight three."]
-    assert body["results"]["usp"] == "usp verdict"
+    assert body["quick_wins"] == ["Win one.", "Win two.", "Win three."]
+    assert body["positioning"] == "The headline your CMO would run."
+    assert body["results"]["usp"] == {"verdict": "usp verdict", "points": ["usp point"], "score": 55}
 
     # research ran once, on the fast mini model (Groq mode)
     assert research_calls == [{"mini": taster_mod._MINI_MODEL, "domain": "acme.com"}]
@@ -145,10 +155,13 @@ async def test_taster_adapter_mode_uses_adapter_names_and_skips_research(client,
 
     resp = await client.post("/taster", json={"url": "adapter-mode.com"})
     assert resp.status_code == 200, resp.text
-    assert resp.json()["competitors"] == []
+    body = resp.json()
+    assert body["competitors"] == []
     assert research_calls == []  # no web research in adapter mode
     # model name = adapter name, one per card
     assert {m for m, _, _ in verdicts} == set(taster_mod.TASTER_ADAPTERS)
+    # adapter prose is wrapped into the same visual shape the frontend renders
+    assert body["results"]["usp"] == {"verdict": "usp verdict", "points": [], "score": None}
 
 
 async def test_taster_daily_cap_answers_429(client, monkeypatch):

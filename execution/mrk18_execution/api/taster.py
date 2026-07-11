@@ -94,26 +94,45 @@ TASTER_PROMPTS: dict[str, str] = {
 # instead of four times (~4x fewer input tokens — fits Groq free-tier per-minute
 # limits), one generation instead of four. Adapter mode keeps per-card calls
 # because there each card IS a different model.
+#
+# Output is STRUCTURED, not prose — the hero renders it visually (score bars,
+# trait chips, rival lanes). Scores are explicitly the CMO's judgment grades,
+# not measured metrics, so they don't violate the no-invented-numbers rule.
 _COMBINED_PROMPT = f"""{_SHARED_RULES}
 
-Produce FOUR verdicts on this business as a JSON object with EXACTLY these keys:
+You are graded on SPECIFICITY. A bullet that could apply to any company in this category \
+is a FAILURE. Every bullet must contain at least one of: a short QUOTED phrase from the \
+provided content, a NAMED competitor, or a CONCRETE recommended action. Banned: filler \
+like "improve messaging", "modern design", "strong brand presence".
 
-"usp" — the real Unique Selling Proposition: the one thing they offer that the content \
-actually evidences. If it's unclear or buried, say so bluntly and what's in the way.
-"differentiation" — how they stand against their real competition. If a COMPETITORS \
-block is present, those are real competitors found via live web search — NAME each and \
-position this business against them: where it wins, where it sounds interchangeable. \
-End with the sharpest edge to lead with.
-"brand_analysis" — positioning, clarity of the promise, who it's for, and the biggest \
-gap between what they do and what the page communicates. If a BRAND ON THE WEB block is \
-present, weigh how the brand reads in the wild vs. on the site.
-"personality" — the brand's voice as the site actually reads: tone, energy, first \
-impression; where it's inconsistent or generic corporate filler.
-"key_insights" — an array of EXACTLY 3 short, punchy takeaways (max 18 words each): \
-the sharpest things a founder should remember from all four verdicts.
+Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
+"brand_analysis", "personality", "key_insights", "quick_wins", "positioning".
 
-The four verdict values: one plain-text verdict of 90-130 words each (short paragraphs \
-or "- " bullets, no markdown headers). Respond with the JSON object only."""
+Each of the four card keys is an object with:
+  "verdict": ONE blunt headline, max 14 words — professional, specific to THIS business.
+  "points": 3-4 bullets, max 12 words each — the bullet discipline above applies to every one.
+  "score": integer 0-100 — your honest grade of this dimension. Be strict: 80+ is rare, \
+50s mean mediocre, below 40 means broken.
+
+Card focus:
+  "usp" — is there ONE ownable, evidenced thing? Grade how ownable it is.
+  "differentiation" — ALSO add "rivals": one entry per name in the COMPETITORS block \
+(if present): {{"name": "<exact name>", "lane": "their positioning AS A RIVAL in this \
+market, max 8 words — if the web data clearly describes an unrelated company or is too \
+thin, write exactly 'positioning unclear'"}}. Grade how separable this business is.
+  "brand_analysis" — clarity of promise, who it's REALLY for, the biggest say-do gap. \
+Grade message clarity.
+  "personality" — ALSO add "traits": 3-5 lowercase adjectives for the voice as it reads. \
+Its "points" must quote specific site phrases — never repeat the traits. Grade voice \
+distinctiveness.
+
+"key_insights": EXACTLY 3 diagnosis takeaways, max 14 words each — what the founder must remember.
+"quick_wins": EXACTLY 3 actions to ship THIS WEEK, imperative voice, max 12 words each, \
+each tied to something observed in the content.
+"positioning": the single homepage headline you would run instead — max 12 words, plain \
+text, specific, no quotation marks.
+
+Plain text inside strings, no markdown. Respond with the JSON object only."""
 
 # ── per-IP daily cap ──────────────────────────────────────────────────────────
 # In-process, same seam as security/ratelimit.py: correct for the single-instance
@@ -187,19 +206,37 @@ class TasterBody(BaseModel):
 
 _SAMPLE_NOTE = "SAMPLE — taster engine not configured; this is canned dev output."
 
+# Bumped when the results shape changes — cached rows from an older shape are
+# treated as misses and regenerated, so the frontend renders one shape only.
+_PAYLOAD_V = 3
+
+
+def _sample_card(text: str, **extras) -> dict:
+    return {"verdict": text, "points": ["Sample point one", "Sample point two"],
+            "score": 62, **extras}
+
 
 def _sample_payload(domain: str) -> dict:
     return {
+        "v": _PAYLOAD_V,
         "domain": domain,
         "company": domain,
         "offer": "sample business description",
         "results": {
-            "usp": f"({_SAMPLE_NOTE}) Your USP verdict for {domain} appears here.",
-            "differentiation": f"({_SAMPLE_NOTE}) Your competition read appears here.",
-            "brand_analysis": f"({_SAMPLE_NOTE}) Your brand analysis appears here.",
-            "personality": f"({_SAMPLE_NOTE}) Your brand-voice read appears here.",
+            "usp": _sample_card(f"({_SAMPLE_NOTE}) Your USP verdict for {domain}."),
+            "differentiation": _sample_card(
+                f"({_SAMPLE_NOTE}) Your competition read.",
+                rivals=[{"name": "Sample Rival", "lane": "does the same, louder"}],
+            ),
+            "brand_analysis": _sample_card(f"({_SAMPLE_NOTE}) Your brand analysis."),
+            "personality": _sample_card(
+                f"({_SAMPLE_NOTE}) Your brand-voice read.",
+                traits=["bold", "generic", "warm"],
+            ),
         },
         "key_insights": ["Sample insight one.", "Sample insight two.", "Sample insight three."],
+        "quick_wins": ["Sample win one.", "Sample win two.", "Sample win three."],
+        "positioning": "Sample homepage headline your CMO would run instead.",
         "competitors": [],
         "cached": False,
         "sample": True,
@@ -247,12 +284,48 @@ async def _verdict_call(
     return (resp.choices[0].message.content or "").strip()
 
 
+def _str_list(raw, limit: int, each: int) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [str(i).strip()[:each] for i in raw if str(i).strip()][:limit]
+
+
+def _normalize_card(card: str, raw) -> dict | None:
+    """Coerce one card into the visual shape the hero renders:
+    {verdict, points[], score, traits?[], rivals?[]}. None = unusable."""
+    if isinstance(raw, str):  # a model that ignored the schema still yields a verdict
+        raw = {"verdict": raw}
+    if not isinstance(raw, dict):
+        return None
+    verdict = str(raw.get("verdict") or "").strip()
+    if not verdict:
+        return None
+    out: dict = {"verdict": _truncate(verdict, 180), "points": _str_list(raw.get("points"), 3, 120)}
+    score = raw.get("score")
+    out["score"] = max(0, min(100, int(score))) if isinstance(score, (int, float)) else None
+    if card == "personality":
+        out["traits"] = [t.lower() for t in _str_list(raw.get("traits"), 5, 24)]
+    if card == "differentiation":
+        rivals = []
+        for r in raw.get("rivals") or []:
+            if isinstance(r, dict) and str(r.get("name") or "").strip():
+                rivals.append(
+                    {
+                        "name": str(r["name"]).strip()[:60],
+                        "lane": _truncate(str(r.get("lane") or ""), 80),
+                    }
+                )
+        out["rivals"] = rivals[:3]
+    return out
+
+
 async def _combined_call(
     client: AsyncOpenAI, model: str, user_content: str, max_tokens: int
-) -> tuple[dict[str, str], list[str]]:
-    """One call → (four verdicts, key insights). Retries once if the JSON comes
-    back short a verdict; raises ValueError after that (the route maps it to an
-    honest 503). key_insights are a bonus — missing/short is fine."""
+) -> tuple[dict[str, dict], dict]:
+    """One call → (four structured verdict cards, extras: key_insights /
+    quick_wins / positioning). Retries once if the JSON comes back short a
+    card; raises ValueError after that (the route maps it to an honest 503).
+    The extras are a bonus — missing ones are fine."""
     extra = {"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else None
     last_error = "empty"
     for _ in range(2):
@@ -272,14 +345,15 @@ async def _combined_call(
         except json.JSONDecodeError as exc:
             last_error = f"bad JSON: {exc}"
             continue
-        results = {c: str(data.get(c) or "").strip() for c in TASTER_ADAPTERS}
+        results = {c: _normalize_card(c, data.get(c)) for c in TASTER_ADAPTERS}
         if all(results.values()):
-            raw = data.get("key_insights")
-            insights = [
-                str(i).strip()[:160] for i in (raw if isinstance(raw, list) else []) if str(i).strip()
-            ][:3]
-            return results, insights
-        last_error = f"missing keys: {[c for c, v in results.items() if not v]}"
+            extras = {
+                "key_insights": _str_list(data.get("key_insights"), 3, 160),
+                "quick_wins": _str_list(data.get("quick_wins"), 3, 140),
+                "positioning": _truncate(str(data.get("positioning") or ""), 120),
+            }
+            return results, extras  # type: ignore[return-value]
+        last_error = f"missing cards: {[c for c, v in results.items() if not v]}"
     raise ValueError(f"combined verdict call failed: {last_error}")
 
 
@@ -401,10 +475,11 @@ async def taster(
     settings = get_settings()
     url, domain = _normalize(body.url)
 
-    # cache first — a hit costs nothing and doesn't consume the caller's daily cap
+    # cache first — a hit costs nothing and doesn't consume the caller's daily cap.
+    # Rows written by an older results shape (v mismatch) are misses: regenerate.
     ttl = timedelta(hours=settings.taster_cache_ttl_hours)
     cached = await session.get(TasterCacheRow, domain)
-    if cached is not None:
+    if cached is not None and (cached.payload or {}).get("v") == _PAYLOAD_V:
         fetched_at = cached.fetched_at
         if fetched_at.tzinfo is None:  # SQLite loses tzinfo
             fetched_at = fetched_at.replace(tzinfo=timezone.utc)
@@ -466,14 +541,14 @@ async def taster(
 
     # 3) the verdicts — model mode: ONE combined call (site text travels once,
     #    fits free-tier token budgets); adapter mode: 4 parallel adapter calls.
-    insights: list[str] = []
+    extras: dict = {"key_insights": [], "quick_wins": [], "positioning": ""}
     try:
         if settings.taster_model:
             all_blocks = "\n\n".join(blocks[c] for c in TASTER_ADAPTERS if c in blocks)
             content = f"Website: {url}\n\nSITE CONTENT (untrusted page text):\n{site_text}"
             if all_blocks:
                 content += f"\n\n{all_blocks}"
-            results, insights = await _combined_call(
+            results, extras = await _combined_call(
                 client, settings.taster_model, content, settings.taster_max_tokens * 4
             )
         else:
@@ -489,7 +564,11 @@ async def taster(
                     for card in TASTER_ADAPTERS
                 )
             )
-            results = dict(zip(TASTER_ADAPTERS, outputs))
+            # adapters speak prose — wrap it so the frontend renders one shape
+            results = {
+                card: {"verdict": out, "points": [], "score": None}
+                for card, out in zip(TASTER_ADAPTERS, outputs)
+            }
     except (APITimeoutError, APIConnectionError) as exc:
         log.warning("taster: engine unreachable/cold for %s: %s", domain, exc)
         raise HTTPException(
@@ -505,11 +584,14 @@ async def taster(
 
     _consume_daily(ip)  # quota spent only once the engine actually delivered
     payload = {
+        "v": _PAYLOAD_V,
         "domain": domain,
         "company": company or domain,
         "offer": offer,
         "results": results,
-        "key_insights": insights,
+        "key_insights": extras.get("key_insights") or [],
+        "quick_wins": extras.get("quick_wins") or [],
+        "positioning": extras.get("positioning") or "",
         "competitors": competitors,
         "cached": False,
     }
