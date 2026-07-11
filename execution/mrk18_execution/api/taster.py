@@ -25,6 +25,7 @@ import asyncio
 import ipaddress
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
@@ -110,21 +111,24 @@ Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
 
 Each of the four card keys is an object with:
   "verdict": ONE blunt headline, max 14 words — professional, specific to THIS business.
-  "points": 3-4 bullets, max 12 words each — the bullet discipline above applies to every one.
+  "points": bullets, max 14 words each — the bullet discipline above applies to every one. \
+Fill the card: cover strengths AND weaknesses AND what to change, not just observations.
   "score": integer 0-100 — your honest grade of this dimension. Be strict: 80+ is rare, \
 50s mean mediocre, below 40 means broken.
 
 Card focus:
-  "usp" — is there ONE ownable, evidenced thing? Grade how ownable it is.
+  "usp" — is there ONE ownable, evidenced thing? Grade how ownable it is. 5-6 points: \
+the evidence, what weakens it, and how to sharpen it.
   "differentiation" — ALSO add "rivals": one entry per name in the COMPETITORS block \
 (if present): {{"name": "<exact name>", "lane": "their positioning AS A RIVAL in this \
 market, max 8 words — if the web data clearly describes an unrelated company or is too \
-thin, write exactly 'positioning unclear'"}}. Grade how separable this business is.
+thin, write exactly 'positioning unclear'"}}. 3-4 points comparing against those named \
+rivals. Grade how separable this business is.
   "brand_analysis" — clarity of promise, who it's REALLY for, the biggest say-do gap. \
-Grade message clarity.
+Grade message clarity. 5-6 points: the promise, the audience, the gaps, the fix.
   "personality" — ALSO add "traits": 3-5 lowercase adjectives for the voice as it reads. \
-Its "points" must quote specific site phrases — never repeat the traits. Grade voice \
-distinctiveness.
+Its "points" must quote specific site phrases — never repeat the traits. 4-5 points. \
+Grade voice distinctiveness.
 
 "key_insights": EXACTLY 3 diagnosis takeaways, max 14 words each — what the founder must remember.
 "quick_wins": EXACTLY 3 actions to ship THIS WEEK, imperative voice, max 12 words each, \
@@ -208,7 +212,7 @@ _SAMPLE_NOTE = "SAMPLE — taster engine not configured; this is canned dev outp
 
 # Bumped when the results shape changes — cached rows from an older shape are
 # treated as misses and regenerated, so the frontend renders one shape only.
-_PAYLOAD_V = 3
+_PAYLOAD_V = 4
 
 
 def _sample_card(text: str, **extras) -> dict:
@@ -284,10 +288,32 @@ async def _verdict_call(
     return (resp.choices[0].message.content or "").strip()
 
 
-def _str_list(raw, limit: int, each: int) -> list[str]:
+_JUNK_BULLET_RE = re.compile(r"^[\[\]{}():,'\"\-\s]*$")
+_JUNK_BULLET_WORDS = {"traits", "rivals", "points", "score", "verdict"}
+
+
+def _is_junk_bullet(text: str) -> bool:
+    """Guards against a rare model slip: the JSON comes back valid but a field
+    name or a stringified list/dict leaks into "points" as its own bullet
+    (e.g. "Traits", ":", "['helpful', 'neutral']"). Real bullets always carry
+    prose; anything this short or structural is discarded, not shown."""
+    t = text.strip()
+    if len(t) < 8 or _JUNK_BULLET_RE.match(t):
+        return True
+    if t.lower().rstrip(":") in _JUNK_BULLET_WORDS:
+        return True
+    if t.split(":", 1)[0].strip().lower() in _JUNK_BULLET_WORDS:  # e.g. "Traits: helpful, neutral"
+        return True
+    return (t.startswith("[") and t.endswith("]")) or (t.startswith("{") and t.endswith("}"))
+
+
+def _str_list(raw, limit: int, each: int, *, drop_junk: bool = False) -> list[str]:
     if not isinstance(raw, list):
         return []
-    return [str(i).strip()[:each] for i in raw if str(i).strip()][:limit]
+    out = [str(i).strip()[:each] for i in raw if str(i).strip()]
+    if drop_junk:
+        out = [i for i in out if not _is_junk_bullet(i)]
+    return out[:limit]
 
 
 def _normalize_card(card: str, raw) -> dict | None:
@@ -300,7 +326,10 @@ def _normalize_card(card: str, raw) -> dict | None:
     verdict = str(raw.get("verdict") or "").strip()
     if not verdict:
         return None
-    out: dict = {"verdict": _truncate(verdict, 180), "points": _str_list(raw.get("points"), 3, 120)}
+    out: dict = {
+        "verdict": _truncate(verdict, 180),
+        "points": _str_list(raw.get("points"), 6, 130, drop_junk=True),
+    }
     score = raw.get("score")
     out["score"] = max(0, min(100, int(score))) if isinstance(score, (int, float)) else None
     if card == "personality":
@@ -348,8 +377,8 @@ async def _combined_call(
         results = {c: _normalize_card(c, data.get(c)) for c in TASTER_ADAPTERS}
         if all(results.values()):
             extras = {
-                "key_insights": _str_list(data.get("key_insights"), 3, 160),
-                "quick_wins": _str_list(data.get("quick_wins"), 3, 140),
+                "key_insights": _str_list(data.get("key_insights"), 3, 160, drop_junk=True),
+                "quick_wins": _str_list(data.get("quick_wins"), 3, 140, drop_junk=True),
                 "positioning": _truncate(str(data.get("positioning") or ""), 120),
             }
             return results, extras  # type: ignore[return-value]

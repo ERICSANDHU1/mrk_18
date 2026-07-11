@@ -214,6 +214,44 @@ async def test_taster_engine_failure_is_503_and_spares_the_quota(client, monkeyp
     assert resp2.status_code == 200, resp2.text
 
 
+def test_normalize_card_drops_junk_bullets():
+    """Regression: a live run on chatgpt.com had the model leak its own field
+    name and a stringified traits list into "points" — ["...", "Traits", ":",
+    "['helpful', 'neutral', 'accessible']"]. Those must never reach the hero."""
+    raw = {
+        "verdict": "Voice feels helpful but transactional.",
+        "points": [
+            '"Where should we begin?" feels inviting',
+            "Traits",
+            ":",
+            "['helpful', 'neutral', 'accessible']",
+            "",
+        ],
+        "score": 50,
+        "traits": ["helpful", "neutral", "accessible"],
+    }
+    card = taster_mod._normalize_card("personality", raw)
+    assert card is not None
+    assert card["points"] == ['"Where should we begin?" feels inviting']
+
+
+def test_normalize_card_drops_traits_restated_as_a_bullet():
+    """A different live slip: the model both fills "traits" correctly AND
+    restates it as a prose bullet ("Traits: neutral, helpful, instructional,
+    generic") — pure duplication of the trait chips already shown."""
+    raw = {
+        "verdict": "Voice is neutral and instructional.",
+        "points": [
+            '"Log in to get answers" feels transactional',
+            "Traits: neutral, helpful, instructional, generic",
+        ],
+        "score": 50,
+        "traits": ["neutral", "helpful", "instructional", "generic"],
+    }
+    card = taster_mod._normalize_card("personality", raw)
+    assert card["points"] == ['"Log in to get answers" feels transactional']
+
+
 async def test_taster_recent_lists_latest_analyses(client, monkeypatch):
     _configure(monkeypatch)
     _fake_site(monkeypatch)
