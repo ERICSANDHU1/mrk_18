@@ -18,8 +18,12 @@ from mrk18_execution.config import Settings
 @pytest.fixture(autouse=True)
 def _reset_daily_cap():
     taster_mod._daily.clear()
+    taster_mod._domain_locks.clear()
+    taster_mod._global_day[0], taster_mod._global_day[1] = "", 0
     yield
     taster_mod._daily.clear()
+    taster_mod._domain_locks.clear()
+    taster_mod._global_day[0], taster_mod._global_day[1] = "", 0
 
 
 def _configure(monkeypatch, **overrides):
@@ -174,6 +178,40 @@ async def test_taster_daily_cap_answers_429(client, monkeypatch):
     resp = await client.post("/taster", json={"url": "second.com"})
     assert resp.status_code == 429
     assert "tomorrow" in resp.json()["detail"]
+
+
+async def test_taster_global_daily_cap_answers_429(client, monkeypatch):
+    _configure(monkeypatch, taster_daily_global=1, taster_daily_per_ip=0)
+    _fake_site(monkeypatch)
+    _fake_research(monkeypatch)
+    _fake_verdicts(monkeypatch)
+
+    assert (await client.post("/taster", json={"url": "first.com"})).status_code == 200
+    resp = await client.post("/taster", json={"url": "second.com"})
+    assert resp.status_code == 429
+    assert "capacity" in resp.json()["detail"]
+
+
+async def test_taster_concurrent_same_domain_runs_once(client, monkeypatch):
+    """Regression: dev StrictMode double-fires the page fetch; both used to miss
+    the cache and burn TWO engine runs + TWO quota slots for one visitor. The
+    per-domain lock makes the twin wait, then serve from cache."""
+    import asyncio
+
+    _configure(monkeypatch, taster_daily_per_ip=2)
+    _fake_site(monkeypatch)
+    _fake_research(monkeypatch)
+    verdicts = _fake_verdicts(monkeypatch)
+
+    r1, r2 = await asyncio.gather(
+        client.post("/taster", json={"url": "racing.com"}),
+        client.post("/taster", json={"url": "racing.com"}),
+    )
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert len(verdicts) == 1  # one engine run served both
+    assert {r1.json()["cached"], r2.json()["cached"]} == {False, True}
+    # and only ONE quota slot was spent — a third fresh domain still fits cap=2
+    assert (await client.post("/taster", json={"url": "third.com"})).status_code == 200
 
 
 async def test_taster_cache_hit_skips_the_daily_cap(client, monkeypatch):

@@ -62,7 +62,11 @@ class Settings(BaseSettings):
     taster_model: str = "openai/gpt-oss-120b"
     taster_max_competitors: int = 3  # per-analysis Tavily budget guard
     taster_daily_per_ip: int = 3  # free analyses per IP per UTC day (0 disables the cap)
-    taster_cache_ttl_hours: int = 24  # per-domain result reuse window
+    # Global fresh-analysis budget per UTC day (0 disables) — the wall that keeps
+    # the Groq TPD and the Tavily monthly credits from being drained by strangers:
+    # ~4k Groq tokens + ~6 Tavily credits per FRESH analysis; cache hits are free.
+    taster_daily_global: int = 50
+    taster_cache_ttl_hours: int = 72  # per-domain result reuse window (fresh-ness matters little)
     taster_max_tokens: int = 380  # per-adapter output cap — the GPU-cost guard
 
     # Images (Slice 1.4) — engine picked by available credentials:

@@ -165,6 +165,29 @@ def _consume_daily(ip: str) -> None:
     _daily[ip] = (today, count + 1)
 
 
+_global_day: list = ["", 0]  # [utc-date, fresh analyses served] — same in-process seam
+
+
+def _global_cap_reached(cap: int) -> bool:
+    if cap <= 0:
+        return False
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return _global_day[0] == today and _global_day[1] >= cap
+
+
+def _consume_global() -> None:
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if _global_day[0] != today:
+        _global_day[0], _global_day[1] = today, 0
+    _global_day[1] += 1
+
+
+# One analysis in flight per domain: a concurrent twin (dev StrictMode double-
+# fetch, two visitors racing on the same site) waits on the lock and then hits
+# the cache instead of burning a second GPU/Tavily/quota run.
+_domain_locks: dict[str, asyncio.Lock] = {}
+
+
 def _client_ip(request: Request) -> str:
     """Mirror the perimeter's client key: rightmost X-Forwarded-For hop only when
     proxy headers are explicitly trusted — a spoofable left value must never
@@ -497,6 +520,19 @@ def _user_content(card: str, url: str, site_text: str, blocks: dict[str, str]) -
     return "\n\n".join(parts)
 
 
+def _cached_payload(cached: TasterCacheRow | None, ttl: timedelta) -> dict | None:
+    """The fresh-and-current cache read. Rows written by an older results shape
+    (v mismatch) are misses: regenerate."""
+    if cached is None or (cached.payload or {}).get("v") != _PAYLOAD_V:
+        return None
+    fetched_at = cached.fetched_at
+    if fetched_at.tzinfo is None:  # SQLite loses tzinfo
+        fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) - fetched_at < ttl:
+        return {**cached.payload, "cached": True}
+    return None
+
+
 @router.post("/taster", response_model=dict)
 async def taster(
     body: TasterBody, request: Request, session: AsyncSession = Depends(get_session)
@@ -504,16 +540,11 @@ async def taster(
     settings = get_settings()
     url, domain = _normalize(body.url)
 
-    # cache first — a hit costs nothing and doesn't consume the caller's daily cap.
-    # Rows written by an older results shape (v mismatch) are misses: regenerate.
+    # cache first — a hit costs nothing and doesn't consume anyone's quota
     ttl = timedelta(hours=settings.taster_cache_ttl_hours)
-    cached = await session.get(TasterCacheRow, domain)
-    if cached is not None and (cached.payload or {}).get("v") == _PAYLOAD_V:
-        fetched_at = cached.fetched_at
-        if fetched_at.tzinfo is None:  # SQLite loses tzinfo
-            fetched_at = fetched_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) - fetched_at < ttl:
-            return {**cached.payload, "cached": True}
+    hit = _cached_payload(await session.get(TasterCacheRow, domain), ttl)
+    if hit is not None:
+        return hit
 
     engine = _resolve_engine(settings)
     if engine is None or not settings.tavily_api_key:
@@ -529,7 +560,28 @@ async def taster(
             status_code=429,
             detail="that's the free analyses for today — come back tomorrow",
         )
+    if _global_cap_reached(settings.taster_daily_global):
+        raise HTTPException(
+            status_code=429,
+            detail="the free taster is at today's capacity — come back tomorrow",
+        )
 
+    # one analysis in flight per domain — a concurrent twin (dev StrictMode
+    # double-fetch, two visitors racing) waits here, then hits the cache above
+    # instead of burning a second GPU/Tavily run and a second quota slot.
+    if len(_domain_locks) > 50_000 and not any(lk.locked() for lk in _domain_locks.values()):
+        _domain_locks.clear()  # blunt memory guard, only when nothing is in flight
+    lock = _domain_locks.setdefault(domain, asyncio.Lock())
+    async with lock:
+        hit = _cached_payload(await session.get(TasterCacheRow, domain), ttl)
+        if hit is not None:
+            return hit
+        return await _run_fresh_analysis(settings, engine, url, domain, ip, session)
+
+
+async def _run_fresh_analysis(
+    settings, engine: tuple[str, str], url: str, domain: str, ip: str, session: AsyncSession
+) -> dict:
     # 1) read the site (Tavily fetches it, not us)
     from ..research.web import TavilyResearcher
 
@@ -612,6 +664,7 @@ async def taster(
         ) from exc
 
     _consume_daily(ip)  # quota spent only once the engine actually delivered
+    _consume_global()
     payload = {
         "v": _PAYLOAD_V,
         "domain": domain,
