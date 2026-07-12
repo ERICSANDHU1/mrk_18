@@ -48,6 +48,27 @@ class Settings(BaseSettings):
     # before the analysis agents run. Unset → runs proceed with no web context.
     tavily_api_key: str = ""
 
+    # Free taster (public POST /taster) — the no-signup URL analysis in the
+    # landing hero. Served by a DEDICATED RunPod Serverless vLLM endpoint
+    # (Mistral-7B base + 4 LoRA adapters: usp, differentiation, brand_analysis,
+    # personality), separate from the main Brain so free traffic can never
+    # starve paying founders. Unset → /taster answers 503 in prod and a clearly
+    # labeled sample in dev, so the feature ships dormant. See TASTER_SETUP.md.
+    taster_base_url: str = ""  # empty = Groq; or e.g. https://api.runpod.ai/v2/<id>/openai/v1
+    taster_api_key: str = ""  # empty = fall back to groq_api_key (server-side only)
+    # One model serves all 4 verdicts, differentiated by the specialist prompts.
+    # EMPTY string switches to multi-LoRA adapter mode (model name = adapter name,
+    # for the future RunPod endpoint) and skips the competitor web-research step.
+    taster_model: str = "openai/gpt-oss-120b"
+    taster_max_competitors: int = 3  # per-analysis Tavily budget guard
+    taster_daily_per_ip: int = 4  # free analyses per IP per UTC day (0 disables the cap)
+    # Global fresh-analysis budget per UTC day (0 disables) — the wall that keeps
+    # the Groq TPD and the Tavily monthly credits from being drained by strangers:
+    # ~4k Groq tokens + ~6 Tavily credits per FRESH analysis; cache hits are free.
+    taster_daily_global: int = 50
+    taster_cache_ttl_hours: int = 72  # per-domain result reuse window (fresh-ness matters little)
+    taster_max_tokens: int = 380  # per-adapter output cap — the GPU-cost guard
+
     # Images (Slice 1.4) — engine picked by available credentials:
     # Cloudflare (free tier) > fal.ai (paid, production) > none (posts ship text-only)
     cf_account_id: str = ""

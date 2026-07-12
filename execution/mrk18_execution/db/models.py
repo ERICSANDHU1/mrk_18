@@ -393,6 +393,18 @@ class ApplicationRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
+class TasterCacheRow(Base):
+    """Free-taster per-domain result cache (public /taster; no founder/tenant).
+    One row per domain, refreshed when older than the TTL — repeat and refresh
+    hits serve from here instead of re-burning Tavily credits and GPU seconds."""
+
+    __tablename__ = "taster_cache"
+
+    domain: Mapped[str] = mapped_column(Text, primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
 class AuditRow(Base):
     __tablename__ = "audit_log"
 
