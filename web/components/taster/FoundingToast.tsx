@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { FOUNDING_500 } from "@/lib/founding500";
+import { FOUNDING_500, fetchSpotsLeft } from "@/lib/founding500";
 
 /** Ask 1 — the post-analysis toast on the free taster (signed-out visitors).
  *  Fires ~2.5s after the verdict renders, slides in bottom-right. Its job is the
@@ -14,10 +14,16 @@ import { FOUNDING_500 } from "@/lib/founding500";
 export default function FoundingToast() {
   const reduceMotion = useReducedMotion();
   const [phase, setPhase] = useState<"hidden" | "open" | "pill">("hidden");
+  const [spots, setSpots] = useState<number>(FOUNDING_500.spotsLeft);
 
   useEffect(() => {
     const t = setTimeout(() => setPhase("open"), 2500);
-    return () => clearTimeout(t);
+    let alive = true;
+    fetchSpotsLeft().then((n) => alive && setSpots(n)); // live count — ticks down per real signup
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
   }, []);
 
   return (
@@ -62,7 +68,7 @@ export default function FoundingToast() {
                 Sign up free →
               </Link>
               <span className="font-data text-[11.5px] font-medium text-muted">
-                {FOUNDING_500.spotsLeft} left
+                {spots} left
               </span>
             </div>
           </motion.div>
@@ -80,7 +86,7 @@ export default function FoundingToast() {
           >
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--gradient-brand)" }} />
             Lock Founding 500 pricing
-            <span className="font-data text-[11px] text-muted">{FOUNDING_500.spotsLeft} left</span>
+            <span className="font-data text-[11px] text-muted">{spots} left</span>
           </motion.button>
         )}
       </AnimatePresence>

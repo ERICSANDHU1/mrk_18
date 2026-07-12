@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Lock, X } from "lucide-react";
-import { FOUNDING_500 } from "@/lib/founding500";
+import { FOUNDING_500, fetchSpotsLeft } from "@/lib/founding500";
 
 /** Ask 2 — the upgrade modal. Opened by a locked sidebar item
  *  (mrk18:open-upgrade with detail.feature = "Comrk" | "Chief"). The toast
@@ -30,6 +30,7 @@ export default function UpgradeModal() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [spots, setSpots] = useState<number>(FOUNDING_500.spotsLeft);
   const [f, setF] = useState({ name: "", company: "", email: "", hp: "" });
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function UpgradeModal() {
       setSent(false);
       setErr(null);
       setOpen(true);
+      fetchSpotsLeft().then(setSpots); // live count each time the modal opens
     };
     window.addEventListener("mrk18:open-upgrade", onOpen);
     return () => window.removeEventListener("mrk18:open-upgrade", onOpen);
@@ -69,8 +71,10 @@ export default function UpgradeModal() {
           hp: f.hp,
         }),
       });
-      if (res.ok) setSent(true);
-      else {
+      if (res.ok) {
+        setSpots((s) => Math.max(0, s - 1)); // their row just landed — tick down live
+        setSent(true);
+      } else {
         const d = await res.json().catch(() => ({}));
         setErr(d.error || "Something went wrong — try again.");
       }
@@ -150,7 +154,7 @@ export default function UpgradeModal() {
                 ))}
               </ul>
               <p className="font-data mt-3 text-[12px] font-semibold text-molten">
-                Only {FOUNDING_500.spotsLeft} of {FOUNDING_500.total} spots left
+                Only {spots} of {FOUNDING_500.total} spots left
               </p>
             </div>
 
