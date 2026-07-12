@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Waitlist from "@/components/sections/Waitlist";
+import FoundingToast from "@/components/taster/FoundingToast";
 
 /** The taster explore page (/taster/[domain]) — the hero hands the URL here and
  *  this page runs the analysis with a live step tracker, then lays the result
@@ -146,6 +148,7 @@ function Dial({ value }: { value: number }) {
 
 export default function TasterExplore({ domain }: { domain: string }) {
   const reduceMotion = useReducedMotion();
+  const { isSignedIn, isLoaded } = useUser(); // toast (Ask 1) shows only to signed-out visitors
   const [phase, setPhase] = useState<"loading" | "error" | "done">("loading");
   const [data, setData] = useState<TasterResponse | null>(null);
   const [error, setError] = useState<string>("");
@@ -592,6 +595,9 @@ export default function TasterExplore({ domain }: { domain: string }) {
           </div>
         )}
       </main>
+
+      {/* Ask 1 — post-analysis toast (signed-out visitors only, once results land) */}
+      {phase === "done" && isLoaded && !isSignedIn && <FoundingToast />}
 
       {/* the Founding-500 application modal — opened by the gate CTA */}
       <Waitlist />
