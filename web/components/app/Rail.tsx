@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
   Filter,
   LayoutDashboard,
+  Lock,
   type LucideIcon,
   MessageSquare,
   Plug,
@@ -28,14 +29,19 @@ import {
 import { UserButton, useUser } from "@clerk/nextjs";
 import ThemeToggle from "./ThemeToggle";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; badge?: string };
+type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; badge?: string; locked?: boolean };
 
 // One 3-tab segment — Chat · Comrk · Chief — like Claude Code. Dashboard pinned bottom.
+// Comrk + Chief are Founding 500 only: signup unlocks Chat; clicking a locked tab
+// opens the upgrade modal (Ask 2) instead of navigating.
 const TOP: NavItem[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare, exact: false },
-  { href: "/cowork", label: "Comrk", icon: Users, exact: false },
-  { href: "/chief", label: "Chief", icon: Crown, exact: false },
+  { href: "/cowork", label: "Comrk", icon: Users, exact: false, locked: true },
+  { href: "/chief", label: "Chief", icon: Crown, exact: false, locked: true },
 ];
+
+const openUpgrade = (feature: string) =>
+  window.dispatchEvent(new CustomEvent("mrk18:open-upgrade", { detail: { feature } }));
 const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true };
 
 // Chief's rooms — the command-center areas, one page each (shown in the sidebar
@@ -146,6 +152,33 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const renderRow = (item: NavItem) => {
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
     const Icon = item.icon;
+    if (item.locked) {
+      // Founding 500 gate — opens the upgrade modal instead of navigating
+      return (
+        <button
+          key={item.href}
+          type="button"
+          onClick={() => openUpgrade(item.label)}
+          title={`${item.label} — Founding 500 only`}
+          className={`group relative flex items-center rounded-xl text-mute-2 opacity-70 transition-colors duration-200 hover:bg-surface hover:text-ink ${
+            collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
+          }`}
+        >
+          <Icon size={18} strokeWidth={2} aria-hidden />
+          {!collapsed && <span className="flex-1 text-left text-[13.5px] font-semibold">{item.label}</span>}
+          <Lock
+            size={collapsed ? 9 : 13}
+            aria-hidden
+            className={collapsed ? "absolute right-1 top-1 text-molten" : "text-molten"}
+          />
+          {!collapsed && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-mute-2">
+              Founding 500
+            </span>
+          )}
+        </button>
+      );
+    }
     return (
       <Link
         key={item.href}
@@ -209,15 +242,30 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
               {TOP.map((t) => {
                 const on = activeTab === t.href;
                 const Icon = t.icon;
+                const cls = `flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
+                  on ? "bg-surface text-ink shadow-sm" : "text-mute-2 hover:bg-surface/50 hover:text-ink"
+                }`;
+                if (t.locked) {
+                  return (
+                    <button
+                      key={t.href}
+                      type="button"
+                      onClick={() => openUpgrade(t.label)}
+                      title={`${t.label} — Founding 500 only`}
+                      className={`${cls} opacity-70`}
+                    >
+                      <Lock size={12} className="text-molten" aria-hidden />
+                      {t.label}
+                    </button>
+                  );
+                }
                 return (
                   <Link
                     key={t.href}
                     href={t.href}
                     title={t.label}
                     aria-current={on ? "page" : undefined}
-                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${
-                      on ? "bg-surface text-ink shadow-sm" : "text-mute-2 hover:bg-surface/50 hover:text-ink"
-                    }`}
+                    className={cls}
                   >
                     <Icon size={14} aria-hidden />
                     {t.label}
