@@ -9,6 +9,7 @@ import {
   Familjen_Grotesk,
 } from "next/font/google";
 import ClerkThemed from "@/components/ClerkThemed";
+import CookieConsent from "@/components/CookieConsent";
 import "./globals.css";
 // Clash Display (headlines) is self-hosted via @font-face in globals.css
 // (/public/fonts/*) — next/font/local mis-compiles in this Next build.
@@ -106,6 +107,7 @@ export default function RootLayout({
             }}
           />
           {children}
+          <CookieConsent />
         </body>
       </html>
     </ClerkThemed>

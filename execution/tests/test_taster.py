@@ -177,7 +177,28 @@ async def test_taster_daily_cap_answers_429(client, monkeypatch):
     assert (await client.post("/taster", json={"url": "first.com"})).status_code == 200
     resp = await client.post("/taster", json={"url": "second.com"})
     assert resp.status_code == 429
-    assert "tomorrow" in resp.json()["detail"]
+    assert "sign up" in resp.json()["detail"]
+
+
+async def test_taster_signed_in_user_is_exempt_from_the_cap(client, monkeypatch):
+    """Anonymous visitors hit the per-IP free cap; a signed-in caller (valid
+    Clerk-style token) sails past it and never burns the anonymous quota."""
+    from tests.authtools import bearer, mint
+
+    _configure(monkeypatch, taster_daily_per_ip=1)
+    _fake_site(monkeypatch)
+    _fake_research(monkeypatch)
+    _fake_verdicts(monkeypatch)
+
+    # anonymous: one fresh analysis, then capped
+    assert (await client.post("/taster", json={"url": "anon-a.com"})).status_code == 200
+    assert (await client.post("/taster", json={"url": "anon-b.com"})).status_code == 429
+
+    # signed-in: same IP, cap already spent, yet each fresh domain still returns
+    hdr = bearer(mint())
+    for d in ("member-a.com", "member-b.com", "member-c.com"):
+        r = await client.post("/taster", json={"url": d}, headers=hdr)
+        assert r.status_code == 200, f"{d}: {r.text}"
 
 
 async def test_taster_global_daily_cap_answers_429(client, monkeypatch):
