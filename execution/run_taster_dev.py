@@ -23,12 +23,14 @@ sys.path.insert(0, str(HERE))
 
 os.environ.setdefault("CORS_ALLOW_ORIGINS", "http://localhost:3000")
 
-import uvicorn
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.pool import StaticPool
+# imports sit below the chdir/sys.path setup on purpose — the package and .env
+# must resolve from execution/ no matter where the script is launched from
+import uvicorn  # noqa: E402
+from sqlalchemy.ext.asyncio import create_async_engine  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
-from mrk18_execution.api.app import create_app
-from mrk18_execution.db.models import Base
+from mrk18_execution.api.app import create_app  # noqa: E402
+from mrk18_execution.db.models import Base  # noqa: E402
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
