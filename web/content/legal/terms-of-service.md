@@ -2,10 +2,10 @@
 
 **mrk18 — CMO in your pocket**
 
-**Effective date:** [DATE]
-**Last updated:** [DATE]
+**Effective date:** 15 July 2026
+**Last updated:** 15 July 2026
 
-These Terms of Service ("Terms") are an agreement between you and **[MRK18 LEGAL ENTITY NAME]** ("mrk18", "we", "us", "our") governing your use of the mrk18 website (mrk18.com), web application, APIs, the mrk18 wearable/pocket device (the "Device"), and all related services (collectively, the "Services").
+These Terms of Service ("Terms") are an agreement between you and **Sipnshow Private Limited** ("Sipnshow", "mrk18", "we", "us", "our"), a company incorporated in India, governing your use of the mrk18 website (mrk18.com), web application, APIs, the mrk18 wearable/pocket device (the "Device"), and all related services (collectively, the "Services").
 
 **By creating an account, joining the waitlist, applying for the Founding 500, purchasing a subscription or Device, or otherwise using the Services, you agree to these Terms and our [Privacy Policy].** If you do not agree, do not use the Services.
 
@@ -72,8 +72,8 @@ Where you pre-order or purchase the mrk18 Device:
 
 - **Pre-orders:** estimated ship dates are estimates, not commitments. You may cancel a pre-order for a full refund any time **before dispatch**.
 - **Delivery and risk:** risk in the Device passes to you on delivery. Title passes on full payment.
-- **Warranty:** the Device carries a **[12]-month limited warranty** against manufacturing defects from the date of delivery. The warranty does not cover physical damage, water damage beyond rating, unauthorized repair or modification, or normal wear. Your statutory rights under the Consumer Protection Act, 2019 remain unaffected.
-- **Returns:** defective-on-arrival units will be repaired or replaced. Change-of-mind returns, where offered, must be initiated within [7] days of delivery, unused and in original packaging; shipping may be deducted.
+- **Warranty:** the Device carries a **12-month limited warranty** against manufacturing defects from the date of delivery. The warranty does not cover physical damage, water damage beyond rating, unauthorized repair or modification, or normal wear. Your statutory rights under the Consumer Protection Act, 2019 remain unaffected.
+- **Returns:** defective-on-arrival units will be repaired or replaced. Change-of-mind returns, where offered, must be initiated within 7 days of delivery, unused and in original packaging; shipping may be deducted.
 - **Connectivity dependence:** Device functionality depends on an active subscription (where required by your plan), companion app, and network connectivity. Features may change via software updates.
 - **Lawful use of recording features:** the Device can capture audio (and, in later versions, video). **You are solely responsible for using these features lawfully** — including obtaining any consents required from people around you and complying with recording, privacy, and workplace laws applicable to you. You must not use the Device for covert surveillance. We may disable features we reasonably believe are being used unlawfully.
 - **Handshake:** introductions require mutual opt-in. We do not guarantee matches, the accuracy of other users' profiles, or the outcome of any introduction. Interactions with other users are at your own risk.
@@ -139,7 +139,7 @@ The Services interoperate with third-party platforms (ad networks, analytics, pa
 
 - **By you:** cancel anytime (Section 5.1); you may delete your account in settings.
 - **By us:** we may suspend or terminate your access (with notice where practicable) if you materially breach these Terms, create risk or legal exposure for us or others, fail to pay, or if we discontinue the Services.
-- **Effect:** upon termination, your license to use the Services ends. We will make your Customer Content available for export for [30] days after termination (unless terminated for serious breach or prohibited by law), after which it is deleted per our Privacy Policy. Sections that by nature should survive (7, 8, 10, 13–16) survive termination.
+- **Effect:** upon termination, your license to use the Services ends. We will make your Customer Content available for export for 30 days after termination (unless terminated for serious breach or prohibited by law), after which it is deleted per our Privacy Policy. Sections that by nature should survive (7, 8, 10, 13–16) survive termination.
 
 ---
 
@@ -191,11 +191,11 @@ You will indemnify and hold harmless mrk18, its founders, employees, and agents 
 - **No waiver:** failure to enforce a provision is not a waiver.
 - **Assignment:** you may not assign these Terms without our consent; we may assign them in connection with a merger, acquisition, or sale of assets.
 - **Force majeure:** neither party is liable for delays caused by events beyond reasonable control (including outages of third-party AI infrastructure, platforms, or networks).
-- **Notices:** we may notify you via your registered email or in-product. Notices to us go to **mrk18ai@gmail.com** or [REGISTERED ADDRESS].
+- **Notices:** we may notify you via your registered email or in-product. Notices to us go to **mrk18ai@gmail.com** or A-116, First Floor, URBTECH Trade Centre, Maharishi Nagar, Noida, Gautam Buddha Nagar – 201304, Uttar Pradesh, India.
 
 ---
 
 ## 19. Contact
 
 Questions about these Terms: **mrk18ai@gmail.com**
-Grievance Officer (per the IT Act and DPDP Act): [NAME], [GRIEVANCE EMAIL], [REGISTERED ADDRESS].
+Grievance Officer (per the IT Act and DPDP Act): Founder, Sipnshow Private Limited, mrk18ai@gmail.com, A-116, First Floor, URBTECH Trade Centre, Maharishi Nagar, Noida, Gautam Buddha Nagar – 201304, Uttar Pradesh, India.

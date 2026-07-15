@@ -2,10 +2,10 @@
 
 **mrk18 — CMO in your pocket**
 
-**Effective date:** [DATE]
-**Last updated:** [DATE]
+**Effective date:** 15 July 2026
+**Last updated:** 15 July 2026
 
-This Privacy Policy describes how **[MRK18 LEGAL ENTITY NAME]** ("mrk18", "we", "us", "our") collects, uses, stores, shares, and protects your information when you use our website (mrk18.com), web application, mobile experiences, the mrk18 wearable/pocket device (the "Device"), and any related services (collectively, the "Services").
+This Privacy Policy describes how **Sipnshow Private Limited** ("Sipnshow", "mrk18", "we", "us", "our") collects, uses, stores, shares, and protects your information when you use our website (mrk18.com), web application, mobile experiences, the mrk18 wearable/pocket device (the "Device"), and any related services (collectively, the "Services"). MRK18 is an AI marketing platform ("AI CMO") that advises on, analyses, and — with your authorisation — executes marketing activity on connected advertising accounts.
 
 We are an India-first company. This Policy is designed to comply with the **Digital Personal Data Protection Act, 2023 ("DPDP Act")**, the **Information Technology Act, 2000** and the **SPDI Rules, 2011**. Where you access the Services from outside India, additional terms in Section 13 apply.
 
@@ -17,10 +17,10 @@ By using the Services, you consent to the practices described in this Policy. If
 
 For the purposes of the DPDP Act, the Data Fiduciary is:
 
-- **Entity:** [MRK18 LEGAL ENTITY NAME]
-- **Registered address:** [REGISTERED ADDRESS]
+- **Entity:** Sipnshow Private Limited (a company incorporated in India)
+- **Registered address:** A-116, First Floor, URBTECH Trade Centre, Maharishi Nagar, Noida, Gautam Buddha Nagar – 201304, Uttar Pradesh, India
 - **Contact:** mrk18ai@gmail.com
-- **Grievance Officer:** [NAME], reachable at [GRIEVANCE EMAIL] (see Section 15)
+- **Grievance Officer:** Founder, Sipnshow Private Limited, reachable at mrk18ai@gmail.com (see Section 15)
 
 ---
 
@@ -78,6 +78,16 @@ We use your information to:
 
 ---
 
+## 3.2 Data from Meta and Google platforms
+
+**Meta.** Our access to and use of information obtained through Meta APIs (including the Meta Marketing API) complies with the Meta Platform Terms and Developer Policies. We request only the permissions needed to provide the Services (such as **ads_management**, **ads_read**, and **business_management**) and use that data solely to operate features you have enabled.
+
+**Google.** Our use and transfer of information received from Google APIs (including the Google Ads API) to any other app will adhere to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements. We use Google advertising data only to provide user-facing features within mrk18 and do not sell this data.
+
+We do not use platform data for advertising to you, do not transfer it to data brokers, and do not use it for any purpose unrelated to the Services.
+
+---
+
 ## 4. Legal Bases for Processing
 
 Under the DPDP Act, we process your personal data on the basis of:
@@ -126,7 +136,7 @@ Subject to applicable law, you have the right to:
 - **Grievance redressal** — raise a complaint with our Grievance Officer (Section 15) and, if unresolved, with the Data Protection Board of India.
 - **Nominate** — nominate an individual to exercise your rights in the event of death or incapacity, as provided by the DPDP Act.
 
-To exercise any right, email **[GRIEVANCE EMAIL]** from your registered email address. We will verify your identity and respond within the timelines required by applicable law.
+To exercise any right, email **mrk18ai@gmail.com** from your registered email address. We will verify your identity and respond within the timelines required by applicable law.
 
 ---
 
@@ -134,12 +144,12 @@ To exercise any right, email **[GRIEVANCE EMAIL]** from your registered email ad
 
 - **Account data:** retained while your account is active.
 - **Business context and memory:** retained while your account is active, so advice keeps improving; deleted on account deletion.
-- **Raw audio:** retained only for the period needed for transcription and quality checks — no longer than [30] days — then deleted. Transcripts persist as part of your account context unless you delete them.
+- **Raw audio:** retained only for the period needed for transcription and quality checks — no longer than 30 days — then deleted. Transcripts persist as part of your account context unless you delete them.
 - **Connected marketing data:** refreshed on sync; historical snapshots retained to power trend analysis; deleted on disconnection or account deletion.
 - **Payment and tax records:** retained as required by Indian law (typically 7–8 years under tax and company law).
-- **Backups:** deleted data may persist in encrypted backups for up to [90] days before being purged.
+- **Backups:** deleted data may persist in encrypted backups for up to 90 days before being purged.
 
-When you delete your account, we delete or irreversibly de-identify your personal data within [30] days, except where retention is required by law.
+When you delete your account, we delete or irreversibly de-identify your personal data within 30 days, except where retention is required by law. To request deletion, email **mrk18ai@gmail.com** with the subject "Data Deletion Request". Disconnecting a Meta or Google account from within mrk18 revokes our access tokens and stops further data collection from that account immediately.
 
 ---
 
@@ -150,7 +160,7 @@ You may withdraw consent by:
 - Turning off Device listening or Handshake in Device settings;
 - Unsubscribing from marketing emails;
 - Deleting your account; or
-- Writing to [GRIEVANCE EMAIL].
+- Writing to mrk18ai@gmail.com.
 
 Withdrawal does not affect the lawfulness of processing before withdrawal. Withdrawing consent for core processing may mean we cannot provide the Services to you.
 
@@ -195,9 +205,9 @@ We may update this Policy from time to time. Material changes will be notified v
 
 In accordance with the Information Technology Act, 2000, the DPDP Act, and rules made thereunder:
 
-- **Grievance Officer:** [NAME]
-- **Email:** [GRIEVANCE EMAIL]
-- **Address:** [REGISTERED ADDRESS]
+- **Grievance Officer:** Founder, Sipnshow Private Limited
+- **Email:** mrk18ai@gmail.com
+- **Address:** A-116, First Floor, URBTECH Trade Centre, Maharishi Nagar, Noida, Gautam Buddha Nagar – 201304, Uttar Pradesh, India
 - **Response time:** we acknowledge complaints within 24–72 hours and aim to resolve them within 15 days, and in any case within statutory timelines.
 
 For general privacy questions: **mrk18ai@gmail.com**.
