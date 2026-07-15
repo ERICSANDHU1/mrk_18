@@ -8,7 +8,6 @@ import Navbar from "../components/Navbar";
 import Marquee from "../components/Marquee";
 import TasterHero from "../components/sections/TasterHero";
 import ProductReel from "../components/sections/ProductReel";
-import DeviceShowcase from "../components/device/DeviceShowcase";
 import HowItWorks from "../components/sections/HowItWorks";
 import Features from "../components/sections/Features";
 import Pricing from "../components/sections/Pricing";
@@ -35,7 +34,6 @@ export default function Home() {
           <TasterHero />
           <Marquee items={["ADVISE", "EXAMINE", "EXECUTE", "MRK18"]} variant="gradient" />
           <ProductReel />
-          <DeviceShowcase />
           <HowItWorks />
           <Features />
           <Pricing />

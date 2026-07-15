@@ -199,6 +199,26 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+async def _is_authenticated(request: Request) -> bool:
+    """Optional auth: True when a valid Bearer session JWT rides along. Signed-in
+    users have already converted, so they skip the per-IP + global free caps
+    entirely (the caps exist to push ANONYMOUS visitors toward signup). Never
+    raises — a missing/invalid token just means 'treat as anonymous'. Requires
+    AUTH_JWKS_URL (Clerk) configured; unconfigured → everyone is anonymous."""
+    verifier = getattr(request.app.state, "jwt_verifier", None)
+    if verifier is None:
+        return False
+    scheme, _, raw = request.headers.get("authorization", "").partition(" ")
+    token = raw.strip() if scheme.lower() == "bearer" else ""
+    if not token:
+        return False
+    try:
+        await verifier.verify(token)
+        return True
+    except Exception:  # noqa: BLE001 — any verify failure = anonymous, never a 500
+        return False
+
+
 # ── URL validation ────────────────────────────────────────────────────────────
 
 
@@ -555,16 +575,19 @@ async def taster(
         return _sample_payload(domain)  # dev: frontend work needs a shape to render
 
     ip = _client_ip(request)
-    if _cap_reached(ip, settings.taster_daily_per_ip):
-        raise HTTPException(
-            status_code=429,
-            detail="that's the free analyses for today — come back tomorrow",
-        )
-    if _global_cap_reached(settings.taster_daily_global):
-        raise HTTPException(
-            status_code=429,
-            detail="the free taster is at today's capacity — come back tomorrow",
-        )
+    # signed-in users are exempt — the free caps only gate anonymous visitors
+    authed = await _is_authenticated(request)
+    if not authed:
+        if _cap_reached(ip, settings.taster_daily_per_ip):
+            raise HTTPException(
+                status_code=429,
+                detail="that's the free analyses for today — sign up free to keep going",
+            )
+        if _global_cap_reached(settings.taster_daily_global):
+            raise HTTPException(
+                status_code=429,
+                detail="the free taster is at today's capacity — come back tomorrow",
+            )
 
     # one analysis in flight per domain — a concurrent twin (dev StrictMode
     # double-fetch, two visitors racing) waits here, then hits the cache above
@@ -576,11 +599,12 @@ async def taster(
         hit = _cached_payload(await session.get(TasterCacheRow, domain), ttl)
         if hit is not None:
             return hit
-        return await _run_fresh_analysis(settings, engine, url, domain, ip, session)
+        return await _run_fresh_analysis(settings, engine, url, domain, ip, session, authed)
 
 
 async def _run_fresh_analysis(
-    settings, engine: tuple[str, str], url: str, domain: str, ip: str, session: AsyncSession
+    settings, engine: tuple[str, str], url: str, domain: str, ip: str,
+    session: AsyncSession, authed: bool = False,
 ) -> dict:
     # 1) read the site (Tavily fetches it, not us)
     from ..research.web import TavilyResearcher
@@ -663,8 +687,9 @@ async def _run_fresh_analysis(
             detail="the engine is busy — try again in about 30 seconds",
         ) from exc
 
-    _consume_daily(ip)  # quota spent only once the engine actually delivered
-    _consume_global()
+    if not authed:  # signed-in users don't burn the anonymous free quota
+        _consume_daily(ip)  # spent only once the engine actually delivered
+        _consume_global()
     payload = {
         "v": _PAYLOAD_V,
         "domain": domain,

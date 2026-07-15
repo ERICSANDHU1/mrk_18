@@ -4,12 +4,12 @@ import TiltCard from "../ui/TiltCard";
 type Feat = { num: string; title: string; pills: string[] };
 
 const FEATURES: Feat[] = [
-  { num: "01", title: "Always listening", pills: ["wakes on speech", "zero setup", "no button to press"] },
-  { num: "02", title: "Corrects you live", pills: ["someone asks, you know", "in your ear", "never caught off-guard"] },
-  { num: "03", title: "The Handshake", pills: ["finds the room", "asks you both", "makes the intro"] },
-  { num: "04", title: "Tells the bitter truth", pills: ["what really happened", "honest", "no sugar-coating"] },
-  { num: "05", title: "Knows your context", pills: ["your company", "your goals", "advice that fits you"] },
-  { num: "06", title: "Pocket-sized", pills: ["wear it all day", "barely there", "clips on"] },
+  { num: "01", title: "Reads your real numbers", pills: ["connects your analytics", "working vs leaking", "no guesswork"] },
+  { num: "02", title: "Flags what's leaking money", pills: ["before it's a crisis", "watches weekly", "in plain language"] },
+  { num: "03", title: "Hands you the next move", pills: ["one decision a week", "plain language", "not another report"] },
+  { num: "04", title: "Writes your content", pills: ["LinkedIn · X · Instagram", "platform-native", "ready to ship"] },
+  { num: "05", title: "You approve everything", pills: ["two approval gates", "nothing auto-ships", "silence = no"] },
+  { num: "06", title: "Tells the bitter truth", pills: ["zero invented numbers", "no flattery", "what's really working"] },
 ];
 
 function FeatureCard({ feat, big }: { feat: Feat; big?: boolean }) {

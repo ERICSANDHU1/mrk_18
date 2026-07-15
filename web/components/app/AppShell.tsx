@@ -7,6 +7,7 @@ import CmoPanel from "./CmoPanel";
 import CmoConcierge from "./CmoConcierge";
 import CmoCallDock from "./CmoCallDock";
 import ElevenCmoCall from "./ElevenCmoCall";
+import UpgradeModal from "./UpgradeModal";
 import { RightPanelCtx } from "./right-panel-slot";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -207,6 +208,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <CmoCallDock />
       <ElevenCmoCall />
       <CmoConcierge />
+      {/* Ask 2 — upgrade modal, opened by a locked sidebar item (Comrk / Chief) */}
+      <UpgradeModal />
     </RightPanelCtx.Provider>
   );
 }

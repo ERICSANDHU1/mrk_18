@@ -131,7 +131,9 @@ export default function TasterHero() {
                           animate={{ y: 0 }}
                           transition={{ delay: 2.3 + (offset + i) * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                         >
-                          {char === " " ? " " : char}
+                          {/* non-breaking space: a plain " " collapses to zero width inside
+                              these inline-block/overflow-hidden letter cells, jamming words together */}
+                          {char === " " ? " " : char}
                         </motion.span>
                       </span>
                     ))}
