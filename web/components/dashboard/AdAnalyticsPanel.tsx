@@ -6,7 +6,6 @@ import {
   BarChart3,
   Loader2,
   Lock,
-  RefreshCw,
   Scissors,
   Sparkles,
   Target,
@@ -75,7 +74,6 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
   const [data, setData] = useState<Latest | null>(null);
   const [metaConnected, setMetaConnected] = useState(false);
   const [running, setRunning] = useState(false);
-  const [repulling, setRepulling] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -117,26 +115,6 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
     } catch {
       setErr("Couldn't reach the server.");
       setRunning(false);
-    }
-  };
-
-  // Re-pull fresh numbers from Meta (creates a new pending snapshot → re-gates).
-  const repull = async () => {
-    setRepulling(true);
-    setErr(null);
-    try {
-      const res = await fetch("/api/analytics/sync-meta", { method: "POST" });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setErr(body?.error || "Couldn't pull fresh data — try again.");
-        setRepulling(false);
-        return;
-      }
-      load();
-    } catch {
-      setErr("Couldn't reach the server.");
-    } finally {
-      setRepulling(false);
     }
   };
 
@@ -286,15 +264,12 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={repull}
-          disabled={repulling}
-          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted transition-colors hover:text-ink disabled:opacity-50"
-        >
-          {repulling ? <Loader2 size={12} className="animate-spin" aria-hidden /> : <RefreshCw size={12} aria-hidden />}
-          Pull fresh data from Meta
-        </button>
+      {/* The Meta connection controls live here too, NOT just in the connect /
+          empty states: an existing diagnosis (e.g. an old CSV upload) used to
+          hide them completely, leaving no way to connect or switch ad account. */}
+      <div className="flex flex-col items-start gap-3 rounded-2xl border border-stroke-2 bg-surface p-5">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Meta connection</p>
+        <ConnectMetaButton />
         {err && <span className="text-[12px] font-semibold text-bad">{err}</span>}
       </div>
     </div>
