@@ -193,10 +193,12 @@ async def oauth_callback(state: str, code: str, request: Request) -> dict:
         _schedule_meta_pull(request, pending.founder_id)
 
     # Browser redirect back to the app when configured; else legacy JSON (tests).
+    # Lands on Channels & connectors — the page that owns the connect button, so
+    # the founder sees "connected" + their pulled ad data right where they left.
     web = (get_settings().web_base_url or "").rstrip("/")
     if web:
         return RedirectResponse(
-            url=f"{web}/console/leaks?connected={pending.platform}", status_code=303
+            url=f"{web}/console/channels?connected={pending.platform}", status_code=303
         )
     return {"platform": pending.platform, "status": "connected"}
 
