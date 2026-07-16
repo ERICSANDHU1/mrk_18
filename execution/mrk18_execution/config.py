@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     meta_app_id: str = ""
     meta_app_secret: str = ""
     meta_api_version: str = "v23.0"  # pin a version; bump deliberately
+    # Facebook Login for Business — new Meta Business apps get this instead of
+    # classic Facebook Login, and it takes its permissions from a Configuration
+    # in the app dashboard (Facebook Login for Business → Configurations)
+    # rather than from `scope`. Paste that Configuration ID here or the consent
+    # dialog is rejected. Empty = classic scope-based flow.
+    meta_login_config_id: str = ""
     # Public base URL of THIS backend — used to build the OAuth redirect_uri Meta
     # calls back (must match a Valid OAuth Redirect URI in the Meta app):
     # https://mrk18.onrender.com → redirect_uri https://mrk18.onrender.com/oauth/callback.
