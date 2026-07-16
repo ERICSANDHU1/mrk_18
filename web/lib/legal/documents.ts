@@ -15,3 +15,4 @@ export const TERMS_MD = read("terms-of-service.md").replace(
   "[Privacy Policy](/privacy)",
 );
 export const PRIVACY_MD = read("privacy-policy.md");
+export const CONTACT_MD = read("contact.md");

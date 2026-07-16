@@ -27,6 +27,7 @@ import {
   Users,
 } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
+import { hasProAccess } from "@/lib/entitlements";
 import ThemeToggle from "./ThemeToggle";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact: boolean; badge?: string; locked?: boolean };
@@ -139,6 +140,11 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const userLabel =
     user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
 
+  // Founding 500 gate — allowlisted accounts (the founder, hand-onboarded
+  // members) see Comrk + Chief unlocked; everyone else gets the upgrade modal.
+  const pro = hasProAccess(user?.primaryEmailAddress?.emailAddress);
+  const topItems: NavItem[] = TOP.map((t) => ({ ...t, locked: t.locked && !pro }));
+
   // Which of the 3 tabs is active. /mrk lives under Comrk; Chief owns its rooms
   // (including the console detail pages it links to).
   const activeTab =
@@ -230,7 +236,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
           /* collapsed — icon-only nav */
           <>
             <div aria-hidden className="my-1.5 w-6 self-center border-t border-line" />
-            {TOP.map(renderRow)}
+            {topItems.map(renderRow)}
             <div className="flex-1" />
             <div aria-hidden className="my-1.5 w-6 self-center border-t border-line" />
             {renderRow(BOTTOM)}
@@ -239,7 +245,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
           /* expanded — Chat / Comrk / Chief segment (all three labelled) + the active tab's session list */
           <>
             <div className="mt-1 flex gap-1 rounded-xl border border-line bg-surface-2 p-1">
-              {TOP.map((t) => {
+              {topItems.map((t) => {
                 const on = activeTab === t.href;
                 const Icon = t.icon;
                 const cls = `flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] font-semibold transition-colors ${

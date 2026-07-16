@@ -14,6 +14,7 @@ const EXPLORE = [
 const CONNECT = [
   { label: "mrk18ai@gmail.com", href: "mailto:mrk18ai@gmail.com", external: false },
   { label: "LinkedIn — mrk ai", href: "https://www.linkedin.com/in/mrk-ai-4a78a9409", external: true },
+  { label: "Contact us", href: "/contact", external: false },
 ];
 
 export default function Footer() {
@@ -57,6 +58,10 @@ export default function Footer() {
             </span>
           </p>
           <p className="mt-3 text-[13px] text-muted">Built for founders everywhere. Tells the bitter truth.</p>
+          {/* legal entity attribution — required for Meta/Google app review */}
+          <p className="mt-4 text-[13px] text-muted">
+            MRK18 is a product of <span className="font-semibold text-[#1b1815]">Sipnshow Private Limited</span>.
+          </p>
         </div>
 
         <div>
@@ -110,7 +115,7 @@ export default function Footer() {
       {/* legal bar */}
       <div className="relative z-10 mx-auto mt-10 flex max-w-6xl flex-col gap-4 border-t border-stroke pt-6 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[13px] text-muted">
-          © 2026 mrk18 <span className="text-amber">·</span> CMO in your pocket
+          © 2026 Sipnshow Private Limited <span className="text-amber">·</span> MRK18
         </p>
         <div className="flex items-center gap-6">
           <Link href="/privacy" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
@@ -119,12 +124,9 @@ export default function Footer() {
           <Link href="/terms" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
             Terms
           </Link>
-          <a
-            href="mailto:mrk18ai@gmail.com"
-            className="text-[13px] text-muted transition-colors hover:text-[#1b1815]"
-          >
+          <Link href="/contact" className="text-[13px] text-muted transition-colors hover:text-[#1b1815]">
             Contact
-          </a>
+          </Link>
         </div>
       </div>
     </footer>
