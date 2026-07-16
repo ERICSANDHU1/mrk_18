@@ -239,6 +239,8 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
             client_id=settings.meta_app_id,
             client_secret=settings.meta_app_secret,
             redirect_uri=f"{redirect_base}/oauth/callback",
+            # set for Facebook Login for Business apps; empty = classic scopes
+            config_id=settings.meta_login_config_id,
         )
 
     # Slice 2.4 — perimeter: rate limits + security headers on every response.

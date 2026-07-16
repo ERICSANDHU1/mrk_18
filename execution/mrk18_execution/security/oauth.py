@@ -37,6 +37,11 @@ class ProviderConfig:
     client_id: str
     client_secret: str
     redirect_uri: str
+    # Facebook Login for Business (what Meta gives new Business apps) takes its
+    # permissions from a saved Configuration in the app dashboard, identified by
+    # this id — it IGNORES `scope`, and a scope-only dialog gets rejected. Empty
+    # = the classic scope-based flow (every other provider).
+    config_id: str = ""
 
 
 def _utcnow() -> datetime:
@@ -73,11 +78,17 @@ async def start_connection(
         "response_type": "code",
         "client_id": provider.client_id,
         "redirect_uri": provider.redirect_uri,
-        "scope": " ".join(scopes),
         "state": state,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
     }
+    if provider.config_id:
+        # Login for Business: the Configuration carries the permissions. Sending
+        # `scope` alongside it is ignored at best, so it's left off entirely —
+        # `scopes` still gates the caller via default_scopes/ScopeViolation.
+        params["config_id"] = provider.config_id
+    else:
+        params["scope"] = " ".join(scopes)
     return {"authorize_url": f"{provider.authorize_url}?{urlencode(params)}", "state": state}
 
 
