@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import ConnectDataState from "./ConnectDataState";
+import ConnectMetaButton from "./ConnectMetaButton";
 import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 type Diag = {
@@ -72,6 +73,7 @@ function Block({ icon: Icon, title, items, tone }: { icon: LucideIcon; title: st
  *  the founder approves it explicitly. Reads /api/analytics/latest. */
 export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: string }) {
   const [data, setData] = useState<Latest | null>(null);
+  const [metaConnected, setMetaConnected] = useState(false);
   const [running, setRunning] = useState(false);
   const [repulling, setRepulling] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -81,6 +83,18 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setData(d ?? { diagnosis: null, metrics: null }))
       .catch(() => setData({ diagnosis: null, metrics: null }));
+    // Connected-but-no-campaigns must NOT look like "not connected": a pull
+    // that finds zero campaigns stores no snapshot, so the connection status
+    // is the only way to tell the two apart.
+    fetch("/api/connections", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) =>
+        setMetaConnected(
+          Array.isArray(rows) &&
+            rows.some((c) => c?.platform === "meta" && c?.status === "connected"),
+        ),
+      )
+      .catch(() => setMetaConnected(false));
   }, []);
 
   useEffect(() => {
@@ -155,7 +169,29 @@ export default function AdAnalyticsPanel({ metric = "This view" }: { metric?: st
 
   // ── Pending gate / connect prompt (no diagnosis yet) ──────────────────────
   if (!d) {
-    if (!hasData) return <ConnectDataState metric={metric} />;
+    if (!hasData) {
+      // Connected, pulled, zero campaigns (e.g. a brand-new ad account): show
+      // the connected tick + an honest empty state — NOT the connect prompt,
+      // which would read as "your connection failed".
+      if (metaConnected) {
+        return (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stroke-2 bg-surface px-6 py-16 text-center">
+            <span className="mb-4 rounded-xl border border-stroke-2 bg-surface-2 p-3 text-muted">
+              <BarChart3 size={20} aria-hidden />
+            </span>
+            <h3 className="text-[15px] font-bold tracking-tight">No active campaigns yet</h3>
+            <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted">
+              Your Meta ad account is connected, but it has no campaigns with spend so far.
+              The moment ads run, their numbers land here automatically — real figures only.
+            </p>
+            <div className="mt-5">
+              <ConnectMetaButton />
+            </div>
+          </div>
+        );
+      }
+      return <ConnectDataState metric={metric} />;
+    }
     const campaigns = m!.campaigns!;
     return (
       <div className="grid gap-4">
