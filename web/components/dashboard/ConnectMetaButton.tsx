@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Lock, RefreshCw } from "lucide-react";
+import { Check, Loader2, Lock, RefreshCw, Unplug } from "lucide-react";
 import { CONNECTORS_LOCKED } from "@/lib/flags";
 
 type Conn = {
@@ -20,6 +20,7 @@ export default function ConnectMetaButton() {
   const [err, setErr] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -83,24 +84,60 @@ export default function ConnectMetaButton() {
     }
   };
 
+  // Switching ad accounts = disconnect + reconnect: the backend links whichever
+  // ad account the OAuth asset picker shared, so there's no in-app account
+  // switcher — you redo consent and share a different one.
+  const disconnect = async () => {
+    setDisconnecting(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/connections/meta", { method: "DELETE" });
+      if (res.ok) {
+        setConns([]); // back to the "Connect Meta Ads" button
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSyncMsg(data?.error || "Couldn't disconnect — try again.");
+      }
+    } catch {
+      setSyncMsg("Couldn't reach the server.");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   if (meta) {
     return (
       <div className="inline-flex flex-col items-center gap-2">
         <span className="inline-flex items-center gap-2 rounded-lg border border-good/30 bg-good/10 px-3.5 py-2 text-[12.5px] font-semibold text-good">
           <Check size={14} aria-hidden /> Meta connected{meta.external_ref ? ` · ${meta.external_ref}` : ""}
         </span>
-        <button
-          onClick={sync}
-          disabled={syncing}
-          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted transition-colors hover:text-ink disabled:opacity-50"
-        >
-          {syncing ? (
-            <Loader2 size={12} className="animate-spin" aria-hidden />
-          ) : (
-            <RefreshCw size={12} aria-hidden />
-          )}
-          Refresh data
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={sync}
+            disabled={syncing}
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted transition-colors hover:text-ink disabled:opacity-50"
+          >
+            {syncing ? (
+              <Loader2 size={12} className="animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw size={12} aria-hidden />
+            )}
+            Refresh data
+          </button>
+          <button
+            onClick={disconnect}
+            disabled={disconnecting}
+            title="Disconnect, then reconnect to link a different ad account"
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-muted transition-colors hover:text-ink disabled:opacity-50"
+          >
+            {disconnecting ? (
+              <Loader2 size={12} className="animate-spin" aria-hidden />
+            ) : (
+              <Unplug size={12} aria-hidden />
+            )}
+            Switch account
+          </button>
+        </div>
         {syncMsg && <span className="text-[11px] text-muted">{syncMsg}</span>}
       </div>
     );
