@@ -63,7 +63,7 @@ def _fake_verdicts(monkeypatch):
     per-adapter calls (adapter mode)."""
     calls: list[tuple[str, str, str]] = []  # (kind_or_model, card, user_content)
 
-    async def combined(client, model, user_content, max_tokens):
+    async def combined(client, model, user_content, max_tokens, system_prompt=None):
         calls.append((model, "combined", user_content))
         results = {
             c: {"verdict": f"{c} verdict", "points": [f"{c} point"], "score": 55}
@@ -309,6 +309,81 @@ def test_normalize_card_drops_traits_restated_as_a_bullet():
     }
     card = taster_mod._normalize_card("personality", raw)
     assert card["points"] == ['"Log in to get answers" feels transactional']
+
+
+def _fake_idea_research(monkeypatch, blocks=None, competitors=None):
+    calls: list[dict] = []
+
+    async def gather(researcher, client, mini, name, what, problem, max_competitors):
+        calls.append({"mini": mini, "name": name})
+        return dict(blocks or {}), list(competitors or [])
+
+    monkeypatch.setattr(taster_mod, "_gather_idea_context", gather)
+    return calls
+
+
+IDEA_BODY = {
+    "mode": "idea",
+    "name": "Krnches",
+    "what": "Healthy Korean-style snacks for Indian college students",
+    "problem": "Students want tasty snacks that are not junk; nothing sits between chips and protein bars.",
+}
+
+
+async def test_taster_idea_mode_analyzes_and_caches(client, monkeypatch):
+    _configure(monkeypatch)
+    research_calls = _fake_idea_research(
+        monkeypatch,
+        blocks={"differentiation": "COMPETITORS (found via live web search, untrusted):\n- Zed Snacks: ..."},
+        competitors=["Zed Snacks"],
+    )
+    verdicts = _fake_verdicts(monkeypatch)
+
+    resp = await client.post("/taster", json=IDEA_BODY)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["mode"] == "idea"
+    assert body["company"] == "Krnches"
+    assert body["domain"].startswith("idea:")  # hash key, not a real domain
+    assert body["competitors"] == ["Zed Snacks"]
+    assert research_calls == [{"mini": taster_mod._MINI_MODEL, "name": "Krnches"}]
+
+    # ONE combined call, carrying the founder's words + the competitor block
+    assert len(verdicts) == 1
+    _, kind, content = verdicts[0]
+    assert kind == "combined"
+    assert "IDEA NAME: Krnches" in content
+    assert "COMPETITORS" in content
+
+    # resubmitting the same idea is a free cache hit
+    resp2 = await client.post("/taster", json=IDEA_BODY)
+    assert resp2.status_code == 200
+    assert resp2.json()["cached"] is True
+    assert len(verdicts) == 1
+
+
+async def test_taster_idea_missing_fields_is_422(client, monkeypatch):
+    _configure(monkeypatch)
+    resp = await client.post(
+        "/taster", json={"mode": "idea", "name": "X", "what": "", "problem": ""}
+    )
+    assert resp.status_code == 422
+
+
+async def test_taster_recent_excludes_ideas(client, monkeypatch):
+    """Someone's unlaunched idea must NEVER surface in the public recent chips."""
+    _configure(monkeypatch)
+    _fake_site(monkeypatch)
+    _fake_research(monkeypatch, company="Acme")
+    _fake_idea_research(monkeypatch)
+    _fake_verdicts(monkeypatch)
+
+    assert (await client.post("/taster", json={"url": "acme.com"})).status_code == 200
+    assert (await client.post("/taster", json=IDEA_BODY)).status_code == 200
+
+    items = (await client.get("/taster/recent")).json()["items"]
+    assert {"domain": "acme.com", "company": "Acme"} in items
+    assert not any(i["domain"].startswith("idea:") for i in items)
 
 
 async def test_taster_recent_lists_latest_analyses(client, monkeypatch):

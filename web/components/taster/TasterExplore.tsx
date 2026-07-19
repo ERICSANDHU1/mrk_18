@@ -37,6 +37,7 @@ type TasterResults = {
 type TasterResponse = {
   v?: number;
   domain: string;
+  mode?: string; // "idea" when analyzing a described idea instead of a live site
   company?: string;
   offer?: string;
   results: TasterResults;
@@ -50,12 +51,19 @@ type TasterResponse = {
 
 // Step tracker thresholds (seconds elapsed) — mapped to what the pipeline is
 // genuinely doing server-side; the last step holds until the response lands.
-const STEPS: { label: string; at: number }[] = [
+const STEPS_URL: { label: string; at: number }[] = [
   { label: "Reading the site", at: 0 },
   { label: "Identifying the business", at: 3 },
   { label: "Discovering real competitors", at: 6 },
   { label: "Studying their positioning", at: 10 },
   { label: "Writing four honest verdicts", at: 14 },
+];
+// idea mode skips the site read + identity steps server-side too
+const STEPS_IDEA: { label: string; at: number }[] = [
+  { label: "Reading your idea", at: 0 },
+  { label: "Discovering real competitors", at: 3 },
+  { label: "Studying their positioning", at: 8 },
+  { label: "Writing four honest verdicts", at: 12 },
 ];
 
 const CARDS: { key: keyof TasterResults; title: string; hint: string }[] = [
@@ -84,6 +92,21 @@ function Favicon({ domain, size = 32 }: { domain: string; size?: number }) {
       height={size}
       className="rounded-lg border border-stroke bg-surface"
     />
+  );
+}
+
+/** Idea mode has no favicon — a lightbulb in the same framed-tile style. */
+function IdeaGlyph({ size = 32 }: { size?: number }) {
+  return (
+    <span
+      className="grid shrink-0 place-items-center rounded-lg border border-stroke bg-surface text-molten"
+      style={{ width: size, height: size }}
+      aria-hidden
+    >
+      <svg viewBox="0 0 24 24" width={size * 0.55} height={size * 0.55} fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 3.6 10.8c-.6.5-.9 1.2-.9 1.9V16h-5.4v-.3c0-.7-.3-1.4-.9-1.9A6 6 0 0 1 12 3z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
   );
 }
 
@@ -146,7 +169,13 @@ function Dial({ value }: { value: number }) {
   );
 }
 
-export default function TasterExplore({ domain }: { domain: string }) {
+export default function TasterExplore({
+  domain,
+  mode = "url",
+}: {
+  domain?: string;
+  mode?: "url" | "idea";
+}) {
   const reduceMotion = useReducedMotion();
   const { isSignedIn, isLoaded } = useUser(); // toast (Ask 1) shows only to signed-out visitors
   const { getToken } = useAuth(); // signed-in → send the session token so the backend skips the free cap
@@ -155,6 +184,8 @@ export default function TasterExplore({ domain }: { domain: string }) {
   const [error, setError] = useState<string>("");
   const [warming, setWarming] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [ideaName, setIdeaName] = useState(""); // for the loading headline
+  const isIdea = mode === "idea";
 
   // elapsed ticker drives the step tracker
   useEffect(() => {
@@ -171,6 +202,28 @@ export default function TasterExplore({ domain }: { domain: string }) {
     let alive = true;
 
     (async () => {
+      // Idea mode: the hero handed the idea over via sessionStorage (an
+      // unlaunched idea never belongs in a URL). Missing = deep-linked or
+      // storage cleared — send them back to the hero, don't 422 the backend.
+      let payload: Record<string, string>;
+      if (mode === "idea") {
+        let stored: { name?: string; what?: string; problem?: string } | null = null;
+        try {
+          stored = JSON.parse(sessionStorage.getItem("mrk18-taster-idea") || "null");
+        } catch {
+          stored = null;
+        }
+        if (!stored?.name || !stored?.what || !stored?.problem) {
+          setError("We lost your idea on the way here — go back and enter it again.");
+          setPhase("error");
+          return;
+        }
+        setIdeaName(stored.name);
+        payload = { mode: "idea", name: stored.name, what: stored.what, problem: stored.problem };
+      } else {
+        payload = { url: domain ?? "" };
+      }
+
       // attach the Clerk session token when signed in — the backend then exempts
       // this caller from the anonymous free cap (getToken → null when logged out)
       const token = await getToken().catch(() => null);
@@ -183,7 +236,7 @@ export default function TasterExplore({ domain }: { domain: string }) {
           res = await fetch(`${BACKEND}/taster`, {
             method: "POST",
             headers,
-            body: JSON.stringify({ url: domain }),
+            body: JSON.stringify(payload),
           });
         } catch {
           if (!alive) return;
@@ -220,8 +273,9 @@ export default function TasterExplore({ domain }: { domain: string }) {
       alive = false;
     };
     // getToken is stable from Clerk; listed to satisfy the exhaustive-deps rule
-  }, [domain, getToken]);
+  }, [domain, mode, getToken]);
 
+  const STEPS = isIdea ? STEPS_IDEA : STEPS_URL;
   const currentStep = STEPS.filter((s) => elapsed >= s.at).length - 1;
 
   // overall = average of the four card grades (absent in adapter mode)
@@ -250,13 +304,13 @@ export default function TasterExplore({ domain }: { domain: string }) {
           <div className="grid flex-1 place-items-center">
             <div className="glass w-full max-w-md rounded-2xl p-7">
               <div className="flex items-center gap-3.5">
-                <Favicon domain={domain} size={38} />
+                {isIdea ? <IdeaGlyph size={38} /> : <Favicon domain={domain ?? ""} size={38} />}
                 <div>
                   <h1
                     className="text-[20px] font-bold leading-tight text-ink"
                     style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
                   >
-                    Reading {domain} cold
+                    Reading {isIdea ? `“${ideaName || "your idea"}”` : domain} cold
                   </h1>
                   <p className="mt-0.5 text-[12.5px] text-muted">
                     your CMO&apos;s first verdict · free · ~60 seconds
@@ -318,7 +372,7 @@ export default function TasterExplore({ domain }: { domain: string }) {
                 className="mt-6 inline-block rounded-2xl px-6 py-3 text-[13.5px] font-semibold text-[color:var(--cta-ink,#0a0a0b)]"
                 style={{ background: "var(--gradient-brand)" }}
               >
-                Try another URL
+                {isIdea ? "Back to the taster" : "Try another URL"}
               </Link>
             </div>
           </div>
@@ -335,7 +389,7 @@ export default function TasterExplore({ domain }: { domain: string }) {
             >
               <div className="glass rounded-2xl p-4">
                 <div className="flex items-center gap-2.5">
-                  <Favicon domain={data.domain} />
+                  {isIdea ? <IdeaGlyph /> : <Favicon domain={data.domain} />}
                   <div className="min-w-0">
                     <h1
                       className="truncate text-[16px] font-bold leading-tight text-ink"
@@ -343,14 +397,20 @@ export default function TasterExplore({ domain }: { domain: string }) {
                     >
                       {data.company || data.domain}
                     </h1>
-                    <a
-                      href={`https://${data.domain}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11.5px] font-medium text-muted hover:text-ink"
-                    >
-                      {data.domain} ↗
-                    </a>
+                    {isIdea ? (
+                      <p className="text-[11.5px] font-medium text-muted">
+                        idea · based on your description
+                      </p>
+                    ) : (
+                      <a
+                        href={`https://${data.domain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11.5px] font-medium text-muted hover:text-ink"
+                      >
+                        {data.domain} ↗
+                      </a>
+                    )}
                   </div>
                 </div>
                 {data.offer && (
@@ -440,7 +500,12 @@ export default function TasterExplore({ domain }: { domain: string }) {
             {/* ── center: the four verdicts, 2×2 ──────────────────────── */}
             <div className="flex min-h-0 flex-col">
               <h2 className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
-                The taster verdict — {data.domain}
+                The taster verdict — {isIdea ? data.company || "your idea" : data.domain}
+                {isIdea && (
+                  <span className="ml-2 normal-case tracking-normal">
+                    · based on your description
+                  </span>
+                )}
               </h2>
               <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-2">
                 {CARDS.map((card, i) => {

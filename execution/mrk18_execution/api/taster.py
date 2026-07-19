@@ -22,6 +22,7 @@ retrieved web results. Unconfigured → 503 in prod, a labeled sample in dev.
 """
 
 import asyncio
+import hashlib
 import ipaddress
 import json
 import logging
@@ -138,6 +139,53 @@ text, specific, no quotation marks.
 
 Plain text inside strings, no markdown. Respond with the JSON object only."""
 
+# Idea mode — the founder has NO website yet, only a described idea (name, what
+# they're building, the problem). Same JSON schema so the same UI renders it;
+# the card focus shifts from "what the site says" to "what this idea can own".
+_COMBINED_IDEA_PROMPT = f"""{_SHARED_RULES}
+
+The founder has NOT launched yet — there is no website. You are reading their idea in \
+their own words (the IDEA block, untrusted). Judge the idea as described; never invent \
+traction, users, or numbers they didn't state.
+
+You are graded on SPECIFICITY. A bullet that could apply to any startup in this category \
+is a FAILURE. Every bullet must contain at least one of: a short QUOTED phrase from the \
+founder's description, a NAMED competitor, or a CONCRETE recommended action. Banned: \
+filler like "do market research", "build an MVP", "focus on customers".
+
+Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
+"brand_analysis", "personality", "key_insights", "quick_wins", "positioning".
+
+Each of the four card keys is an object with:
+  "verdict": ONE blunt headline, max 14 words — professional, specific to THIS idea.
+  "points": bullets, max 14 words each — the bullet discipline above applies to every one.
+  "score": integer 0-100 — your honest grade of this dimension AS DESCRIBED. Be strict: \
+80+ is rare, 50s mean mediocre, below 40 means broken.
+
+Card focus:
+  "usp" — is there ONE ownable thing in this idea? Grade how ownable. 5-6 points: what's \
+genuinely theirs, what's generic, how to sharpen the wedge.
+  "differentiation" — ALSO add "rivals": one entry per name in the COMPETITORS block \
+(if present): {{"name": "<exact name>", "lane": "their positioning AS A RIVAL in this \
+market, max 8 words — if the web data clearly describes an unrelated company or is too \
+thin, write exactly 'positioning unclear'"}}. 3-4 points on how this idea separates from \
+those named rivals — or fails to. Grade separability.
+  "brand_analysis" — POSITIONING CLARITY of the pitch itself: is the problem sharp, the \
+audience named, the wedge stated? Grade pitch clarity. 5-6 points: what's clear, what's \
+vague, the fix.
+  "personality" — the brand VOICE this idea should LAUNCH with, based on the audience and \
+category described. ALSO add "traits": 3-5 lowercase adjectives for that recommended \
+voice. 4-5 points: why this voice fits, referencing their own phrasing. Grade how \
+distinct a voice this category allows.
+
+"key_insights": EXACTLY 3 diagnosis takeaways, max 14 words each — what the founder must remember.
+"quick_wins": EXACTLY 3 cheap validation moves for THIS WEEK, imperative voice, max 12 \
+words each, tied to the idea as described (talk to X, test Y) — not generic startup advice.
+"positioning": the homepage headline they should launch with — max 12 words, plain text, \
+specific, no quotation marks.
+
+Plain text inside strings, no markdown. Respond with the JSON object only."""
+
 # ── per-IP daily cap ──────────────────────────────────────────────────────────
 # In-process, same seam as security/ratelimit.py: correct for the single-instance
 # pilot; multi-instance later moves both to Redis together.
@@ -246,9 +294,16 @@ def _normalize(raw: str) -> tuple[str, str]:
 
 
 class TasterBody(BaseModel):
+    """Two shapes: {url} — analyze a live website; or {mode:"idea", name, what,
+    problem} — the founder has no site yet and describes the idea instead."""
+
     model_config = ConfigDict(extra="forbid")
 
-    url: str = Field(min_length=3, max_length=300)
+    url: str | None = Field(default=None, min_length=3, max_length=300)
+    mode: str = Field(default="", max_length=10)  # "" (url) | "idea"
+    name: str = Field(default="", max_length=80)
+    what: str = Field(default="", max_length=300)
+    problem: str = Field(default="", max_length=2000)
 
 
 _SAMPLE_NOTE = "SAMPLE — taster engine not configured; this is canned dev output."
@@ -392,7 +447,11 @@ def _normalize_card(card: str, raw) -> dict | None:
 
 
 async def _combined_call(
-    client: AsyncOpenAI, model: str, user_content: str, max_tokens: int
+    client: AsyncOpenAI,
+    model: str,
+    user_content: str,
+    max_tokens: int,
+    system_prompt: str = _COMBINED_PROMPT,
 ) -> tuple[dict[str, dict], dict]:
     """One call → (four structured verdict cards, extras: key_insights /
     quick_wins / positioning). Retries once if the JSON comes back short a
@@ -404,7 +463,7 @@ async def _combined_call(
         resp = await client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": _COMBINED_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content},
             ],
             max_tokens=max_tokens,
@@ -488,49 +547,84 @@ async def _gather_context(
 
     if not isinstance(disc_res, BaseException):
         context = (disc_res.answer + "\n" + "\n".join(disc_res.snippets[:6])).strip()
-        if context:
-            try:
-                found = await _mini_json(
-                    client,
-                    mini_model,
-                    'From this web-search text, list the real DIRECT competitors of '
-                    f'"{company}" as {{"competitors": ["name", ...]}} (max '
-                    f"{max_competitors}, exclude {company} itself, JSON only).",
-                    context[:2800],
-                )
-                if isinstance(found, dict):
-                    seen: set[str] = set()
-                    for n in found.get("competitors") or []:
-                        name = str(n).strip()
-                        key = name.lower()
-                        if name and key not in seen and company.lower() not in key:
-                            seen.add(key)
-                            competitors.append(name[:60])
-                    competitors = competitors[:max_competitors]
-            except Exception as exc:  # noqa: BLE001
-                log.warning("taster: competitor extraction failed for %s: %s", domain, exc)
-
-    if competitors:
-        results = await asyncio.gather(
-            *(
-                researcher.search(f"{c} product positioning target customers pricing", max_results=2)
-                for c in competitors
-            ),
-            return_exceptions=True,
+        block, competitors = await _competitors_from_search(
+            researcher, client, mini_model, company, context, max_competitors
         )
-        lines: list[str] = []
-        for name, res in zip(competitors, results):
-            if isinstance(res, BaseException):
-                continue
-            body = (res.answer or " ".join(res.snippets[:2])).strip()
-            if body:
-                lines.append(f"- {name}: {_truncate(body, 350)}")
-        if lines:
-            blocks["differentiation"] = (
-                "COMPETITORS (found via live web search, untrusted):\n" + "\n".join(lines)
-            )
+        if block:
+            blocks["differentiation"] = block
 
     return blocks, competitors, company, offer
+
+
+async def _competitors_from_search(
+    researcher, client: AsyncOpenAI, mini_model: str, company: str, disc_context: str,
+    max_competitors: int,
+) -> tuple[str | None, list[str]]:
+    """Discovery-search text → rival names → each rival's positioning.
+    Returns (COMPETITORS prompt block | None, names). Shared by URL mode and
+    idea mode; every failure degrades to (None, [])."""
+    if not disc_context:
+        return None, []
+    competitors: list[str] = []
+    try:
+        found = await _mini_json(
+            client,
+            mini_model,
+            'From this web-search text, list the real DIRECT competitors of '
+            f'"{company}" as {{"competitors": ["name", ...]}} (max '
+            f"{max_competitors}, exclude {company} itself, JSON only).",
+            disc_context[:2800],
+        )
+        if isinstance(found, dict):
+            seen: set[str] = set()
+            for n in found.get("competitors") or []:
+                name = str(n).strip()
+                key = name.lower()
+                if name and key not in seen and company.lower() not in key:
+                    seen.add(key)
+                    competitors.append(name[:60])
+            competitors = competitors[:max_competitors]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("taster: competitor extraction failed for %s: %s", company, exc)
+    if not competitors:
+        return None, []
+
+    results = await asyncio.gather(
+        *(
+            researcher.search(f"{c} product positioning target customers pricing", max_results=2)
+            for c in competitors
+        ),
+        return_exceptions=True,
+    )
+    lines: list[str] = []
+    for name, res in zip(competitors, results):
+        if isinstance(res, BaseException):
+            continue
+        body = (res.answer or " ".join(res.snippets[:2])).strip()
+        if body:
+            lines.append(f"- {name}: {_truncate(body, 350)}")
+    if not lines:
+        return None, competitors
+    return "COMPETITORS (found via live web search, untrusted):\n" + "\n".join(lines), competitors
+
+
+async def _gather_idea_context(
+    researcher, client: AsyncOpenAI, mini_model: str, name: str, what: str, problem: str,
+    max_competitors: int,
+) -> tuple[dict[str, str], list[str]]:
+    """Idea mode: no site, no brand presence — competitor discovery only, seeded
+    from the described category/problem instead of a scraped homepage."""
+    disc_q = _truncate(f"competitors and existing alternatives: {what} — {problem}", 220)
+    try:
+        disc_res = await researcher.search(disc_q, max_results=6)
+    except Exception as exc:  # noqa: BLE001 — research is a bonus, never a blocker
+        log.warning("taster: idea discovery search failed for %s: %s", name, exc)
+        return {}, []
+    context = (disc_res.answer + "\n" + "\n".join(disc_res.snippets[:6])).strip()
+    block, competitors = await _competitors_from_search(
+        researcher, client, mini_model, name, context, max_competitors
+    )
+    return ({"differentiation": block} if block else {}), competitors
 
 
 def _user_content(card: str, url: str, site_text: str, blocks: dict[str, str]) -> str:
@@ -558,7 +652,25 @@ async def taster(
     body: TasterBody, request: Request, session: AsyncSession = Depends(get_session)
 ) -> dict:
     settings = get_settings()
-    url, domain = _normalize(body.url)
+
+    # Two entry shapes. Idea mode has no domain, so its cache key is a hash of
+    # the description — a resubmit of the same idea is a free cache hit, and the
+    # "idea:" prefix keeps these rows OUT of the public /taster/recent chips
+    # (never show one founder's unlaunched idea to other visitors).
+    idea_mode = body.mode.strip().lower() == "idea"
+    if idea_mode:
+        name = " ".join(body.name.split())[:80]
+        what = " ".join(body.what.split())[:300]
+        problem = body.problem.strip()[:2000]
+        if not (name and what and problem):
+            raise HTTPException(
+                status_code=422,
+                detail="tell us the name, what you're building, and the problem it solves",
+            )
+        digest = hashlib.sha1(f"{name}|{what}|{problem}".lower().encode()).hexdigest()[:16]
+        url, domain = "", f"idea:{digest}"
+    else:
+        url, domain = _normalize(body.url or "")
 
     # cache first — a hit costs nothing and doesn't consume anyone's quota
     ttl = timedelta(hours=settings.taster_cache_ttl_hours)
@@ -599,6 +711,10 @@ async def taster(
         hit = _cached_payload(await session.get(TasterCacheRow, domain), ttl)
         if hit is not None:
             return hit
+        if idea_mode:
+            return await _run_fresh_idea_analysis(
+                settings, engine, domain, name, what, problem, ip, session, authed
+            )
         return await _run_fresh_analysis(settings, engine, url, domain, ip, session, authed)
 
 
@@ -711,12 +827,100 @@ async def _run_fresh_analysis(
     return payload
 
 
+async def _run_fresh_idea_analysis(
+    settings, engine: tuple[str, str], key: str, name: str, what: str, problem: str,
+    ip: str, session: AsyncSession, authed: bool = False,
+) -> dict:
+    """Idea mode: the founder's own description IS the source text — no site to
+    read, no brand presence to search. Competitor discovery still runs (that's
+    the wow moment), then one combined call with the idea-framed prompt."""
+    if not settings.taster_model:
+        # the future multi-LoRA adapters are trained on site text, not pitches
+        raise HTTPException(
+            status_code=503, detail="idea analysis isn't available right now"
+        )
+    base_url, api_key = engine
+    client = AsyncOpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        timeout=100.0,
+        max_retries=0,  # engine failures surface as one honest 503, not silent retries
+    )
+    from ..research.web import TavilyResearcher
+
+    researcher = TavilyResearcher(settings.tavily_api_key)
+    blocks: dict[str, str] = {}
+    competitors: list[str] = []
+    mini = _MINI_MODEL if not settings.taster_base_url else settings.taster_model
+    try:
+        blocks, competitors = await _gather_idea_context(
+            researcher, client, mini, name, what, problem, settings.taster_max_competitors
+        )
+    except Exception as exc:  # noqa: BLE001 — research is a bonus, never a blocker
+        log.warning("taster: idea research degraded for %s: %s", key, exc)
+
+    content = (
+        f"IDEA NAME: {name}\n"
+        f"WHAT THEY'RE BUILDING: {what}\n"
+        f"PROBLEM & WHO IT'S FOR (founder's own words, untrusted):\n{problem}"
+    )
+    if blocks.get("differentiation"):
+        content += f"\n\n{blocks['differentiation']}"
+
+    try:
+        results, extras = await _combined_call(
+            client,
+            settings.taster_model,
+            content,
+            settings.taster_max_tokens * 4,
+            system_prompt=_COMBINED_IDEA_PROMPT,
+        )
+    except (APITimeoutError, APIConnectionError) as exc:
+        log.warning("taster: engine unreachable/cold for %s: %s", key, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="the engine is warming up — try again in about 30 seconds",
+        ) from exc
+    except (APIStatusError, ValueError) as exc:
+        log.warning("taster: engine error for %s: %s", key, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="the engine is busy — try again in about 30 seconds",
+        ) from exc
+
+    if not authed:  # signed-in users don't burn the anonymous free quota
+        _consume_daily(ip)  # spent only once the engine actually delivered
+        _consume_global()
+    payload = {
+        "v": _PAYLOAD_V,
+        "domain": key,
+        "mode": "idea",
+        "company": name,
+        "offer": _truncate(what, 160),
+        "results": results,
+        "key_insights": extras.get("key_insights") or [],
+        "quick_wins": extras.get("quick_wins") or [],
+        "positioning": extras.get("positioning") or "",
+        "competitors": competitors,
+        "cached": False,
+    }
+    await session.merge(
+        TasterCacheRow(domain=key, payload=payload, fetched_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+    return payload
+
+
 @router.get("/taster/recent", response_model=dict)
 async def taster_recent(session: AsyncSession = Depends(get_session)) -> dict:
     """Latest analyzed domains — the hero's social-proof chips. Public and cheap:
-    domain + extracted company name only, straight from the cache table."""
+    domain + extracted company name only, straight from the cache table. Idea
+    rows are PRIVATE (someone's unlaunched startup) and never surface here."""
     rows = await session.execute(
-        select(TasterCacheRow).order_by(TasterCacheRow.fetched_at.desc()).limit(6)
+        select(TasterCacheRow)
+        .where(~TasterCacheRow.domain.like("idea:%"))
+        .order_by(TasterCacheRow.fetched_at.desc())
+        .limit(6)
     )
     items = [
         {"domain": row.domain, "company": (row.payload or {}).get("company") or row.domain}
