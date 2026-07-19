@@ -48,7 +48,8 @@
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
   --color-mute-2: var(--mute-2);
-  --color-mute: var(--muted); /* `text-mute` is used widely — map it to the real muted token (both themes) */
+  --color-mute: var(--muted);
+  /* `text-mute` is used widely — map it to the real muted token (both themes) */
   --font-sans: var(--font-sora);
   --font-mono: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
 }
@@ -60,12 +61,14 @@
   font-weight: 500;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Clash Display";
   src: url("/fonts/clash-600.woff2") format("woff2");
   font-weight: 600;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Clash Display";
   src: url("/fonts/clash-700.woff2") format("woff2");
@@ -92,6 +95,7 @@ body {
 
 /* hide native cursor only when the custom cursor is mounted on a fine pointer */
 @media (pointer: fine) {
+
   html.custom-cursor,
   html.custom-cursor a,
   html.custom-cursor button {
@@ -105,11 +109,13 @@ body {
 .cursor-native * {
   cursor: auto !important;
 }
+
 .cursor-native a,
 .cursor-native button,
 .cursor-native [role="button"] {
   cursor: pointer !important;
 }
+
 .cursor-native input,
 .cursor-native textarea,
 .cursor-native select {
@@ -123,6 +129,37 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* ---------- rotating word ticker (hero headline) ----------
+   Slot-machine / ticker effect: a fixed-height mask clips a two-cell
+   vertical track. The track translates -50% to reveal the next word,
+   then snaps back after the swap. GPU-accelerated, no layout shift. */
+.rotating-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  height: 1.06em;
+  /* sized to longest word ("IDEA") so no reflow when "URL" shows */
+  min-width: 3.2ch;
+  text-align: left;
+  position: relative;
+}
+.rotating-word-track {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+.rotating-word-cell {
+  display: block;
+  height: 1.06em;
+  line-height: 1.06;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotating-word-track {
+    transition: none !important;
+  }
 }
 
 /* Glassmorphism 2.0 — four interacting layers, never a flat frost:
@@ -158,6 +195,7 @@ body {
   -webkit-text-stroke: 1px rgba(244, 241, 236, 0.25);
   color: transparent;
 }
+
 .fill-on-hover::before {
   content: attr(data-text);
   position: absolute;
@@ -170,6 +208,7 @@ body {
   clip-path: inset(0 100% 0 0);
   transition: clip-path 700ms cubic-bezier(0.65, 0, 0.35, 1);
 }
+
 .fill-on-hover:hover::before {
   clip-path: inset(0 0 0 0);
 }
@@ -180,6 +219,7 @@ body {
   from {
     transform: translateX(0);
   }
+
   to {
     transform: translateX(-50%);
   }
@@ -190,6 +230,7 @@ body {
   width: max-content;
   animation: marquee 28s linear infinite;
 }
+
 .marquee:hover .marquee-track {
   animation-play-state: paused;
 }
@@ -197,14 +238,17 @@ body {
 /* ---------- pulsing live badge ---------- */
 
 @keyframes pulse-dot {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5);
   }
+
   50% {
     box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
   }
 }
+
 .pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
 }
@@ -214,6 +258,7 @@ body {
   from {
     transform: translateX(-130%) skewX(-18deg);
   }
+
   to {
     transform: translateX(230%) skewX(-18deg);
   }
@@ -236,30 +281,36 @@ body {
     opacity: 0;
     transform: translateY(14px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
+
 .auth-rise {
   animation: auth-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* the "CMO is online" dot — soft white ring, no layout impact */
 @keyframes auth-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
   }
+
   50% {
     box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
   }
 }
+
 .auth-pulse {
   animation: auth-pulse 2.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .auth-rise,
   .auth-pulse {
     animation: none;
@@ -273,9 +324,11 @@ body {
 .auth-clerk .cl-header {
   display: none;
 }
+
 .auth-clerk .cl-footer {
   background: #ffffff;
 }
+
 /* Chrome autofill paints inputs pale blue — repaint to the sand input tint */
 .auth-clerk input:-webkit-autofill,
 .auth-clerk input:-webkit-autofill:hover,
@@ -292,10 +345,12 @@ body {
   from {
     background-position: 200% 0;
   }
+
   to {
     background-position: -200% 0;
   }
 }
+
 .skeleton {
   border-radius: 8px;
   background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
@@ -309,11 +364,13 @@ body {
     transform: translateY(0);
     opacity: 0.9;
   }
+
   100% {
     transform: translateY(16px);
     opacity: 0;
   }
 }
+
 .drip {
   animation: drip 1.8s ease-in infinite;
 }
@@ -323,14 +380,17 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(27, 24, 21, 0.18) transparent;
 }
+
 .dash-scroll::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+
 .dash-scroll::-webkit-scrollbar-thumb {
   background: rgba(27, 24, 21, 0.18);
   border-radius: 8px;
 }
+
 .dash-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -342,40 +402,68 @@ body {
 .app-scope {
   font-family: var(--font-claude-sans), var(--font-hanken), system-ui, sans-serif;
 }
+
 .font-display {
   /* the Claude-style display serif (≈Copernicus) — founder picked it as the
      site-wide display face 2026-07-02; Fraunces retired from the landing */
   font-family: var(--font-claude-serif), Georgia, serif;
   letter-spacing: -0.005em;
 }
+
 .app-scope .font-display {
   font-family: var(--font-claude-serif), Georgia, serif;
   letter-spacing: -0.01em;
 }
+
 .font-claude-serif {
   font-family: var(--font-claude-serif), Georgia, serif;
 }
+
 .font-data {
   font-family: var(--font-jbmono), ui-monospace, "JetBrains Mono", monospace;
 }
 
 /* live voice orb + connecting ring */
 @keyframes orb {
-  0%, 100% { transform: scale(1); opacity: 0.85; }
-  50% { transform: scale(1.08); opacity: 1; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
 }
-.orb { animation: orb 1.8s ease-in-out infinite; }
+
+.orb {
+  animation: orb 1.8s ease-in-out infinite;
+}
+
 @keyframes ring {
-  0% { transform: scale(0.9); opacity: 0.7; }
-  100% { transform: scale(1.85); opacity: 0; }
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
 }
-.ring { animation: ring 1.6s ease-out infinite; }
+
+.ring {
+  animation: ring 1.6s ease-out infinite;
+}
 
 /* ---------- reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
+
   *,
   *::before,
   *::after {
@@ -474,43 +562,52 @@ body {
   --shadow-color: rgba(0, 0, 0, 0.5);
   --backdrop: rgba(0, 0, 0, 0.6);
 }
+
 /* beat the explicit `.theme-sand .text-ink/.text-muted` overrides inside the app */
 .mrk18-dark .app-scope .text-ink {
   color: #e8e6e1;
 }
+
 .mrk18-dark .app-scope .text-muted {
   color: #b3b1a8;
 }
+
 /* the .app-scope layout div also carries .text-ink — `.theme-sand .text-ink`
    would otherwise win by source order and pull the scope's inherited color back
    to dark ink, dragging every unclassed heading + bare label down with it. */
 .mrk18-dark .app-scope.text-ink {
   color: #e8e6e1;
 }
+
 .mrk18-dark .app-scope h1,
 .mrk18-dark .app-scope h2,
 .mrk18-dark .app-scope h3,
 .mrk18-dark .app-scope h4 {
   color: #e8e6e1;
 }
+
 /* primary surfaces built on the accent: at night the accent is LIGHT, so their
    labels flip dark (specificity beats the elements' own .text-white) */
 .mrk18-dark .app-scope .bg-molten,
 .mrk18-dark .app-scope .from-molten {
   color: #232220;
 }
+
 /* errors must stay readable even though ember surfaces went graphite */
 .mrk18-dark .app-scope .text-ember {
   color: #e0756b;
 }
+
 .theme-sand .text-ink {
   color: #1b1815;
 }
+
 .theme-sand .text-muted {
   /* darkened for the greige backdrop (#d3ccbb…#e5dfd1): #514a41 holds ≥5.2:1 on
      the gradient's darkest corner while staying clearly muted next to the ink */
   color: #514a41;
 }
+
 /* Glassmorphism 2.0, light adaptation: same four layers on the cream page —
    the gradient fill brightens toward the top-left, the 1px WHITE border is the
    light catching the pane's edge (a dark border here is the "frosted plastic"
@@ -526,12 +623,15 @@ body {
     0 0 0 1px rgba(27, 24, 21, 0.05),
     0 12px 40px rgba(27, 24, 21, 0.16);
 }
+
 .theme-sand .border-stroke {
   border-color: rgba(27, 24, 21, 0.12);
 }
+
 .theme-sand .text-outline {
   -webkit-text-stroke: 1.5px rgba(27, 24, 21, 0.62);
 }
+
 .theme-sand .fill-on-hover {
   /* outline-only display link ("GET STARTED") was ghost-faint on the greige */
   -webkit-text-stroke: 1px rgba(27, 24, 21, 0.34);
@@ -563,6 +663,7 @@ body {
   letter-spacing: -0.005em;
   font-optical-sizing: auto;
 }
+
 .theme-sand .text-outline,
 .theme-sand .fill-on-hover {
   font-family: var(--font-display), Georgia, serif;
@@ -590,6 +691,7 @@ body {
     inset 0 -1px 3px rgba(255, 255, 255, 0.4),
     inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
+
 .theme-sand .liquid-glass::before {
   content: "";
   position: absolute;
@@ -599,21 +701,25 @@ body {
   z-index: 0;
   background: radial-gradient(115% 75% at 18% 0%, rgba(255, 255, 255, 0.4), transparent 48%);
 }
-.theme-sand .liquid-glass > * {
+
+.theme-sand .liquid-glass>* {
   position: relative;
   z-index: 1;
 }
+
 /* lead card refraction — enabled by the Chromium JS gate once the map is ready */
 .liquid-on .theme-sand .liquid-glass--lead {
   -webkit-backdrop-filter: blur(2px) saturate(140%) brightness(1.06);
   backdrop-filter: url(#mrk-liquid) blur(2px) saturate(140%) brightness(1.06);
 }
+
 /* fallbacks — the frosted card is the floor (zero regression) */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .theme-sand .liquid-glass {
     background: rgba(255, 255, 255, 0.9);
   }
 }
+
 @media (prefers-reduced-transparency: reduce) {
   .theme-sand .liquid-glass {
     background: rgba(255, 255, 255, 0.93);
@@ -640,11 +746,13 @@ body {
     0 0 0 1px rgba(27, 24, 21, 0.05),
     0 12px 40px rgba(27, 24, 21, 0.16);
 }
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .feature-glass {
     background: rgba(255, 255, 255, 0.9);
   }
 }
+
 @media (prefers-reduced-transparency: reduce) {
   .feature-glass {
     background: rgba(255, 255, 255, 0.9);
