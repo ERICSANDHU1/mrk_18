@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
@@ -14,8 +14,63 @@ import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 
-const TAGLINE = "Drop your URL. Meet your CMO.";
-const TAGLINE_LINES = ["Drop your URL.", "Meet your CMO."];
+const TAGLINE = "Drop your URL. Get your verdicts.";
+const TAGLINE_LINES = ["Drop your URL.", "Get your verdicts."];
+
+/** Words that rotate in the headline ticker — slot-machine style. */
+const ROTATING_WORDS = ["URL", "IDEA"] as const;
+const ROTATE_PAUSE = 2000;   // ms to hold each word before sliding
+const ROTATE_SLIDE = 500;    // ms for the vertical slide transition
+
+/** Slot-machine ticker: slides words vertically in a fixed-height mask.
+ *  GPU-accelerated (translate3d), no layout shift, inherits surrounding type.
+ *  Only the highlighted word rotates — the rest of the headline is static. */
+function RotatingWord({ startDelay }: { startDelay: number }) {
+  const [idx, setIdx] = useState(0);
+  const [sliding, setSliding] = useState(false);
+  const [active, setActive] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Kick off the loop after the initial reveal animation completes
+  useEffect(() => {
+    const t = setTimeout(() => setActive(true), startDelay);
+    return () => clearTimeout(t);
+  }, [startDelay]);
+
+  // Main rotation loop: wait → slide → swap → repeat
+  useEffect(() => {
+    if (!active) return;
+    timer.current = setTimeout(() => {
+      setSliding(true);
+      // After the slide animation finishes, swap the word and reset
+      setTimeout(() => {
+        setIdx((prev) => (prev + 1) % ROTATING_WORDS.length);
+        setSliding(false);
+      }, ROTATE_SLIDE);
+    }, ROTATE_PAUSE);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [idx, active]);
+
+  const current = ROTATING_WORDS[idx];
+  const next = ROTATING_WORDS[(idx + 1) % ROTATING_WORDS.length];
+
+  return (
+    <span className="rotating-word-mask" aria-label={current}>
+      <span
+        className="rotating-word-track"
+        style={{
+          transform: sliding ? "translate3d(0,-50%,0)" : "translate3d(0,0%,0)",
+          transition: sliding
+            ? `transform ${ROTATE_SLIDE}ms cubic-bezier(0.65,0,0.35,1)`
+            : "none",
+        }}
+      >
+        <span className="rotating-word-cell">{current}</span>
+        <span className="rotating-word-cell">{next}</span>
+      </span>
+    </span>
+  );
+}
 
 const EXAMPLES = ["allbirds.com", "linear.app"];
 
@@ -45,7 +100,7 @@ export default function TasterHero() {
       .then((d) => {
         if (alive && Array.isArray(d?.items)) setRecent(d.items.slice(0, 4));
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       alive = false;
     };
@@ -105,8 +160,7 @@ export default function TasterHero() {
       : [...recent, ...EXAMPLES.map((d) => ({ domain: d, company: d })).slice(recent.length)];
 
   const segBtn = (active: boolean) =>
-    `rounded-full px-5 py-2 text-[13px] font-semibold transition-colors ${
-      active ? "text-[color:var(--cta-ink,#0a0a0b)]" : "text-muted hover:text-ink"
+    `rounded-full px-5 py-2 text-[13px] font-semibold transition-colors ${active ? "text-[color:var(--cta-ink,#0a0a0b)]" : "text-muted hover:text-ink"
     }`;
 
   return (
@@ -125,6 +179,19 @@ export default function TasterHero() {
         mrk18
       </motion.div>
 
+      {/* large two-tone "mrk18" brand mark on the right — original hero position */}
+      <motion.div
+        aria-hidden
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2.6, duration: 1 }}
+        style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
+        className="pointer-events-none absolute right-[5%] top-20 z-0 hidden select-none text-[clamp(3rem,6.5vw,6.5rem)] font-bold leading-none tracking-[-0.005em] lg:block"
+      >
+        <span style={{ color: "rgba(27,24,21,0.88)" }}>mrk</span>
+        <span style={{ color: "var(--oxblood)" }}>18</span>
+      </motion.div>
+
       {/* centered column — the Okara-style single action stack */}
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center text-center">
         {/* eyebrow */}
@@ -138,37 +205,74 @@ export default function TasterHero() {
           FREE ANALYSIS · NO SIGN-UP
         </motion.span>
 
-        {/* headline */}
+        {/* headline — only "URL" rotates (slot-machine to "IDEA"); everything else is static */}
         <h1 className="mt-7 text-[clamp(2.7rem,7.5vw,5.6rem)] font-extrabold leading-[1.02] tracking-[-0.03em]">
           {reduceMotion ? (
             <span>
-              <span className="block text-ink">{TAGLINE_LINES[0]}</span>
+              <span className="block text-ink">
+                Drop your{"\u00A0"}<RotatingWord startDelay={0} />.
+              </span>
               <span className="text-gradient block">{TAGLINE_LINES[1]}</span>
             </span>
           ) : (
             <span aria-label={TAGLINE}>
-              {TAGLINE_LINES.map((line, lineIdx) => {
-                const offset = TAGLINE_LINES.slice(0, lineIdx).reduce((n, l) => n + l.length, 0);
-                return (
-                  <span key={lineIdx} className="block">
-                    {line.split("").map((char, i) => (
-                      <span key={i} className="inline-block overflow-hidden align-bottom">
-                        <motion.span
-                          className={`${lineIdx === 0 ? "text-ink" : "text-gradient"} inline-block`}
-                          initial={{ y: "112%" }}
-                          animate={{ y: 0 }}
-                          transition={{ delay: 2.3 + (offset + i) * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                        >
-                          {/* nbsp escape: a plain space collapses to zero width inside these
-                              overflow-hidden letter cells (renders as DropyourURL). Keep the
-                              WRITTEN escape - a literal nbsp is invisible and already regressed once. */}
-                          {char === " " ? "\u00A0" : char}
-                        </motion.span>
-                      </span>
-                    ))}
+              {/* Line 1: "Drop your " (char reveal) + rotating word + "." */}
+              <span className="block">
+                {/* Static chars: "Drop your " — 10 chars (including trailing space) */}
+                {"Drop your ".split("").map((char, i) => (
+                  <span key={i} className="inline-block overflow-hidden align-bottom">
+                    <motion.span
+                      className="text-ink inline-block"
+                      initial={{ y: "112%" }}
+                      animate={{ y: 0 }}
+                      transition={{ delay: 2.3 + i * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      {char === " " ? "\u00A0" : char}
+                    </motion.span>
                   </span>
-                );
-              })}
+                ))}
+                {/* Rotating word: revealed alongside the last static char, then loops */}
+                <span className="inline-block overflow-hidden align-bottom">
+                  <motion.span
+                    className="text-ink inline-block"
+                    initial={{ y: "112%" }}
+                    animate={{ y: 0 }}
+                    transition={{ delay: 2.3 + 10 * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <RotatingWord startDelay={3200} />
+                  </motion.span>
+                </span>
+                {/* Static period "." */}
+                <span className="inline-block overflow-hidden align-bottom">
+                  <motion.span
+                    className="text-ink inline-block"
+                    initial={{ y: "112%" }}
+                    animate={{ y: 0 }}
+                    transition={{ delay: 2.3 + 13 * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    .
+                  </motion.span>
+                </span>
+              </span>
+              {/* Line 2: "Meet your CMO." — char-by-char reveal, no rotation */}
+              <span className="block">
+                {TAGLINE_LINES[1].split("").map((char, i) => {
+                  const offset = 14; // length of "Drop your URL."
+                  return (
+                    <span key={i} className="inline-block overflow-hidden align-bottom">
+                      <motion.span
+                        className="text-gradient inline-block"
+                        initial={{ y: "112%" }}
+                        animate={{ y: 0 }}
+                        transition={{ delay: 2.3 + (offset + i) * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        {/* nbsp escape — keeps spaces visible inside overflow-hidden cells */}
+                        {char === " " ? "\u00A0" : char}
+                      </motion.span>
+                    </span>
+                  );
+                })}
+              </span>
             </span>
           )}
         </h1>

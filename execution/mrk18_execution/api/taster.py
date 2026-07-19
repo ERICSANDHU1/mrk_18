@@ -48,7 +48,7 @@ router = APIRouter(tags=["taster"])
 # The 4 verdict cards. In adapter mode these are also the served adapter names
 # (vLLM --lora-modules); in model mode one model serves all 4, differentiated by
 # the specialist prompts. Order = display order in the hero.
-TASTER_ADAPTERS = ("usp", "differentiation", "brand_analysis", "personality")
+TASTER_ADAPTERS = ("usp", "differentiation", "gtm", "personality")
 
 _SITE_CHAR_CAP = 6000  # shared context per request — keeps calls fast and cheap
 _MINI_MODEL = "llama-3.1-8b-instant"  # identity + name extraction on Groq (fast, ~free)
@@ -79,11 +79,10 @@ TASTER_PROMPTS: dict[str, str] = {
         "competitor data is present, assess differentiation from the site alone. End with "
         "the sharpest edge they should lead with."
     ),
-    "brand_analysis": (
-        f"{_SHARED_RULES}\n\nTask: analyze the brand — positioning, clarity of the promise, "
-        "who it seems to be for, and the single biggest gap between what they do and what "
-        "the page communicates. If a BRAND ON THE WEB block is present, weigh how the brand "
-        "reads out in the wild against how the site presents it."
+    "gtm": (
+        f"{_SHARED_RULES}\n\nTask: deliver the go-to-market verdict — the motion that fits "
+        "their price/ACV, the ONE primary channel with a NAMED entry point (a specific "
+        "community/directory/search term, never 'social media'), and the sharpest GTM risk."
     ),
     "personality": (
         f"{_SHARED_RULES}\n\nTask: describe this brand's voice and personality as the site "
@@ -108,7 +107,7 @@ provided content, a NAMED competitor, or a CONCRETE recommended action. Banned: 
 like "improve messaging", "modern design", "strong brand presence".
 
 Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
-"brand_analysis", "personality", "key_insights", "quick_wins", "positioning".
+"gtm", "personality", "key_insights", "quick_wins", "positioning".
 
 Each of the four card keys is an object with:
   "verdict": ONE blunt headline, max 14 words — professional, specific to THIS business.
@@ -125,8 +124,15 @@ the evidence, what weakens it, and how to sharpen it.
 market, max 8 words — if the web data clearly describes an unrelated company or is too \
 thin, write exactly 'positioning unclear'"}}. 3-4 points comparing against those named \
 rivals. Grade how separable this business is.
-  "brand_analysis" — clarity of promise, who it's REALLY for, the biggest say-do gap. \
-Grade message clarity. 5-6 points: the promise, the audience, the gaps, the fix.
+  "gtm" — the GO-TO-MARKET verdict. Infer the motion that fits their price/ACV \
+(self-serve for low ACV, founder-led sales for mid, outbound for high) and reason from \
+it. Name the ONE primary channel with a SPECIFIC named entry point — a real community, \
+directory, or search term, NEVER "social media". State where the first 100 customers \
+actually are and the single most likely GTM failure. ALSO add "motion" (exactly one of: \
+self-serve | founder-led | community-led | outbound | product-led-hybrid) and \
+"primary_channel" (the one channel + its named entry point, max 10 words). 5-6 points: \
+the motion + why, the primary channel + entry point, the first-100 move, the failure \
+mode — every point carries a number, a named place, or a concrete action. Grade GTM readiness.
   "personality" — ALSO add "traits": 3-5 lowercase adjectives for the voice as it reads. \
 Its "points" must quote specific site phrases — never repeat the traits. 4-5 points. \
 Grade voice distinctiveness.
@@ -154,7 +160,7 @@ founder's description, a NAMED competitor, or a CONCRETE recommended action. Ban
 filler like "do market research", "build an MVP", "focus on customers".
 
 Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
-"brand_analysis", "personality", "key_insights", "quick_wins", "positioning".
+"gtm", "personality", "key_insights", "quick_wins", "positioning".
 
 Each of the four card keys is an object with:
   "verdict": ONE blunt headline, max 14 words — professional, specific to THIS idea.
@@ -170,9 +176,15 @@ genuinely theirs, what's generic, how to sharpen the wedge.
 market, max 8 words — if the web data clearly describes an unrelated company or is too \
 thin, write exactly 'positioning unclear'"}}. 3-4 points on how this idea separates from \
 those named rivals — or fails to. Grade separability.
-  "brand_analysis" — POSITIONING CLARITY of the pitch itself: is the problem sharp, the \
-audience named, the wedge stated? Grade pitch clarity. 5-6 points: what's clear, what's \
-vague, the fix.
+  "gtm" — the GO-TO-MARKET verdict for this unlaunched idea. Infer the motion that fits \
+the described audience/price, and name the ONE primary channel with a SPECIFIC named \
+entry point for THIS audience (a real community, directory, or search term, never \
+"social media"). State where the first 100 customers actually are and the single most \
+likely GTM failure. ALSO add "motion" (exactly one of: self-serve | founder-led | \
+community-led | outbound | product-led-hybrid) and "primary_channel" (channel + named \
+entry point, max 10 words). 5-6 points: motion + why, primary channel + entry point, \
+the first-100 move, the failure mode — numbers, named places, or concrete actions only. \
+Grade GTM readiness.
   "personality" — the brand VOICE this idea should LAUNCH with, based on the audience and \
 category described. ALSO add "traits": 3-5 lowercase adjectives for that recommended \
 voice. 4-5 points: why this voice fits, referencing their own phrasing. Grade how \
@@ -310,7 +322,7 @@ _SAMPLE_NOTE = "SAMPLE — taster engine not configured; this is canned dev outp
 
 # Bumped when the results shape changes — cached rows from an older shape are
 # treated as misses and regenerated, so the frontend renders one shape only.
-_PAYLOAD_V = 4
+_PAYLOAD_V = 5
 
 
 def _sample_card(text: str, **extras) -> dict:
@@ -330,7 +342,11 @@ def _sample_payload(domain: str) -> dict:
                 f"({_SAMPLE_NOTE}) Your competition read.",
                 rivals=[{"name": "Sample Rival", "lane": "does the same, louder"}],
             ),
-            "brand_analysis": _sample_card(f"({_SAMPLE_NOTE}) Your brand analysis."),
+            "gtm": _sample_card(
+                f"({_SAMPLE_NOTE}) Your GTM strategy.",
+                motion="founder-led",
+                primary_channel="LinkedIn — India SaaS founder groups",
+            ),
             "personality": _sample_card(
                 f"({_SAMPLE_NOTE}) Your brand-voice read.",
                 traits=["bold", "generic", "warm"],
@@ -405,10 +421,15 @@ def _is_junk_bullet(text: str) -> bool:
     return (t.startswith("[") and t.endswith("]")) or (t.startswith("{") and t.endswith("}"))
 
 
+_LEADING_ORDINAL = re.compile(r"^\s*\d+\s*[.)-]\s+")  # "1. ", "2) ", "3 - " → stripped
+
+
 def _str_list(raw, limit: int, each: int, *, drop_junk: bool = False) -> list[str]:
     if not isinstance(raw, list):
         return []
-    out = [str(i).strip()[:each] for i in raw if str(i).strip()]
+    # models sometimes number bullets ("1. Motion: ...") — redundant next to the
+    # rendered bullet dot, so strip a leading ordinal before capping length.
+    out = [_LEADING_ORDINAL.sub("", str(i).strip())[:each] for i in raw if str(i).strip()]
     if drop_junk:
         out = [i for i in out if not _is_junk_bullet(i)]
     return out[:limit]
@@ -432,6 +453,9 @@ def _normalize_card(card: str, raw) -> dict | None:
     out["score"] = max(0, min(100, int(score))) if isinstance(score, (int, float)) else None
     if card == "personality":
         out["traits"] = [t.lower() for t in _str_list(raw.get("traits"), 5, 24)]
+    if card == "gtm":
+        out["motion"] = _truncate(str(raw.get("motion") or ""), 40)
+        out["primary_channel"] = _truncate(str(raw.get("primary_channel") or ""), 90)
     if card == "differentiation":
         rivals = []
         for r in raw.get("rivals") or []:
@@ -541,8 +565,9 @@ async def _gather_context(
     if not isinstance(brand_res, BaseException):
         body = (brand_res.answer or " ".join(brand_res.snippets[:2])).strip()
         if body:
-            blocks["brand_analysis"] = (
-                "BRAND ON THE WEB (live web search, untrusted): " + _truncate(body, 700)
+            blocks["gtm"] = (
+                "MARKET & POSITIONING (live web search, untrusted — use for channel/ICP "
+                "signals): " + _truncate(body, 700)
             )
 
     if not isinstance(disc_res, BaseException):

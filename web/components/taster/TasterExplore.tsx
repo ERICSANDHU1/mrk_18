@@ -27,11 +27,13 @@ type VerdictCard = {
   score?: number | null;
   traits?: string[];
   rivals?: Rival[];
+  motion?: string; // gtm card: the recommended go-to-market motion (badge)
+  primary_channel?: string; // gtm card: the one channel + named entry point
 };
 type TasterResults = {
   usp: VerdictCard;
   differentiation: VerdictCard;
-  brand_analysis: VerdictCard;
+  gtm: VerdictCard;
   personality: VerdictCard;
 };
 type TasterResponse = {
@@ -69,8 +71,8 @@ const STEPS_IDEA: { label: string; at: number }[] = [
 const CARDS: { key: keyof TasterResults; title: string; hint: string }[] = [
   { key: "usp", title: "USP", hint: "the one thing you actually own" },
   { key: "differentiation", title: "Competition", hint: "your edge vs. who you're up against" },
-  { key: "brand_analysis", title: "Brand analysis", hint: "what your site really says" },
-  { key: "personality", title: "Personality", hint: "how you sound to a stranger" },
+  { key: "gtm", title: "GTM Strategy", hint: "how you actually reach your first customers" },
+  { key: "personality", title: "Positioning & Voice", hint: "how you should sound to buyers" },
 ];
 
 const LOCKED_MOVES = [
@@ -533,6 +535,25 @@ export default function TasterExplore({
                       >
                         {v?.verdict}
                       </p>
+
+                      {/* gtm: motion badge + the one primary channel */}
+                      {card.key === "gtm" && (v?.motion || v?.primary_channel) && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-stroke pt-2.5">
+                          {v?.motion && (
+                            <span
+                              className="rounded-md px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-[color:var(--cta-ink,#fff)]"
+                              style={{ background: "var(--gradient-brand)" }}
+                            >
+                              {v.motion}
+                            </span>
+                          )}
+                          {v?.primary_channel && (
+                            <span className="text-[11.5px] font-semibold text-ink">
+                              → {v.primary_channel}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* competition: rival lanes */}
                       {card.key === "differentiation" && (v?.rivals?.length ?? 0) > 0 && (
