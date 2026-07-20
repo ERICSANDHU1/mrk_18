@@ -35,7 +35,6 @@ type TasterResults = {
   usp: VerdictCard;
   differentiation: VerdictCard;
   gtm: VerdictCard;
-  personality: VerdictCard;
 };
 type TasterResponse = {
   v?: number;
@@ -73,7 +72,6 @@ const CARDS: { key: keyof TasterResults; title: string; hint: string }[] = [
   { key: "usp", title: "USP", hint: "the one thing you actually own" },
   { key: "differentiation", title: "Competition", hint: "your edge vs. who you're up against" },
   { key: "gtm", title: "GTM Strategy", hint: "how you actually reach your first customers" },
-  { key: "personality", title: "Positioning & Voice", hint: "how you should sound to buyers" },
 ];
 
 const LOCKED_MOVES = [
@@ -589,22 +587,25 @@ export default function TasterExplore({
                         </ul>
                       )}
 
-                      {/* personality: voice chips */}
-                      {card.key === "personality" && (v?.traits?.length ?? 0) > 0 && (
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          {v!.traits!.map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-full border border-stroke px-2 py-0.5 text-[10.5px] font-semibold text-ink/80"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </motion.article>
                   );
                 })}
+
+                {/* 4th cell — the ad analyser. Three auto verdicts + this keeps
+                    the 2x2 grid; the full forensic report opens on its own
+                    canvas because it's a page, not a card. */}
+                <motion.div
+                  initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    delay: reduceMotion ? 0 : CARDS.length * 0.1,
+                    duration: 0.45,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="min-h-0"
+                >
+                  <AdAudit brandContext={data.company || data.domain} variant="card" />
+                </motion.div>
               </div>
             </div>
 
@@ -656,10 +657,6 @@ export default function TasterExplore({
                   </ol>
                 </div>
               )}
-
-              {/* free "act two" — sits BEFORE the paid gate: it's another free
-                  win, and earning that second wow is what makes the gate land */}
-              <AdAudit brandContext={data.company || data.domain} />
 
               <div className="glass rounded-2xl p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">

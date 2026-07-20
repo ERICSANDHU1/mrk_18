@@ -83,7 +83,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function AdAudit({ brandContext }: { brandContext?: string }) {
+export default function AdAudit({
+  brandContext,
+  variant = "panel",
+}: {
+  brandContext?: string;
+  /** "card" sits in the verdict grid as the 4th cell; "panel" is the rail block. */
+  variant?: "panel" | "card";
+}) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -140,26 +147,92 @@ export default function AdAudit({ brandContext }: { brandContext?: string }) {
 
   return (
     <>
-      {/* the invitation — sits with the free verdicts, before the paid gate */}
-      <div className="glass rounded-2xl p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-          Free · act two
-        </p>
-        <p className="mt-1.5 text-[13px] font-bold leading-snug text-ink">
-          Running ads? Get a forensic audit of your spend.
-        </p>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
-          Drop your Meta or Google CSV export — your CMO finds where the money leaks. Still free.
-        </p>
-        <button
-          onClick={() => setOpen(true)}
-          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_10px_36px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow hover:shadow-[0_14px_48px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
-          style={{ background: "var(--gradient-brand)" }}
-        >
-          <BarChart3 size={14} aria-hidden />
-          {data ? "View your ad audit" : "Audit my ad spend →"}
-        </button>
-      </div>
+      {/* ── the 4th grid cell: the ad analyser, sized like a verdict card ──
+          Empty state invites the upload; once audited it shows the headline +
+          the money numbers, with the full report a click away (that report is
+          a full page — it never belonged inside a card). */}
+      {variant === "card" ? (
+        <div className="glass flex min-h-0 flex-col overflow-y-auto rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-[13.5px] font-bold text-ink">Ad spend</h3>
+              <p className="text-[10px] font-medium text-muted">
+                where your money actually goes
+              </p>
+            </div>
+            {a?.confidence && (
+              <span className="shrink-0 rounded-md border border-stroke px-2 py-0.5 text-[10px] font-semibold uppercase text-muted">
+                {a.confidence}
+              </span>
+            )}
+          </div>
+
+          {a ? (
+            <>
+              <p
+                className="mt-2.5 text-[14.5px] font-semibold leading-snug text-ink"
+                style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
+              >
+                {a.headline_verdict}
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                <Stat label="Spend" value={a.money_summary.total_spend || "—"} />
+                <Stat label="CAC" value={a.money_summary.blended_cac || "—"} />
+                <Stat label="Wasted" value={a.money_summary.wasted_spend_estimate || "—"} />
+              </div>
+              {a.concentration.worst_offender.name && (
+                <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
+                  <span className="font-semibold text-bad">Worst:</span>{" "}
+                  {a.concentration.worst_offender.name} — {a.concentration.worst_offender.why}
+                </p>
+              )}
+              <button
+                onClick={() => setOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-molten transition-opacity hover:opacity-80"
+              >
+                View the full audit <ArrowRight size={13} aria-hidden />
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center py-4 text-center">
+              <span className="mb-2.5 grid h-9 w-9 place-items-center rounded-xl border border-stroke bg-surface-2 text-muted">
+                <FileSpreadsheet size={16} aria-hidden />
+              </span>
+              <p className="text-[13px] font-bold text-ink">Running ads?</p>
+              <p className="mt-1 max-w-[22ch] text-[11.5px] leading-relaxed text-muted">
+                Drop your Meta or Google CSV — your CMO finds where the money leaks. Free.
+              </p>
+              <button
+                onClick={() => setOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12.5px] font-bold text-[color:var(--cta-ink,#0a0a0b)]"
+                style={{ background: "var(--gradient-brand)" }}
+              >
+                <BarChart3 size={13} aria-hidden /> Audit my ad spend →
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="glass rounded-2xl p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            Free · act two
+          </p>
+          <p className="mt-1.5 text-[13px] font-bold leading-snug text-ink">
+            Running ads? Get a forensic audit of your spend.
+          </p>
+          <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
+            Drop your Meta or Google CSV export — your CMO finds where the money leaks. Still free.
+          </p>
+          <button
+            onClick={() => setOpen(true)}
+            className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_10px_36px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow hover:shadow-[0_14px_48px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
+            style={{ background: "var(--gradient-brand)" }}
+          >
+            <BarChart3 size={14} aria-hidden />
+            {data ? "View your ad audit" : "Audit my ad spend →"}
+          </button>
+        </div>
+      )}
 
       <AnimatePresence>
         {open && (
