@@ -270,7 +270,7 @@ async def taster_audit(body: AuditBody, request: Request) -> dict:
 
     # 2) walls — the audit is a paid-model call on a public, no-signup route
     ip = _client_ip(request)
-    if _cap_reached(ip, settings.taster_audit_daily_per_ip):
+    if _cap_reached(ip, settings.taster_audit_daily_per_ip, bucket="audit"):
         raise HTTPException(
             status_code=429, detail="that's the free audits for today — come back tomorrow"
         )
@@ -337,7 +337,7 @@ async def taster_audit(body: AuditBody, request: Request) -> dict:
         log.warning("audit: unusable output (%s)", last_error)
         raise HTTPException(status_code=503, detail="the audit came back malformed — try again")
 
-    _consume_daily(ip)  # quota spent only on a delivered audit
+    _consume_daily(ip, bucket="audit")  # quota spent only on a delivered audit
     return {
         "audit": audit,
         # the founder sees the same numbers the model was given — provable, not asserted

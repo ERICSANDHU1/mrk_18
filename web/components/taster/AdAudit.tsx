@@ -64,7 +64,171 @@ type Audit = {
   confidence: string;
   pro_unlock: { headline: string; specific_gap: string };
 };
-type AuditResponse = { audit: Audit; platform: string; row_count: number };
+/** Server-computed campaign rows + totals. These are arithmetic done in Python,
+ *  not model output — so the charts are provably right even when the model's
+ *  prose wobbles. */
+type Campaign = {
+  name: string;
+  spend?: number;
+  conversions?: number;
+  impressions?: number;
+  clicks?: number;
+  ctr_pct?: number | null;
+  cpc?: number | null;
+  cac?: number | null;
+  roas?: number | null;
+};
+type Computed = {
+  currency: string | null;
+  total_spend: number;
+  total_conversions: number;
+  blended_cac: number | null;
+  blended_roas: number | null;
+  blended_ctr_pct: number | null;
+  worst_performing_count: number;
+  worst_performing_names: string[];
+  worst_performing_spend: number;
+  worst_performing_spend_pct: number | null;
+  worst_performing_conversions: number;
+  worst_performing_conversion_pct: number | null;
+};
+type AuditResponse = {
+  audit: Audit;
+  computed: Computed;
+  campaigns: Campaign[];
+  platform: string;
+  row_count: number;
+};
+
+/** Money with the export's own currency. No currency column → plain grouped
+ *  number rather than inventing a symbol. */
+function money(n: number | null | undefined, cur?: string | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const rounded = Math.abs(n) >= 100 ? 0 : 2;
+  if (!cur) return n.toLocaleString("en-IN", { maximumFractionDigits: rounded });
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: cur,
+      maximumFractionDigits: rounded,
+    }).format(n);
+  } catch {
+    return `${cur} ${n.toLocaleString("en-IN", { maximumFractionDigits: rounded })}`;
+  }
+}
+
+const num = (n: number | null | undefined) =>
+  n == null || !Number.isFinite(n) ? "—" : n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+/** The concentration gap, drawn. Two bars — share of spend vs share of results
+ *  the worst campaigns produced. The gap between them IS the finding. */
+function ConcentrationGap({ c }: { c: Computed }) {
+  const spendPct = c.worst_performing_spend_pct;
+  const convPct = c.worst_performing_conversion_pct;
+  if (spendPct == null) return null;
+  const rows = [
+    { label: "of your spend", pct: spendPct, tone: "var(--bad, #b3261e)" },
+    { label: "of your results", pct: convPct ?? 0, tone: "var(--good, #2e7d32)" },
+  ];
+  return (
+    <div className="glass rounded-2xl p-6">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+        The gap that costs you money
+      </p>
+      <p className="mt-2 text-[13.5px] leading-relaxed text-ink">
+        Your {c.worst_performing_count} worst campaign
+        {c.worst_performing_count === 1 ? "" : "s"}
+        {c.worst_performing_names.length > 0 && (
+          <> (<span className="font-semibold">{c.worst_performing_names.join(", ")}</span>)</>
+        )}{" "}
+        took this much of the budget, and gave back this much:
+      </p>
+      <div className="mt-4 space-y-3">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div className="flex items-baseline justify-between">
+              <span className="text-[12px] font-semibold text-ink">{r.label}</span>
+              <span className="font-data text-[15px] font-extrabold text-ink">
+                {r.pct.toFixed(1)}%
+              </span>
+            </div>
+            <div className="mt-1 h-3 overflow-hidden rounded-full bg-[#1b1815]/10">
+              <div
+                className="h-full rounded-full transition-[width] duration-700"
+                style={{ width: `${Math.min(100, Math.max(1.5, r.pct))}%`, background: r.tone }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Spend per campaign, bar-charted and coloured by efficiency: the widest bar
+ *  in red is where the money is going and not coming back. */
+function CampaignChart({ campaigns, cur }: { campaigns: Campaign[]; cur: string | null }) {
+  const rows = campaigns.filter((c) => (c.spend ?? 0) > 0).slice(0, 8);
+  if (rows.length === 0) return null;
+  const maxSpend = Math.max(...rows.map((c) => c.spend ?? 0));
+  const cacs = rows.map((c) => c.cac).filter((v): v is number => typeof v === "number" && v > 0);
+  const worstCac = cacs.length > 1 ? Math.max(...cacs) : null;
+  const bestCac = cacs.length > 1 ? Math.min(...cacs) : null;
+
+  return (
+    <div className="glass rounded-2xl p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+          Where the money went
+        </p>
+        <p className="text-[10.5px] text-muted">
+          bar = spend · <span className="font-semibold text-bad">red</span> = worst cost per
+          result · <span className="font-semibold text-good">green</span> = best
+        </p>
+      </div>
+      <ul className="mt-4 space-y-3.5">
+        {rows.map((c) => {
+          const pct = maxSpend ? ((c.spend ?? 0) / maxSpend) * 100 : 0;
+          const isWorst = worstCac != null && c.cac === worstCac;
+          const isBest = bestCac != null && c.cac === bestCac;
+          const bg = isWorst
+            ? "var(--bad, #b3261e)"
+            : isBest
+              ? "var(--good, #2e7d32)"
+              : "var(--gradient-brand)";
+          return (
+            <li key={c.name}>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="truncate text-[12.5px] font-semibold text-ink">{c.name}</span>
+                <span className="font-data shrink-0 text-[11.5px] text-muted">
+                  {money(c.spend, cur)}
+                  {typeof c.cac === "number" && (
+                    <>
+                      {" · "}
+                      <span
+                        className={
+                          isWorst ? "font-bold text-bad" : isBest ? "font-bold text-good" : ""
+                        }
+                      >
+                        {money(c.cac, cur)}/result
+                      </span>
+                    </>
+                  )}
+                </span>
+              </div>
+              <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-[#1b1815]/10">
+                <div
+                  className="h-full rounded-full transition-[width] duration-700"
+                  style={{ width: `${Math.max(2, pct)}%`, background: bg }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 const SEVERITY: Record<string, { label: string; cls: string }> = {
   critical: { label: "critical", cls: "text-bad border-bad/40 bg-bad/10" },
@@ -100,11 +264,40 @@ export default function AdAudit({
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // The overlay is React state, so without this the browser Back button (and
+  // the Android back gesture) would navigate the PAGE away — dumping the
+  // founder on the landing page and losing their analysis. Opening pushes a
+  // history entry so Back simply closes the overlay and returns them to their
+  // verdicts. `pushed` tracks whether that entry is still ours to consume.
+  const pushed = useRef(false);
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busy && setOpen(false);
+    window.history.pushState({ mrk18Audit: true }, "");
+    pushed.current = true;
+    const onPop = () => {
+      pushed.current = false; // the browser already consumed our entry
+      setOpen(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [open]);
+
+  /** Close from X / Escape. Goes back rather than just flipping state, so the
+   *  history entry we pushed is consumed instead of left dangling (which would
+   *  make the NEXT Back press appear to do nothing). */
+  const close = () => {
+    if (busy) return;
+    if (pushed.current) window.history.back(); // → popstate → setOpen(false)
+    else setOpen(false);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `close` is stable enough here; it only reads refs + busy
   }, [open, busy]);
 
   const run = async (file: File) => {
@@ -144,6 +337,8 @@ export default function AdAudit({
   };
 
   const a = data?.audit;
+  const comp = data?.computed;
+  const cur = comp?.currency ?? null;
 
   return (
     <>
@@ -265,7 +460,7 @@ export default function AdAudit({
                   </h2>
                 </div>
                 <button
-                  onClick={() => !busy && setOpen(false)}
+                  onClick={close}
                   disabled={busy}
                   aria-label="Close audit"
                   className="shrink-0 rounded-lg border border-stroke p-2 text-muted transition-colors hover:text-ink disabled:opacity-40"
@@ -361,20 +556,16 @@ export default function AdAudit({
                     >
                       {a.headline_verdict}
                     </h3>
+                    {/* tiles read from the SERVER-COMPUTED totals, not the
+                        model's strings — so they're always formatted and always
+                        arithmetically right */}
                     <div className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
-                      <Stat label="Total spend" value={a.money_summary.total_spend || "—"} />
+                      <Stat label="Total spend" value={money(comp?.total_spend, cur)} />
+                      <Stat label="Results" value={num(comp?.total_conversions)} />
+                      <Stat label="Cost per result" value={money(comp?.blended_cac, cur)} />
                       <Stat
-                        label="Conversions"
-                        value={
-                          a.money_summary.total_conversions != null
-                            ? String(a.money_summary.total_conversions)
-                            : "—"
-                        }
-                      />
-                      <Stat label="Blended CAC" value={a.money_summary.blended_cac || "—"} />
-                      <Stat
-                        label="Wasted spend"
-                        value={a.money_summary.wasted_spend_estimate || "—"}
+                        label="At risk"
+                        value={money(comp?.worst_performing_spend, cur)}
                       />
                     </div>
                     {a.money_summary.wasted_spend_definition && (
@@ -384,16 +575,22 @@ export default function AdAudit({
                     )}
                   </div>
 
-                  {/* concentration */}
-                  {a.concentration.summary && (
+                  {/* THE picture: spend per campaign, coloured by efficiency */}
+                  {data?.campaigns && <CampaignChart campaigns={data.campaigns} cur={cur} />}
+
+                  {/* the spend-vs-results gap, drawn from computed numbers.
+                      Deliberately NOT the model's concentration sentence — that
+                      prose occasionally names a campaign not in the file; these
+                      bars come straight from the arithmetic. */}
+                  {comp && <ConcentrationGap c={comp} />}
+
+                  {/* best / worst callouts */}
+                  {(a.concentration.top_performer.name || a.concentration.worst_offender.name) && (
                     <div className="glass rounded-2xl p-6">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                        Where the money concentrated
+                        Best and worst
                       </p>
-                      <p className="mt-2 text-[15px] font-semibold leading-snug text-ink">
-                        {a.concentration.summary}
-                      </p>
-                      <div className="mt-4 grid gap-2.5 md:grid-cols-2">
+                      <div className="mt-3 grid gap-2.5 md:grid-cols-2">
                         <div className="rounded-xl border border-good/30 bg-good/[0.07] p-3.5">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-good">
                             Best performer
