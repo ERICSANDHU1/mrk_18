@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAuth, useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
@@ -178,6 +179,7 @@ export default function TasterExplore({
   mode?: "url" | "idea";
 }) {
   const reduceMotion = useReducedMotion();
+  const router = useRouter();
   const { isSignedIn, isLoaded } = useUser(); // toast (Ask 1) shows only to signed-out visitors
   const { getToken } = useAuth(); // signed-in → send the session token so the backend skips the free cap
   const [phase, setPhase] = useState<"loading" | "error" | "done">("loading");
@@ -187,6 +189,14 @@ export default function TasterExplore({
   const [elapsed, setElapsed] = useState(0);
   const [ideaName, setIdeaName] = useState(""); // for the loading headline
   const isIdea = mode === "idea";
+
+  /** Go back to wherever they actually came from — the hero with their typed
+   *  URL still in it, a previous analysis, wherever. Only a deep/shared link
+   *  (no in-app history) falls back to the landing page. */
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/");
+  };
 
   // elapsed ticker drives the step tracker
   useEffect(() => {
@@ -388,6 +398,16 @@ export default function TasterExplore({
               transition={{ duration: 0.45 }}
               className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto"
             >
+              {/* real history back, at the TOP where a back control belongs.
+                  A deep/shared link has no in-app history to return to, so it
+                  falls back to the hero instead of stranding the visitor. */}
+              <button
+                onClick={goBack}
+                className="self-start px-1 text-[11.5px] font-semibold text-muted transition-colors hover:text-ink"
+              >
+                ← analyze another site
+              </button>
+
               <div className="glass rounded-2xl p-4">
                 <div className="flex items-center gap-2.5">
                   {isIdea ? <IdeaGlyph /> : <Favicon domain={data.domain} />}
@@ -490,12 +510,6 @@ export default function TasterExplore({
                 </div>
               )}
 
-              <Link
-                href="/"
-                className="px-1 text-[11.5px] font-semibold text-muted transition-colors hover:text-ink"
-              >
-                ← analyze another site
-              </Link>
             </motion.aside>
 
             {/* ── center: the four verdicts, 2×2 ──────────────────────── */}

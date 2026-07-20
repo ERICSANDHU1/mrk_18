@@ -245,7 +245,13 @@ export default function AdAudit({
             aria-modal="true"
             aria-label="Ad performance audit"
           >
-            <div className="mx-auto w-full max-w-4xl px-6 py-10">
+            {/* same hairline grid as the taster page, so the audit reads as
+                part of the product rather than a bare modal */}
+            <div aria-hidden className="pointer-events-none fixed inset-0">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+            </div>
+
+            <div className="relative mx-auto w-full max-w-4xl px-6 py-10">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
