@@ -48,7 +48,7 @@ router = APIRouter(tags=["taster"])
 # The 4 verdict cards. In adapter mode these are also the served adapter names
 # (vLLM --lora-modules); in model mode one model serves all 4, differentiated by
 # the specialist prompts. Order = display order in the hero.
-TASTER_ADAPTERS = ("usp", "differentiation", "gtm", "personality")
+TASTER_ADAPTERS = ("usp", "differentiation", "gtm")
 
 _SITE_CHAR_CAP = 6000  # shared context per request — keeps calls fast and cheap
 _MINI_MODEL = "llama-3.1-8b-instant"  # identity + name extraction on Groq (fast, ~free)
@@ -107,11 +107,6 @@ TASTER_PROMPTS: dict[str, str] = {
         "their price/ACV, the ONE primary channel with a NAMED entry point (a specific "
         "community/directory/search term, never 'social media'), and the sharpest GTM risk."
     ),
-    "personality": (
-        f"{_SHARED_RULES}\n\nTask: describe this brand's voice and personality as the site "
-        "actually reads — its tone, energy, and how it comes across to a first-time visitor. "
-        "Note where the voice is inconsistent or defaults to generic corporate filler."
-    ),
 }
 
 # Model mode sends ONE call for all four verdicts: the site text travels once
@@ -125,9 +120,9 @@ TASTER_PROMPTS: dict[str, str] = {
 _COMBINED_PROMPT = f"""{_SHARED_RULES}
 
 Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
-"gtm", "personality", "key_insights", "quick_wins", "positioning".
+"gtm", "key_insights", "quick_wins", "positioning".
 
-Each of the four card keys is an object with:
+Each of the three card keys is an object with:
   "verdict": ONE blunt headline, max 14 words — professional, specific to THIS business.
   "points": bullets, max 14 words each — the bullet discipline above applies to every one. \
 Fill the card: cover strengths AND weaknesses AND what to change, not just observations.
@@ -159,9 +154,6 @@ self-serve | founder-led | community-led | outbound | product-led-hybrid) and \
 points: the motion + why, the primary channel + entry point, the first-100 move \
 (imperative), the failure mode — every point a number, a named place, or a concrete \
 action. Grade GTM readiness.
-  "personality" — ALSO add "traits": 3-5 lowercase adjectives for the voice as it reads. \
-Its "points" must quote specific site phrases — never repeat the traits. 4-5 points. \
-Grade voice distinctiveness.
 
 "key_insights": EXACTLY 3 diagnosis takeaways, max 14 words each — what the founder must remember.
 "quick_wins": EXACTLY 3 actions to ship THIS WEEK, imperative voice, max 12 words each, \
@@ -182,9 +174,9 @@ traction, users, or numbers they didn't state. This is a PRE-LAUNCH idea — all
 acquisition is a recommendation, never a claim of what already happened.
 
 Return a JSON object with EXACTLY these keys: "usp", "differentiation", \
-"gtm", "personality", "key_insights", "quick_wins", "positioning".
+"gtm", "key_insights", "quick_wins", "positioning".
 
-Each of the four card keys is an object with:
+Each of the three card keys is an object with:
   "verdict": ONE blunt headline, max 14 words — professional, specific to THIS idea.
   "points": bullets, max 14 words each — the bullet discipline above applies to every one.
   "score": integer 0-100 — your honest grade of this dimension AS DESCRIBED. Be strict: \
@@ -214,10 +206,6 @@ community-led | outbound | product-led-hybrid) and "primary_channel" (channel + 
 entry point, max 10 words). 5-6 points: motion + why, primary channel + entry point, \
 the first-100 move (imperative), the failure mode — numbers, named places, or concrete \
 actions only. Grade GTM readiness.
-  "personality" — the brand VOICE this idea should LAUNCH with, based on the audience and \
-category described. ALSO add "traits": 3-5 lowercase adjectives for that recommended \
-voice. 4-5 points: why this voice fits, referencing their own phrasing. Grade how \
-distinct a voice this category allows.
 
 "key_insights": EXACTLY 3 diagnosis takeaways, max 14 words each — what the founder must remember.
 "quick_wins": EXACTLY 3 cheap validation moves for THIS WEEK, imperative voice, max 12 \
@@ -382,10 +370,6 @@ def _sample_payload(domain: str) -> dict:
                 motion="founder-led",
                 primary_channel="LinkedIn — India SaaS founder groups",
             ),
-            "personality": _sample_card(
-                f"({_SAMPLE_NOTE}) Your brand-voice read.",
-                traits=["bold", "generic", "warm"],
-            ),
         },
         "key_insights": ["Sample insight one.", "Sample insight two.", "Sample insight three."],
         "quick_wins": ["Sample win one.", "Sample win two.", "Sample win three."],
@@ -486,8 +470,6 @@ def _normalize_card(card: str, raw) -> dict | None:
     }
     score = raw.get("score")
     out["score"] = max(0, min(100, int(score))) if isinstance(score, (int, float)) else None
-    if card == "personality":
-        out["traits"] = [t.lower() for t in _str_list(raw.get("traits"), 5, 24)]
     if card == "gtm":
         out["motion"] = _truncate(str(raw.get("motion") or ""), 40)
         out["primary_channel"] = _truncate(str(raw.get("primary_channel") or ""), 90)
