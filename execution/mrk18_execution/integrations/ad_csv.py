@@ -179,6 +179,35 @@ def to_records(headers: list[str], rows: list[list[str]], cols: dict[str, int]) 
     return list(grouped.values())
 
 
+def daily_series(rows: list[list[str]], cols: dict[str, int], limit: int = 400) -> list[dict]:
+    """Per-DAY spend/clicks for the trend chart, summed across every campaign on
+    that date. Chart-only: this never goes to the model (it is hundreds of points
+    of tokens that add nothing to a judgment already made from the sums).
+
+    Returns [] when the export has no date column — a spend line needs dates."""
+    date_idx = cols.get("date")
+    if date_idx is None:
+        return []
+    spend_idx, clicks_idx = cols.get("spend"), cols.get("clicks")
+    by_day: dict[str, dict] = {}
+    for row in rows:
+        if date_idx >= len(row):
+            continue
+        day = sanitize(row[date_idx])
+        if not day:
+            continue
+        point = by_day.setdefault(day, {"date": day, "spend": 0.0, "clicks": 0.0})
+        if spend_idx is not None and spend_idx < len(row):
+            point["spend"] += _num(row[spend_idx])
+        if clicks_idx is not None and clicks_idx < len(row):
+            point["clicks"] += _num(row[clicks_idx])
+    ordered = sorted(by_day.values(), key=lambda p: p["date"])[:limit]
+    for point in ordered:
+        point["spend"] = round(point["spend"], 2)
+        point["clicks"] = round(point["clicks"])
+    return ordered
+
+
 def _derive(rec: dict) -> dict:
     """Derived metrics recomputed from the SUMS — never averaged from per-row values."""
     spend = rec.get("spend", 0.0)
@@ -297,5 +326,7 @@ def build_payload(text: str, brand_context: str | None = None) -> dict:
         "missing_columns": missing,
         "precomputed": precompute(records, currency),
         "campaigns": aggregated,
+        # chart-only — audit.py strips this before the payload reaches the model
+        "daily": daily_series(rows, cols),
         "brand_context": (brand_context or "").strip()[:400] or None,
     }

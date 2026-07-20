@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
@@ -28,6 +30,16 @@ import {
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 const MAX_BYTES = 10 * 1024 * 1024;
 
+/** Recharts is heavy and only renders after an upload, so it must not sit in
+ *  the bundle of a public marketing page that most visitors never upload on. */
+const SpendTrend = dynamic(() => import("@/components/charts/AdCharts").then((m) => m.SpendTrend), {
+  ssr: false,
+});
+const CampaignBars = dynamic(
+  () => import("@/components/charts/AdCharts").then((m) => m.CampaignBars),
+  { ssr: false },
+);
+
 type Finding = {
   severity: string;
   finding: string;
@@ -54,6 +66,7 @@ type Audit = {
   structural_findings: Finding[];
   creative_signals: { fatigue_detected: boolean; evidence: string; recommendation: string };
   reallocation_plan: { from: string; to: string; amount: string; rationale: string }[];
+  next_move: { action: string; why: string; impact: string };
   this_week: string[];
   data_quality: {
     rows_analyzed: number | null;
@@ -96,6 +109,11 @@ type AuditResponse = {
   audit: Audit;
   computed: Computed;
   campaigns: Campaign[];
+  /** Per-day totals for the trend line. Empty when the export had no date
+   *  column — the chart hides itself rather than drawing a flat lie. */
+  daily: { date: string; spend: number; clicks: number }[];
+  currency: string | null;
+  date_range: { from: string; to: string; days: number } | null;
   platform: string;
   row_count: number;
 };
@@ -117,8 +135,47 @@ function money(n: number | null | undefined, cur?: string | null): string {
   }
 }
 
+/** Server-render-safe "are we in the browser yet". A store that never emits, so
+ *  it reads `false` through SSR and hydration, then `true` — no setState in an
+ *  effect and no hydration mismatch. */
+const neverChanges = () => () => {};
+const useIsClient = () =>
+  useSyncExternalStore(
+    neverChanges,
+    () => true,
+    () => false,
+  );
+
 const num = (n: number | null | undefined) =>
   n == null || !Number.isFinite(n) ? "—" : n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+/** Panel shell for the single-screen dashboard — same glass chrome as the
+ *  charts, with a title, a one-line explanation, and a body that scrolls
+ *  internally so the PAGE never does. */
+function Panel({
+  title,
+  note,
+  caption,
+  children,
+  className = "",
+}: {
+  title: string;
+  note?: string;
+  caption?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`glass flex min-h-0 min-w-0 flex-col rounded-2xl p-4 ${className}`}>
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">{title}</p>
+        {note && <span className="font-data text-[10px] text-mute-2">{note}</span>}
+      </div>
+      {caption && <p className="mt-0.5 shrink-0 text-[10.5px] leading-snug text-mute-2">{caption}</p>}
+      <div className="dash-scroll mt-2 min-h-0 flex-1 overflow-y-auto pr-0.5">{children}</div>
+    </div>
+  );
+}
 
 /** The concentration gap, drawn. Two bars — share of spend vs share of results
  *  the worst campaigns produced. The gap between them IS the finding. */
@@ -126,108 +183,149 @@ function ConcentrationGap({ c }: { c: Computed }) {
   const spendPct = c.worst_performing_spend_pct;
   const convPct = c.worst_performing_conversion_pct;
   if (spendPct == null) return null;
+  const gap = convPct == null ? null : Math.round((spendPct - convPct) * 10) / 10;
   const rows = [
-    { label: "of your spend", pct: spendPct, tone: "var(--bad, #b3261e)" },
-    { label: "of your results", pct: convPct ?? 0, tone: "var(--good, #2e7d32)" },
+    { label: "Share of spend", pct: spendPct, tone: "var(--bad)" },
+    { label: "Share of results", pct: convPct ?? 0, tone: "var(--good)" },
   ];
   return (
-    <div className="glass rounded-2xl p-6">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-        The gap that costs you money
-      </p>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-ink">
+    <>
+      <p className="text-[12px] leading-snug text-ink">
         Your {c.worst_performing_count} worst campaign
         {c.worst_performing_count === 1 ? "" : "s"}
         {c.worst_performing_names.length > 0 && (
-          <> (<span className="font-semibold">{c.worst_performing_names.join(", ")}</span>)</>
-        )}{" "}
-        took this much of the budget, and gave back this much:
+          <> — <span className="font-semibold">{c.worst_performing_names.join(", ")}</span></>
+        )}
       </p>
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-2.5">
         {rows.map((r) => (
           <div key={r.label}>
             <div className="flex items-baseline justify-between">
-              <span className="text-[12px] font-semibold text-ink">{r.label}</span>
-              <span className="font-data text-[15px] font-extrabold text-ink">
+              <span className="text-[11px] font-semibold text-ink">{r.label}</span>
+              <span className="font-data text-[14px] font-extrabold text-ink">
                 {r.pct.toFixed(1)}%
               </span>
             </div>
-            <div className="mt-1 h-3 overflow-hidden rounded-full bg-[#1b1815]/10">
+            <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-[#1b1815]/10">
               <div
-                className="h-full rounded-full transition-[width] duration-700"
+                className="h-full rounded-full"
                 style={{ width: `${Math.min(100, Math.max(1.5, r.pct))}%`, background: r.tone }}
               />
             </div>
           </div>
         ))}
       </div>
-    </div>
+      {gap != null && gap > 0 && (
+        <p className="mt-2.5 text-[11px] leading-snug text-muted">
+          They take <span className="font-bold text-bad">{gap} points</span> more of the budget than
+          the results they return. That difference is the leak.
+        </p>
+      )}
+    </>
   );
 }
 
-/** Spend per campaign, bar-charted and coloured by efficiency: the widest bar
- *  in red is where the money is going and not coming back. */
-function CampaignChart({ campaigns, cur }: { campaigns: Campaign[]; cur: string | null }) {
-  const rows = campaigns.filter((c) => (c.spend ?? 0) > 0).slice(0, 8);
-  if (rows.length === 0) return null;
-  const maxSpend = Math.max(...rows.map((c) => c.spend ?? 0));
-  const cacs = rows.map((c) => c.cac).filter((v): v is number => typeof v === "number" && v > 0);
-  const worstCac = cacs.length > 1 ? Math.max(...cacs) : null;
-  const bestCac = cacs.length > 1 ? Math.min(...cacs) : null;
+/** The four-chart read, same vocabulary as the paid dashboard. Every figure
+ *  here is server-computed, so the charts cannot disagree with the verdict.
+ *  Returns bare panels — the dashboard grid places them. */
+function chartPanels({
+  campaigns,
+  daily,
+  cur,
+}: {
+  campaigns: Campaign[];
+  daily: { date: string; spend: number }[];
+  cur: string | null;
+}) {
+  const byCost = campaigns.filter((c) => (c.spend ?? 0) > 0).slice(0, 7);
+  if (byCost.length === 0) return null;
+  const cacs = byCost.map((c) => c.cac).filter((v): v is number => typeof v === "number" && v > 0);
+  const worst = cacs.length > 1 ? Math.max(...cacs) : null;
+  const best = cacs.length > 1 ? Math.min(...cacs) : null;
+  const tone = (c: Campaign) =>
+    worst != null && c.cac === worst
+      ? "var(--bad)"
+      : best != null && c.cac === best
+        ? "var(--good)"
+        : undefined;
 
-  return (
-    <div className="glass rounded-2xl p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-          Where the money went
-        </p>
-        <p className="text-[10.5px] text-muted">
-          bar = spend · <span className="font-semibold text-bad">red</span> = worst cost per
-          result · <span className="font-semibold text-good">green</span> = best
-        </p>
-      </div>
-      <ul className="mt-4 space-y-3.5">
-        {rows.map((c) => {
-          const pct = maxSpend ? ((c.spend ?? 0) / maxSpend) * 100 : 0;
-          const isWorst = worstCac != null && c.cac === worstCac;
-          const isBest = bestCac != null && c.cac === bestCac;
-          const bg = isWorst
-            ? "var(--bad, #b3261e)"
-            : isBest
-              ? "var(--good, #2e7d32)"
-              : "var(--gradient-brand)";
-          return (
-            <li key={c.name}>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className="truncate text-[12.5px] font-semibold text-ink">{c.name}</span>
-                <span className="font-data shrink-0 text-[11.5px] text-muted">
-                  {money(c.spend, cur)}
-                  {typeof c.cac === "number" && (
-                    <>
-                      {" · "}
-                      <span
-                        className={
-                          isWorst ? "font-bold text-bad" : isBest ? "font-bold text-good" : ""
-                        }
-                      >
-                        {money(c.cac, cur)}/result
-                      </span>
-                    </>
-                  )}
-                </span>
-              </div>
-              <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-[#1b1815]/10">
-                <div
-                  className="h-full rounded-full transition-[width] duration-700"
-                  style={{ width: `${Math.max(2, pct)}%`, background: bg }}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
+  // cost per result is the audit's metric; CPC only where the export lacks
+  // conversions, so the fourth panel is never empty for a click-only export
+  const hasCac = campaigns.some((c) => typeof c.cac === "number");
+  const shell = "glass rounded-2xl p-4";
+  const fmt = (n: number) => money(n, cur);
+  const unit = cur ? "" : " (no currency column in this export)";
+
+  return {
+    // null, not an element: SpendTrend renders nothing without at least two
+    // days, and a truthy-but-empty element would still claim a grid cell and
+    // leave the hole this reflow exists to avoid
+    trend: daily.length < 2 ? null : (
+      <SpendTrend
+        key="trend"
+        data={daily}
+        shell={shell}
+        height="fill"
+        className="min-h-0"
+        note={`${daily.length}d`}
+        caption={`Daily spend across the whole export${unit}. Spikes and cliffs are budget or delivery changes.`}
+        formatValue={fmt}
+      />
+    ),
+    spend: (
+      <CampaignBars
+        key="spend"
+        rows={byCost.map((c) => ({ name: c.name, value: c.spend ?? null, tone: tone(c) }))}
+        title="Where the money went"
+        note={`top ${byCost.length}`}
+        caption="Bar length is spend. Red is your worst cost per result, green your best — a long red bar is the problem."
+        label="Spend"
+        formatValue={fmt}
+        shell={shell}
+        height="fill"
+        className="min-h-0"
+        fade
+      />
+    ),
+    ctr: (
+      <CampaignBars
+        key="ctr"
+        rows={byCost.map((c) => ({ name: c.name, value: c.ctr_pct ?? null }))}
+        title="CTR by campaign"
+        note="%"
+        caption="How many people click after seeing it. Low bars mean the creative or audience is not landing."
+        label="CTR"
+        formatValue={(n) => `${n}%`}
+        color="var(--good)"
+        shell={shell}
+        height="fill"
+        className="min-h-0"
+      />
+    ),
+    cost: (
+      <CampaignBars
+        key="cost"
+        rows={byCost.map((c) => ({
+          name: c.name,
+          value: hasCac ? (c.cac ?? null) : (c.cpc ?? null),
+          tone: hasCac ? tone(c) : undefined,
+        }))}
+        title={hasCac ? "Cost per result" : "Cost per click"}
+        note={cur || ""}
+        caption={
+          hasCac
+            ? "What one conversion costs in each campaign. Here, shorter is better."
+            : "What one click costs in each campaign. Shorter is better."
+        }
+        label={hasCac ? "Cost per result" : "CPC"}
+        formatValue={fmt}
+        color="var(--watch)"
+        shell={shell}
+        height="fill"
+        className="min-h-0"
+      />
+    ),
+  };
 }
 
 const SEVERITY: Record<string, { label: string; cls: string }> = {
@@ -339,6 +437,12 @@ export default function AdAudit({
   const a = data?.audit;
   const comp = data?.computed;
   const cur = comp?.currency ?? null;
+  // false on the server, true once hydrated — `document` does not exist during
+  // SSR, and reading it during render would break hydration
+  const portalTarget = useIsClient() ? document.body : null;
+  const panels = data?.campaigns
+    ? chartPanels({ campaigns: data.campaigns, daily: data.daily ?? [], cur })
+    : null;
 
   return (
     <>
@@ -429,13 +533,24 @@ export default function AdAudit({
         </div>
       )}
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[130] overflow-y-auto bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
+      {/* Portalled to <body> on purpose. In card mode this component renders
+          inside a Framer-Motion-animated cell, and an ancestor `transform`
+          makes itself the containing block for `position: fixed` — so the
+          "full-screen" canvas was silently boxed into the grid cell (346px of
+          a 1280px viewport). Percentage-width bars stretched to fit and hid
+          it; the charts, which need real pixels, did not. */}
+      {portalTarget &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                // the dashboard is sized to the viewport at lg and never
+                // scrolls there; below lg the panels stack and scrolling is the
+                // only honest option on a phone
+                className="fixed inset-0 z-[130] overflow-y-auto bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)] lg:overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Ad performance audit"
@@ -446,18 +561,23 @@ export default function AdAudit({
               <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
             </div>
 
-            <div className="relative mx-auto w-full max-w-4xl px-6 py-10">
-              <div className="flex items-start justify-between gap-4">
+            <div className="relative mx-auto flex w-full max-w-[1500px] flex-col px-4 py-3 sm:px-6 lg:h-[100dvh] lg:px-8 lg:py-4">
+              <div className="flex shrink-0 items-start justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
                     Ad performance audit {data ? `· ${data.platform} · ${data.row_count} rows` : ""}
                   </p>
                   <h2
-                    className="mt-1 text-[clamp(1.5rem,3vw,2rem)] font-bold leading-tight text-ink"
+                    className="mt-0.5 text-[clamp(1.25rem,2.2vw,1.6rem)] font-bold leading-tight text-ink"
                     style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
                   >
                     Where your ad money actually went
                   </h2>
+                  {data?.date_range && (
+                    <p className="mt-0.5 font-data text-[10.5px] text-mute-2">
+                      {data.date_range.from} → {data.date_range.to} · {data.date_range.days} days
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={close}
@@ -541,245 +661,276 @@ export default function AdAudit({
                 </div>
               )}
 
-              {/* ── the audit ──────────────────────────────────────────── */}
+              {/* ── the audit: one screen, no page scroll at lg ──────── */}
               {a && (
                 <motion.div
-                  initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
+                  initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 space-y-4"
+                  className="mt-3 flex min-h-0 flex-1 flex-col gap-3"
                 >
-                  {/* headline + money */}
-                  <div className="glass rounded-2xl p-6">
-                    <h3
-                      className="text-[clamp(1.15rem,2.4vw,1.6rem)] font-bold leading-snug text-ink"
-                      style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
+                  {/* verdict + the four numbers, on one line */}
+                  <div className="glass shrink-0 rounded-2xl px-4 py-3">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                      <h3
+                        className="max-w-3xl text-[clamp(0.95rem,1.5vw,1.2rem)] font-bold leading-snug text-ink"
+                        style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
+                      >
+                        {a.headline_verdict}
+                      </h3>
+                      {/* tiles read from the SERVER-COMPUTED totals, not the
+                          model's strings — always formatted, always right */}
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4">
+                        <Stat label="Total spend" value={money(comp?.total_spend, cur)} />
+                        <Stat label="Results" value={num(comp?.total_conversions)} />
+                        <Stat label="Cost per result" value={money(comp?.blended_cac, cur)} />
+                        <Stat label="At risk" value={money(comp?.worst_performing_spend, cur)} />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-[10.5px] leading-snug text-mute-2">
+                      {a.money_summary.wasted_spend_definition
+                        ? `At risk = ${a.money_summary.wasted_spend_definition}. `
+                        : ""}
+                      Every figure is computed from your file, not estimated.
+                      {cur
+                        ? ""
+                        : " Your export has no currency column, so amounts are shown unitless."}
+                    </p>
+                  </div>
+
+                  {/* THE top band: the one move, and the upgrade. Both above
+                      the fold on every screen — the CTA used to sit at the
+                      bottom of a panel that scrolled internally, so most
+                      visitors never saw it. */}
+                  <div className="grid shrink-0 gap-3 lg:grid-cols-3">
+                    <div
+                      className="rounded-2xl border border-molten/30 p-4 lg:col-span-2"
+                      style={{ background: "var(--overlay-subtle, rgba(180,83,42,0.07))" }}
                     >
-                      {a.headline_verdict}
-                    </h3>
-                    {/* tiles read from the SERVER-COMPUTED totals, not the
-                        model's strings — so they're always formatted and always
-                        arithmetically right */}
-                    <div className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
-                      <Stat label="Total spend" value={money(comp?.total_spend, cur)} />
-                      <Stat label="Results" value={num(comp?.total_conversions)} />
-                      <Stat label="Cost per result" value={money(comp?.blended_cac, cur)} />
-                      <Stat
-                        label="At risk"
-                        value={money(comp?.worst_performing_spend, cur)}
-                      />
-                    </div>
-                    {a.money_summary.wasted_spend_definition && (
-                      <p className="mt-2.5 text-[11.5px] text-muted">
-                        Wasted = {a.money_summary.wasted_spend_definition}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* THE picture: spend per campaign, coloured by efficiency */}
-                  {data?.campaigns && <CampaignChart campaigns={data.campaigns} cur={cur} />}
-
-                  {/* the spend-vs-results gap, drawn from computed numbers.
-                      Deliberately NOT the model's concentration sentence — that
-                      prose occasionally names a campaign not in the file; these
-                      bars come straight from the arithmetic. */}
-                  {comp && <ConcentrationGap c={comp} />}
-
-                  {/* best / worst callouts */}
-                  {(a.concentration.top_performer.name || a.concentration.worst_offender.name) && (
-                    <div className="glass rounded-2xl p-6">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                        Best and worst
-                      </p>
-                      <div className="mt-3 grid gap-2.5 md:grid-cols-2">
-                        <div className="rounded-xl border border-good/30 bg-good/[0.07] p-3.5">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-good">
-                            Best performer
-                          </p>
-                          <p className="mt-1 text-[13.5px] font-bold text-ink">
-                            {a.concentration.top_performer.name || "—"}
-                          </p>
-                          <p className="text-[12px] text-muted">
-                            {a.concentration.top_performer.why}
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-bad/30 bg-bad/[0.07] p-3.5">
-                          <p className="text-[10px] font-bold uppercase tracking-wide text-bad">
-                            Worst offender
-                          </p>
-                          <p className="mt-1 text-[13.5px] font-bold text-ink">
-                            {a.concentration.worst_offender.name || "—"}{" "}
-                            <span className="font-data text-[12px] font-semibold text-muted">
-                              {a.concentration.worst_offender.spend}
-                            </span>
-                          </p>
-                          <p className="text-[12px] text-muted">
-                            {a.concentration.worst_offender.why}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* structural findings */}
-                  <div className="glass rounded-2xl p-6">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                      What&apos;s structurally wrong
-                    </p>
-                    <ol className="mt-3 space-y-3.5">
-                      {a.structural_findings.map((f, i) => {
-                        const sev = SEVERITY[f.severity] ?? SEVERITY.medium;
-                        return (
-                          <li key={i} className="rounded-xl border border-stroke bg-surface p-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${sev.cls}`}
-                              >
-                                {sev.label}
-                              </span>
-                              {f.money_impact && (
-                                <span className="font-data text-[11.5px] font-bold text-molten">
-                                  {f.money_impact}
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-2 text-[14px] font-semibold leading-snug text-ink">
-                              {f.finding}
-                            </p>
-                            {f.evidence && (
-                              <p className="mt-1.5 text-[12px] text-muted">
-                                <span className="font-semibold">Evidence:</span> {f.evidence}
-                              </p>
-                            )}
-                            {f.root_cause && (
-                              <p className="mt-1 text-[12px] text-muted">
-                                <span className="font-semibold">Root cause:</span> {f.root_cause}
-                              </p>
-                            )}
-                            {f.action && (
-                              <p className="mt-2.5 flex gap-2 text-[12.5px] font-medium leading-relaxed text-ink">
-                                <ArrowRight
-                                  size={14}
-                                  className="mt-0.5 shrink-0 text-molten"
-                                  aria-hidden
-                                />
-                                {f.action}
-                              </p>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </div>
-
-                  {/* reallocation + this week */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {a.reallocation_plan.length > 0 && (
-                      <div className="glass rounded-2xl p-6">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                          Move the money
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-molten">
+                          <ArrowRight size={12} aria-hidden /> Your next move
                         </p>
-                        <ul className="mt-3 space-y-2.5">
-                          {a.reallocation_plan.map((p, i) => (
-                            <li key={i} className="rounded-xl border border-stroke bg-surface p-3">
-                              <p className="text-[12.5px] font-semibold text-ink">
-                                {p.from} <span className="text-molten">→</span> {p.to}
-                              </p>
-                              <p className="font-data text-[13px] font-extrabold text-ink">
-                                {p.amount}
-                              </p>
-                              <p className="text-[11.5px] text-muted">{p.rationale}</p>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {a.this_week.length > 0 && (
-                      <div className="glass rounded-2xl p-6">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                          Do this week
-                        </p>
-                        <ol className="mt-3 space-y-2.5">
-                          {a.this_week.map((t, i) => (
-                            <li key={i} className="flex gap-2.5">
-                              <span
-                                className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-[color:var(--cta-ink,#fff)]"
-                                style={{ background: "var(--gradient-brand)" }}
-                              >
-                                {i + 1}
-                              </span>
-                              <span className="text-[12.5px] font-medium leading-snug text-ink">
-                                {t}
-                              </span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* honesty block — what this audit could NOT see */}
-                  <div className="rounded-2xl border border-stroke bg-surface/60 p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                      What this audit could not see
-                    </p>
-                    <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
-                      {a.data_quality.limitations || "—"}
-                      {a.data_quality.missing_columns.length > 0 && (
-                        <>
-                          {" "}
-                          Missing columns:{" "}
-                          <span className="font-semibold">
-                            {a.data_quality.missing_columns.join(", ")}
+                        {a.next_move.impact && (
+                          <span className="font-data rounded-md border border-molten/30 bg-molten/10 px-2 py-0.5 text-[11px] font-bold text-molten">
+                            {a.next_move.impact}
                           </span>
-                          .
-                        </>
-                      )}{" "}
-                      Confidence:{" "}
-                      <span className="font-semibold text-ink">{a.confidence}</span>.
-                    </p>
-                    {a.creative_signals.evidence && (
-                      <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
-                        <span className="font-semibold">Creative fatigue:</span>{" "}
-                        {a.creative_signals.fatigue_detected ? "detected — " : "not detected — "}
-                        {a.creative_signals.evidence}
+                        )}
+                      </div>
+                      <p
+                        className="mt-1.5 text-[clamp(1rem,1.7vw,1.35rem)] font-bold leading-snug text-ink"
+                        style={{ fontFamily: "var(--font-claude-serif), Georgia, serif" }}
+                      >
+                        {a.next_move.action || "—"}
                       </p>
+                      {a.next_move.why && (
+                        <p className="mt-1 text-[12px] leading-snug text-muted">
+                          {a.next_move.why}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="glass flex flex-col justify-center rounded-2xl p-4">
+                      <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-molten">
+                        <Lock size={11} aria-hidden /> {a.pro_unlock.headline || "The full CMO"}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-ink/85">
+                        {a.pro_unlock.specific_gap}
+                      </p>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={openWaitlist}
+                          className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12.5px] font-bold text-[color:var(--cta-ink,#0a0a0b)]"
+                          style={{ background: "var(--gradient-brand)" }}
+                        >
+                          <Check size={13} aria-hidden /> Unlock the full CMO
+                        </button>
+                        <button
+                          onClick={() => {
+                            setData(null);
+                            setErr(null);
+                          }}
+                          className="text-[11px] font-semibold text-muted transition-colors hover:text-ink"
+                        >
+                          Audit another
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* the dashboard: eight panels, sized from the viewport */}
+                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12 lg:grid-rows-2">
+                    {panels?.trend && (
+                      <div className="flex min-h-[220px] flex-col lg:col-span-4 lg:min-h-0">
+                        {panels.trend}
+                      </div>
                     )}
-                  </div>
+                    {panels && (
+                      <div
+                        className={`flex min-h-[220px] flex-col lg:min-h-0 ${
+                          panels.trend ? "lg:col-span-4" : "lg:col-span-6"
+                        }`}
+                      >
+                        {panels.spend}
+                      </div>
+                    )}
 
-                  {/* the gate — a REAL limitation of one snapshot, never a fake wall */}
-                  <div className="glass rounded-2xl p-6">
-                    <p className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-molten">
-                      <Lock size={12} aria-hidden /> {a.pro_unlock.headline || "The full CMO"}
-                    </p>
-                    <p className="mt-2 text-[13.5px] leading-relaxed text-ink/90">
-                      {a.pro_unlock.specific_gap}
-                    </p>
-                    <button
-                      onClick={openWaitlist}
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)]"
-                      style={{ background: "var(--gradient-brand)" }}
-                    >
-                      <Check size={14} aria-hidden /> Unlock the full CMO →
-                    </button>
-                  </div>
+                    {comp && (
+                      <Panel
+                        title="The gap that costs you money"
+                        caption="Spend share against results share for your worst campaigns."
+                        className={panels?.trend ? "lg:col-span-4" : "lg:col-span-6"}
+                      >
+                        <ConcentrationGap c={comp} />
+                        {(a.concentration.top_performer.name ||
+                          a.concentration.worst_offender.name) && (
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-lg border border-good/30 bg-good/[0.07] p-2.5">
+                              <p className="text-[9.5px] font-bold uppercase tracking-wide text-good">
+                                Best
+                              </p>
+                              <p className="mt-0.5 text-[12px] font-bold leading-snug text-ink">
+                                {a.concentration.top_performer.name || "—"}
+                              </p>
+                              <p className="text-[10.5px] leading-snug text-muted">
+                                {a.concentration.top_performer.why}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-bad/30 bg-bad/[0.07] p-2.5">
+                              <p className="text-[9.5px] font-bold uppercase tracking-wide text-bad">
+                                Worst
+                              </p>
+                              <p className="mt-0.5 text-[12px] font-bold leading-snug text-ink">
+                                {a.concentration.worst_offender.name || "—"}
+                              </p>
+                              <p className="text-[10.5px] leading-snug text-muted">
+                                {a.concentration.worst_offender.why}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </Panel>
+                    )}
 
-                  <div className="flex justify-center pb-4">
-                    <button
-                      onClick={() => {
-                        setData(null);
-                        setErr(null);
-                      }}
-                      className="text-[12.5px] font-semibold text-muted transition-colors hover:text-ink"
+                    {panels && (
+                      <>
+                        <div className="flex min-h-[220px] flex-col lg:col-span-3 lg:min-h-0">
+                          {panels.ctr}
+                        </div>
+                        <div className="flex min-h-[220px] flex-col lg:col-span-3 lg:min-h-0">
+                          {panels.cost}
+                        </div>
+                      </>
+                    )}
+
+                    <Panel
+                      title="What is structurally wrong"
+                      note={String(a.structural_findings.length)}
+                      caption="The mechanics behind the numbers, worst first."
+                      className="lg:col-span-3"
                     >
-                      Audit another export
-                    </button>
+                      <ol className="space-y-2">
+                        {a.structural_findings.map((f, i) => {
+                          const sev = SEVERITY[f.severity] ?? SEVERITY.medium;
+                          return (
+                            <li key={i} className="rounded-lg border border-stroke bg-surface p-2.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`rounded border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${sev.cls}`}
+                                >
+                                  {sev.label}
+                                </span>
+                                {f.money_impact && (
+                                  <span className="font-data text-[10.5px] font-bold text-molten">
+                                    {f.money_impact}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1.5 text-[12px] font-semibold leading-snug text-ink">
+                                {f.finding}
+                              </p>
+                              {f.evidence && (
+                                <p className="mt-1 text-[10.5px] leading-snug text-muted">
+                                  <span className="font-semibold">Evidence:</span> {f.evidence}
+                                </p>
+                              )}
+                              {f.action && (
+                                <p className="mt-1.5 flex gap-1.5 text-[11px] font-medium leading-snug text-ink">
+                                  <ArrowRight
+                                    size={12}
+                                    className="mt-0.5 shrink-0 text-molten"
+                                    aria-hidden
+                                  />
+                                  {f.action}
+                                </p>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </Panel>
+
+                    <Panel
+                      title="Do this week"
+                      caption="The moves, in order. Then the money to shift."
+                      className="lg:col-span-3"
+                    >
+                      <ol className="space-y-1.5">
+                        {a.this_week.map((t, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span
+                              className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-bold text-[color:var(--cta-ink,#fff)]"
+                              style={{ background: "var(--gradient-brand)" }}
+                            >
+                              {i + 1}
+                            </span>
+                            <span className="text-[11.5px] font-medium leading-snug text-ink">
+                              {t}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+
+                      {a.reallocation_plan.length > 0 && (
+                        <>
+                          <p className="mt-3 text-[9.5px] font-bold uppercase tracking-[0.16em] text-muted">
+                            Move the money
+                          </p>
+                          <ul className="mt-1.5 space-y-1.5">
+                            {a.reallocation_plan.map((pl, i) => (
+                              <li
+                                key={i}
+                                className="rounded-lg border border-stroke bg-surface px-2.5 py-1.5"
+                              >
+                                <p className="text-[11px] font-semibold leading-snug text-ink">
+                                  {pl.from} <span className="text-molten">→</span> {pl.to}{" "}
+                                  <span className="font-data font-extrabold">{pl.amount}</span>
+                                </p>
+                                <p className="text-[10px] leading-snug text-muted">{pl.rationale}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+
+                      <p className="mt-3 text-[10px] leading-snug text-mute-2">
+                        <span className="font-semibold">Not visible in this file:</span>{" "}
+                        {a.data_quality.limitations || "—"}
+                        {a.data_quality.missing_columns.length > 0 && (
+                          <> Missing: {a.data_quality.missing_columns.join(", ")}.</>
+                        )}{" "}
+                        Confidence: {a.confidence}.
+                      </p>
+
+                    </Panel>
                   </div>
                 </motion.div>
               )}
             </div>
-          </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          portalTarget,
         )}
-      </AnimatePresence>
     </>
   );
 }
