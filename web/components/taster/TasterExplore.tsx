@@ -7,6 +7,7 @@ import { useAuth, useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Waitlist from "@/components/sections/Waitlist";
 import FoundingToast from "@/components/taster/FoundingToast";
+import AdAudit from "@/components/taster/AdAudit";
 
 /** The taster explore page (/taster/[domain]) — the hero hands the URL here and
  *  this page runs the analysis with a live step tracker, then lays the result
@@ -655,6 +656,10 @@ export default function TasterExplore({
                   </ol>
                 </div>
               )}
+
+              {/* free "act two" — sits BEFORE the paid gate: it's another free
+                  win, and earning that second wow is what makes the gate land */}
+              <AdAudit brandContext={data.company || data.domain} />
 
               <div className="glass rounded-2xl p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">

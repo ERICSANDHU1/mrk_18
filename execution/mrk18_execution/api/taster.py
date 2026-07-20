@@ -146,6 +146,12 @@ rivals. Grade how separable this business is.
 (self-serve for low ACV, founder-led sales for mid, outbound for high) and reason from \
 it. Name the ONE primary channel with a REAL named entry point — an actual community, \
 subreddit, directory, or newsletter, NEVER "social media" or "developer newsletters". \
+Use each platform's REAL interaction format and never invent one: "Show HN" / "Launch HN" \
+on Hacker News (there is no generic "HN thread"), "Show IH" or a named group on Indie \
+Hackers (it has NO "Launch" section — that is Product Hunt), an exact subreddit as \
+"r/<name>", a named Slack/Discord server, a named newsletter or directory listing. If you \
+are not certain a format exists, name the community only and describe the action plainly \
+("introduce it in <community>") rather than inventing a section or thread name. \
 Recommend where to FIND the first 100 customers (imperative — never claim where they \
 "came from") and the single most likely GTM failure. ALSO add "motion" (exactly one of: \
 self-serve | founder-led | community-led | outbound | product-led-hybrid) and \
@@ -193,14 +199,21 @@ market, max 8 words — if the web data clearly describes an unrelated company o
 thin, write exactly 'positioning unclear'"}}. 3-4 points on how this idea separates from \
 those named rivals — or fails to. Grade separability.
   "gtm" — the GO-TO-MARKET verdict for this unlaunched idea. Infer the motion that fits \
-the described audience/price, and name the ONE primary channel with a SPECIFIC named \
-entry point for THIS audience (a real community, directory, or search term, never \
-"social media"). State where the first 100 customers actually are and the single most \
-likely GTM failure. ALSO add "motion" (exactly one of: self-serve | founder-led | \
+the described audience/price, and name the ONE primary channel with a REAL named entry \
+point for THIS audience (an actual community, subreddit, directory, or newsletter, never \
+"social media"). Use each platform's REAL interaction format and never invent one: \
+"Show HN" / "Launch HN" on Hacker News (there is no generic "HN thread"), "Show IH" or a \
+named group on Indie Hackers (it has NO "Launch" section — that is Product Hunt), an exact \
+subreddit as "r/<name>", a named Slack/Discord server, a named newsletter or directory. \
+If unsure a format exists, name the community only and describe the action plainly \
+("introduce it in <community>") rather than inventing a section or thread name. \
+Recommend where to FIND the first 100 customers (imperative — this idea has no history, \
+so never claim where customers "came from") and the single most likely GTM failure. \
+ALSO add "motion" (exactly one of: self-serve | founder-led | \
 community-led | outbound | product-led-hybrid) and "primary_channel" (channel + named \
 entry point, max 10 words). 5-6 points: motion + why, primary channel + entry point, \
-the first-100 move, the failure mode — numbers, named places, or concrete actions only. \
-Grade GTM readiness.
+the first-100 move (imperative), the failure mode — numbers, named places, or concrete \
+actions only. Grade GTM readiness.
   "personality" — the brand VOICE this idea should LAUNCH with, based on the audience and \
 category described. ALSO add "traits": 3-5 lowercase adjectives for that recommended \
 voice. 4-5 points: why this voice fits, referencing their own phrasing. Grade how \
