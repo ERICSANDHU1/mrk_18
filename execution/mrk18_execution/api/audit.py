@@ -10,6 +10,7 @@ Every figure the audit states must be computable from the upload: the prompt
 forbids inventing numbers, and the arithmetic it quotes was done in code.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -26,14 +27,61 @@ log = logging.getLogger("mrk18.audit")
 
 router = APIRouter(tags=["taster"])
 
-# llama-3.3-70b, not the verdict cards' gpt-oss-120b. Measured, not assumed:
-# gpt-oss gave sharper root causes but its 8K/min free-tier token ceiling can't
-# fit this call (long prompt + payload + 3K output + hidden reasoning tokens) —
-# it returned 429 on the sample export. llama has ~12K/min and no reasoning
-# overhead, so it fits with headroom. The depth gap is closed in the prompt
-# (banned generic root causes + a worked example) rather than by the model.
-AUDIT_MODEL = "llama-3.3-70b-versatile"
-AUDIT_MAX_TOKENS = 3000
+# gpt-oss-120b — the same reasoning model the verdict cards use, and the sharper
+# forensic analyst of the two. It was reverted to llama once because the call
+# blew the 8K/min free-tier ceiling; it fits now because the payload sent to the
+# model is capped (see MODEL_CAMPAIGN_CAP) instead of carrying up to 150
+# campaigns. Free-tier ceilings, checked 2026-07-20:
+#   gpt-oss-120b       30 RPM · 1K RPD ·  8K TPM · 200K TPD
+#   llama-3.3-70b      30 RPM · 1K RPD · 12K TPM · 100K TPD
+# TPM counts prompt + completion (reasoning tokens included), so one audit has
+# to land under 8K on its own. TPD is the ceiling that decides how many audits a
+# day the free tier can serve, and gpt-oss has twice as much of it.
+AUDIT_MODEL = "openai/gpt-oss-120b"
+# Sized from the 429 body, which reports what each call reserves: prompt ~3.0K +
+# max_tokens. 3.6K keeps one audit near 6.6K — under the 8K/min ceiling on its
+# own — while leaving gpt-oss room to finish the JSON after its reasoning pass.
+# 2.6K was measurably too tight: Groq returned json_validate_failed with
+# "max completion tokens reached before generating a valid document".
+AUDIT_MAX_TOKENS = 3600
+
+# The model is given the biggest spenders only. The charts still receive every
+# aggregated campaign — that data is already computed and costs no tokens — but
+# a judgment about where the money leaks is made from the top of the ranking,
+# and 150 rows of tail would spend the whole per-minute budget reaching it.
+MODEL_CAMPAIGN_CAP = 20
+
+# Groq's 429 body says "Please try again in 20.5875s". Capped because a public
+# request must not hang on the engine's schedule, and only used once per audit.
+_RETRY_AFTER_RE = re.compile(r"try again in ([0-9.]+)s", re.I)
+_MAX_RETRY_WAIT = 25.0
+
+
+def _is_truncated_json(exc: APIStatusError) -> bool:
+    """Groq 400s with json_validate_failed when the completion budget runs out
+    mid-document. That is a budget problem on our side, not a bad request."""
+    return exc.status_code == 400 and "json_validate_failed" in str(exc)
+
+
+def _retry_after_seconds(exc: APIStatusError) -> float | None:
+    """Seconds to wait for a rate-limited call, or None if this is not a
+    wait-and-retry error."""
+    if exc.status_code != 429:
+        return None
+    header = (exc.response.headers or {}).get("retry-after") if exc.response else None
+    if header:
+        try:
+            return min(float(header), _MAX_RETRY_WAIT)
+        except ValueError:
+            pass
+    match = _RETRY_AFTER_RE.search(str(exc))
+    if not match:
+        return None
+    try:
+        return min(float(match.group(1)) + 0.5, _MAX_RETRY_WAIT)
+    except ValueError:
+        return None
+
 
 _AUDIT_PROMPT = """You are MRK18-AUDIT, the paid-media forensics module of mrk18 — an \
 Artificially Intelligent Marketing Officer.
@@ -309,6 +357,14 @@ async def taster_audit(body: AuditBody, request: Request) -> dict:
     # `daily` is for the trend chart only — hundreds of points that would eat the
     # TPM budget without changing a judgment already drawn from the sums.
     model_payload = {k: v for k, v in payload.items() if k != "daily"}
+    model_payload["campaigns"] = payload["campaigns"][:MODEL_CAMPAIGN_CAP]
+    if len(payload["campaigns"]) > MODEL_CAMPAIGN_CAP:
+        # say so, or the model will reconcile the rows against the totals and
+        # report a discrepancy it cannot see the cause of
+        model_payload["campaigns_truncated"] = (
+            f"showing top {MODEL_CAMPAIGN_CAP} of {len(payload['campaigns'])} by spend; "
+            "precomputed totals cover ALL campaigns"
+        )
     user_msg = (
         "<untrusted_ad_data>\n"
         + json.dumps(model_payload, ensure_ascii=False)
@@ -318,7 +374,9 @@ async def taster_audit(body: AuditBody, request: Request) -> dict:
 
     audit = None
     last_error = "empty"
-    for attempt in range(2):
+    waited = False
+    retried_truncation = False
+    for _attempt in range(3):
         try:
             resp = await client.chat.completions.create(
                 model=AUDIT_MODEL,
@@ -341,10 +399,38 @@ async def taster_audit(body: AuditBody, request: Request) -> dict:
                 status_code=503, detail="the engine is busy — try again in a minute"
             ) from exc
         except APIStatusError as exc:
-            log.warning("audit: engine error %s", exc.status_code)
+            # the body carries the limit and what was requested — without it a
+            # 429 is indistinguishable from a quota problem
+            log.warning("audit: engine error %s: %s", exc.status_code, str(exc)[:400])
+            # One audit is ~5.4K tokens against an 8K/min ceiling, so it fits
+            # alone — but the verdict cards run on the SAME model and bucket, so
+            # a founder who reads their cards and then uploads a CSV inside the
+            # same minute collides. Groq says exactly how long to wait, and it
+            # is normally a few seconds: wait it out once rather than making
+            # them retry by hand.
+            if _is_truncated_json(exc) and not retried_truncation:
+                log.info("audit: JSON truncated by the token budget, retrying once")
+                retried_truncation = True
+                continue
+            wait = _retry_after_seconds(exc)
+            if wait is not None and not waited:
+                log.info("audit: rate limited, waiting %.1fs then retrying once", wait)
+                waited = True
+                await asyncio.sleep(wait)
+                continue
             raise HTTPException(
                 status_code=503, detail="the engine is busy — try again in a minute"
             ) from exc
+
+        # the per-minute ceiling is the reason this model was once reverted, so
+        # the actual spend is logged rather than estimated
+        if resp.usage:
+            log.info(
+                "audit: tokens prompt=%s completion=%s total=%s (TPM ceiling 8000)",
+                resp.usage.prompt_tokens,
+                resp.usage.completion_tokens,
+                resp.usage.total_tokens,
+            )
 
         raw = resp.choices[0].message.content or "{}"
         if _LEAK_PATTERNS.search(raw):
