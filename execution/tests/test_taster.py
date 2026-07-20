@@ -180,6 +180,27 @@ async def test_taster_daily_cap_answers_429(client, monkeypatch):
     assert "sign up" in resp.json()["detail"]
 
 
+async def test_site_analyses_do_not_eat_the_ad_audit_quota(client, monkeypatch):
+    """The taster and the ad audit are separate free products with separate
+    caps. They once shared one counter, so two site analyses silently spent a
+    visitor's audit allowance before they had uploaded anything."""
+    _configure(monkeypatch, taster_daily_per_ip=4)
+    _fake_site(monkeypatch)
+    _fake_research(monkeypatch)
+    _fake_verdicts(monkeypatch)
+
+    for domain in ("first.com", "second.com"):
+        assert (await client.post("/taster", json={"url": domain})).status_code == 200
+
+    # the audit bucket is untouched by those analyses
+    assert taster_mod._cap_reached("testclient", 2, bucket="audit") is False
+    taster_mod._consume_daily("testclient", bucket="audit")
+    taster_mod._consume_daily("testclient", bucket="audit")
+    assert taster_mod._cap_reached("testclient", 2, bucket="audit") is True
+    # ...and spending the audit quota leaves the site quota where it was
+    assert taster_mod._cap_reached("testclient", 4) is False
+
+
 async def test_taster_signed_in_user_is_exempt_from_the_cap(client, monkeypatch):
     """Anonymous visitors hit the per-IP free cap; a signed-in caller (valid
     Clerk-style token) sails past it and never burns the anonymous quota."""

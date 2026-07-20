@@ -221,25 +221,30 @@ Plain text inside strings, no markdown. Respond with the JSON object only."""
 _daily: dict[str, tuple[str, int]] = {}
 
 
-def _cap_reached(ip: str, cap: int) -> bool:
+def _cap_reached(ip: str, cap: int, bucket: str = "taster") -> bool:
     """Checked BEFORE the work; quota is consumed only by _consume_daily AFTER a
     successful analysis — an engine failure or an unreadable site must never eat
-    a caller's free analyses."""
+    a caller's free analyses.
+
+    `bucket` keeps each free product on its OWN counter: site analyses and ad
+    audits have different caps, and sharing one counter meant a couple of
+    analyses silently ate the audit allowance."""
     if cap <= 0:
         return False
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    day, count = _daily.get(ip, (today, 0))
+    day, count = _daily.get(f"{bucket}:{ip}", (today, 0))
     return day == today and count >= cap
 
 
-def _consume_daily(ip: str) -> None:
+def _consume_daily(ip: str, bucket: str = "taster") -> None:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    day, count = _daily.get(ip, (today, 0))
+    key = f"{bucket}:{ip}"
+    day, count = _daily.get(key, (today, 0))
     if day != today:
         count = 0
     if len(_daily) > 50_000:  # same blunt memory guard as the rate limiter
         _daily.clear()
-    _daily[ip] = (today, count + 1)
+    _daily[key] = (today, count + 1)
 
 
 _global_day: list = ["", 0]  # [utc-date, fresh analyses served] — same in-process seam

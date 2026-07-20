@@ -2,18 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
@@ -25,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Logo from "@/components/app/Logo";
+import { CampaignBars, SpendTrend } from "@/components/charts/AdCharts";
 import type { CampaignAgg, ParsedCsv } from "./metaCsv";
 import type { Diagnosis } from "./runsStore";
 
@@ -32,15 +21,6 @@ export const fmtMoney = (n: number | null, currency: string) =>
   n == null
     ? "—"
     : `${currency}${n.toLocaleString(currency === "₹" ? "en-IN" : "en-US", { maximumFractionDigits: 2 })}`;
-
-const tooltipStyle = {
-  background: "var(--surface-2)",
-  border: "1px solid var(--line)",
-  borderRadius: 12,
-  fontSize: 12,
-  color: "var(--ink)",
-  boxShadow: "0 8px 24px var(--shadow-color)",
-} as const;
 
 /* ── summary strip ─────────────────────────────────────────────────────── */
 export function SummaryStrip({ parsed }: { parsed: ParsedCsv }) {
@@ -72,171 +52,56 @@ export function SummaryStrip({ parsed }: { parsed: ParsedCsv }) {
   );
 }
 
-/* ── spend charts (over time + top by spend) ───────────────────────────── */
+/* ── spend charts (over time + top by spend) ────────────────────── */
 export function SpendCharts({ parsed }: { parsed: ParsedCsv }) {
   const cur = parsed.currency;
   const topSpend = parsed.campaigns.filter((c) => c.spend != null).slice(0, 8);
   const hasDaily = parsed.daily.length >= 2;
   if (!hasDaily && topSpend.length === 0) return null;
-  const maxSpend = Math.max(...topSpend.map((c) => c.spend ?? 0), 1);
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {hasDaily && (
-        <ChartCard title="Spend over time" note={`${cur || "¤"} / day`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={parsed.daily} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="csvSpendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--molten)" stopOpacity={0.22} />
-                  <stop offset="100%" stopColor="var(--molten)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="var(--line-soft)" strokeDasharray="3 6" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: "var(--mute-2)", fontSize: 10 }}
-                tickLine={false}
-                axisLine={{ stroke: "var(--line)" }}
-                tickFormatter={(d: string) => d.slice(5)}
-                interval="preserveStartEnd"
-                minTickGap={26}
-              />
-              <YAxis
-                tick={{ fill: "var(--mute-2)", fontSize: 10 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                labelStyle={{ color: "var(--mute-2)", fontSize: 11 }}
-                itemStyle={{ color: "var(--ink)" }}
-                formatter={(value) => [fmtMoney(Number(value), cur), "Spend"]}
-                cursor={{ stroke: "var(--line)" }}
-              />
-              <Area type="monotone" dataKey="spend" stroke="var(--molten)" strokeWidth={2} fill="url(#csvSpendFill)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
-
-      {topSpend.length > 0 && (
-        <ChartCard title="Top campaigns · spend" note={`top ${topSpend.length}`} className={hasDaily ? "" : "lg:col-span-2"} height={Math.max(120, topSpend.length * 30 + 24)}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={topSpend} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-              <XAxis type="number" hide domain={[0, maxSpend]} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fill: "var(--muted)", fontSize: 10.5 }}
-                tickLine={false}
-                axisLine={false}
-                width={118}
-                tickFormatter={(n: string) => (n.length > 15 ? `${n.slice(0, 14)}…` : n)}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                itemStyle={{ color: "var(--ink)" }}
-                formatter={(value) => [fmtMoney(Number(value), cur), "Spend"]}
-                cursor={{ fill: "var(--overlay-subtle)" }}
-              />
-              <Bar dataKey="spend" radius={[4, 8, 8, 4]} barSize={16}>
-                {topSpend.map((c, i) => (
-                  <Cell key={c.name} fill="var(--molten)" fillOpacity={1 - i * 0.1} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
+      <SpendTrend
+        data={parsed.daily}
+        note={`${cur || "¤"} / day`}
+        formatValue={(n) => fmtMoney(n, cur)}
+      />
+      <CampaignBars
+        rows={topSpend.map((c) => ({ name: c.name, value: c.spend }))}
+        title="Top campaigns · spend"
+        note={`top ${topSpend.length}`}
+        label="Spend"
+        formatValue={(n) => fmtMoney(n, cur)}
+        fade
+        className={hasDaily ? "" : "lg:col-span-2"}
+      />
     </div>
   );
 }
 
-/* ── efficiency charts (CTR + CPC by campaign) ─────────────────────────── */
+/* ── efficiency charts (CTR + CPC by campaign) ───────────────────── */
 export function EfficiencyCharts({ parsed }: { parsed: ParsedCsv }) {
   const cur = parsed.currency;
   const ctrRows = parsed.campaigns.filter((c) => c.ctr != null).slice(0, 8);
   const cpcRows = parsed.campaigns.filter((c) => c.cpc != null).slice(0, 8);
   if (ctrRows.length === 0 && cpcRows.length === 0) return null;
-  const maxCtr = Math.max(...ctrRows.map((c) => c.ctr ?? 0), 1);
-  const maxCpc = Math.max(...cpcRows.map((c) => c.cpc ?? 0), 1);
   return (
     <div className="mt-3 grid gap-3 lg:grid-cols-2">
-      {ctrRows.length > 0 && (
-        <ChartCard title="CTR by campaign" note="%" height={Math.max(120, ctrRows.length * 30 + 24)}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={ctrRows} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-              <XAxis type="number" hide domain={[0, maxCtr]} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fill: "var(--muted)", fontSize: 10.5 }}
-                tickLine={false}
-                axisLine={false}
-                width={118}
-                tickFormatter={(n: string) => (n.length > 15 ? `${n.slice(0, 14)}…` : n)}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                itemStyle={{ color: "var(--ink)" }}
-                formatter={(value) => [`${value}%`, "CTR"]}
-                cursor={{ fill: "var(--overlay-subtle)" }}
-              />
-              <Bar dataKey="ctr" radius={[4, 8, 8, 4]} barSize={16} fill="var(--good)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
-      {cpcRows.length > 0 && (
-        <ChartCard title="CPC by campaign" note={cur || "¤"} height={Math.max(120, cpcRows.length * 30 + 24)}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={cpcRows} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-              <XAxis type="number" hide domain={[0, maxCpc]} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fill: "var(--muted)", fontSize: 10.5 }}
-                tickLine={false}
-                axisLine={false}
-                width={118}
-                tickFormatter={(n: string) => (n.length > 15 ? `${n.slice(0, 14)}…` : n)}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                itemStyle={{ color: "var(--ink)" }}
-                formatter={(value) => [fmtMoney(Number(value), cur), "CPC"]}
-                cursor={{ fill: "var(--overlay-subtle)" }}
-              />
-              <Bar dataKey="cpc" radius={[4, 8, 8, 4]} barSize={16} fill="var(--watch)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      )}
-    </div>
-  );
-}
-
-function ChartCard({
-  title,
-  note,
-  children,
-  className = "",
-  height = 176,
-}: {
-  title: string;
-  note: string;
-  children: React.ReactNode;
-  className?: string;
-  height?: number;
-}) {
-  return (
-    <div className={`rounded-xl border border-line bg-surface-2/40 p-3.5 ${className}`}>
-      <div className="mb-2.5 flex items-center justify-between">
-        <span className="text-[12.5px] font-semibold text-ink">{title}</span>
-        <span className="font-data text-[10px] uppercase tracking-wide text-mute-2">{note}</span>
-      </div>
-      <div style={{ height }}>{children}</div>
+      <CampaignBars
+        rows={ctrRows.map((c) => ({ name: c.name, value: c.ctr }))}
+        title="CTR by campaign"
+        note="%"
+        label="CTR"
+        formatValue={(n) => `${n}%`}
+        color="var(--good)"
+      />
+      <CampaignBars
+        rows={cpcRows.map((c) => ({ name: c.name, value: c.cpc }))}
+        title="CPC by campaign"
+        note={cur || "¤"}
+        label="CPC"
+        formatValue={(n) => fmtMoney(n, cur)}
+        color="var(--watch)"
+      />
     </div>
   );
 }

@@ -112,3 +112,20 @@ def test_currency_symbols_and_thousands_separators_parse():
     )
     payload = ad_csv.build_payload(csv_text)
     assert payload["campaigns"][0]["spend"] == 1234.5
+
+
+def test_daily_series_sums_every_campaign_on_each_date():
+    """The trend line is total spend per DAY, not per campaign-day row."""
+    daily = ad_csv.build_payload(SAMPLE)["daily"]
+    assert daily == [
+        {"date": "2026-06-01", "spend": 500.0, "clicks": 300},
+        {"date": "2026-06-02", "spend": 500.0, "clicks": 300},
+    ]
+    # ordered by date, and reconciling with the campaign totals
+    assert sum(p["spend"] for p in daily) == sum(c["spend"] for c in ad_csv.build_payload(SAMPLE)["campaigns"])
+
+
+def test_daily_series_is_empty_without_a_date_column():
+    """No dates, no trend chart — the frontend must not draw a line from nothing."""
+    payload = ad_csv.build_payload("Campaign name,Amount spent,Results\nFoo,100,4\n")
+    assert payload["daily"] == []

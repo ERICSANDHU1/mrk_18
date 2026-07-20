@@ -520,6 +520,11 @@ body {
   --overlay-subtle: rgba(27, 24, 21, 0.04);
   --shadow-color: rgba(27, 24, 21, 0.14);
   --backdrop: rgba(27, 24, 21, 0.45);
+  /* the taster's own surfaces — were hardcoded in the components, which is why
+     they could not follow the Appearance switch */
+  --taster-bg: linear-gradient(105deg, #d3ccbb 0%, #dcd6c6 50%, #e5dfd1 100%);
+  --taster-grid: #4f4f4f2e;
+  --track: rgba(27, 24, 21, 0.1);
 }
 
 /* ---------- "Night" — the dark counterpart of Warm sand ----------
@@ -561,6 +566,106 @@ body {
   --overlay-subtle: rgba(232, 230, 225, 0.06);
   --shadow-color: rgba(0, 0, 0, 0.5);
   --backdrop: rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- Night on the free taster ----------
+   The taster is public and sits on <body class="theme-sand">, so it needs the
+   same Night tokens the dashboard gets plus explicit wins over the light
+   `.theme-sand .text-ink/.text-muted/.glass/.border-stroke` rules — those are
+   0,2,0 selectors, so prefixing with .mrk18-dark clears them at 0,3,0. */
+.mrk18-dark .taster-scope {
+  color-scheme: dark;
+  color: #e8e6e1;
+  --ink: #e8e6e1;
+  --muted: #b3b1a8;
+  --molten: #d6d3ca;
+  --amber: #d6d3ca;
+  --ember: #57544d;
+  --gold: #c9c6bc;
+  --oxblood: #c24a43;
+  --gradient-brand: linear-gradient(120deg, #d6d3ca, #b5b2a9);
+  --stroke: rgba(232, 230, 225, 0.1);
+  --glass: rgba(28, 27, 25, 0.7);
+  --cta-ink: #232220;
+  --cta-glow: rgba(0, 0, 0, 0);
+  --cta-glow-strong: rgba(0, 0, 0, 0);
+  --bg: #262624;
+  --surface: #30302e;
+  --surface-2: #3a3a37;
+  --stroke-2: rgba(232, 230, 225, 0.07);
+  --good: #4dbd8c;
+  --watch: #d9a648;
+  --bad: #e0756b;
+  --line: #3d3c39;
+  --line-soft: #343330;
+  --mute-2: #918f86;
+  --overlay-subtle: rgba(232, 230, 225, 0.06);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --taster-bg: linear-gradient(105deg, #201f1d 0%, #262624 50%, #2c2b28 100%);
+  --taster-grid: #ffffff12;
+  --track: rgba(232, 230, 225, 0.12);
+}
+
+.mrk18-dark .taster-scope .text-ink,
+.mrk18-dark .taster-scope.text-ink {
+  color: #e8e6e1;
+}
+
+.mrk18-dark .taster-scope .text-muted {
+  color: #b3b1a8;
+}
+
+/* the light glass recipe is white-on-cream; on night it becomes a dark pane
+   with a faint light edge, or every card reads as a white sticker */
+.mrk18-dark .taster-scope .glass {
+  background: linear-gradient(135deg, rgba(58, 58, 55, 0.82), rgba(48, 48, 46, 0.6));
+  border-color: rgba(232, 230, 225, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 230, 225, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.mrk18-dark .taster-scope .border-stroke {
+  border-color: rgba(232, 230, 225, 0.12);
+}
+
+.mrk18-dark .taster-scope h1,
+.mrk18-dark .taster-scope h2,
+.mrk18-dark .taster-scope h3 {
+  color: #e8e6e1;
+}
+
+/* the navbar pill: the light recipe is a white gradient with a white edge,
+   which on night reads as a bright slab floating over the page */
+.mrk18-dark .taster-scope .feature-glass {
+  background: linear-gradient(135deg, rgba(58, 58, 55, 0.85), rgba(44, 43, 41, 0.7));
+  border-color: rgba(232, 230, 225, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 230, 225, 0.07),
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .mrk18-dark .taster-scope .feature-glass {
+    background: #33322f;
+  }
+}
+
+/* the prism mark ships in two cuts — dark-on-light and light-on-dark. Both are
+   rendered and CSS picks one, so there is no hydration-sensitive JS branch. */
+.logo-on-dark {
+  display: none;
+}
+
+.mrk18-dark .taster-scope .logo-on-dark {
+  display: block;
+}
+
+.mrk18-dark .taster-scope .logo-on-light {
+  display: none;
 }
 
 /* beat the explicit `.theme-sand .text-ink/.text-muted` overrides inside the app */
