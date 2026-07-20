@@ -135,7 +135,7 @@ function Score({ value }: { value?: number | null }) {
   if (typeof value !== "number") return null;
   return (
     <div className="flex shrink-0 items-center gap-1.5" aria-label={`graded ${value} out of 100`}>
-      <div className="h-1 w-11 overflow-hidden rounded-full bg-[#1b1815]/10">
+      <div className="h-1 w-11 overflow-hidden rounded-full bg-[var(--track)]">
         <div
           className="h-full rounded-full"
           style={{ width: `${value}%`, background: "var(--gradient-brand)" }}
@@ -298,17 +298,19 @@ export default function TasterExplore({
     : null;
 
   return (
-    <div className="theme-sand min-h-screen lg:h-screen lg:overflow-hidden">
+    <div className="theme-sand taster-scope min-h-screen lg:h-screen lg:overflow-hidden">
       {/* same bone/greige backdrop + hairline grid as the landing */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
+        className="pointer-events-none fixed inset-0 -z-30 bg-[image:var(--taster-bg)]"
       />
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-20">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--taster-grid)_1px,transparent_1px),linear-gradient(to_bottom,var(--taster-grid)_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
       </div>
 
-      <Navbar subpage />
+      {/* appearance switcher lives in the pill: present in every phase, and
+          never floating over the verdict panels */}
+      <Navbar subpage appearance />
 
       <main className="mx-auto flex h-full w-full max-w-[1400px] flex-col px-5 pb-4 pt-24">
         {phase === "loading" && (

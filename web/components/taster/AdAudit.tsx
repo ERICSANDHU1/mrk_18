@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
+import ThemeToggle from "@/components/app/ThemeToggle";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
@@ -206,7 +207,7 @@ function ConcentrationGap({ c }: { c: Computed }) {
                 {r.pct.toFixed(1)}%
               </span>
             </div>
-            <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-[#1b1815]/10">
+            <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-[var(--track)]">
               <div
                 className="h-full rounded-full"
                 style={{ width: `${Math.min(100, Math.max(1.5, r.pct))}%`, background: r.tone }}
@@ -550,7 +551,7 @@ export default function AdAudit({
                 // the dashboard is sized to the viewport at lg and never
                 // scrolls there; below lg the panels stack and scrolling is the
                 // only honest option on a phone
-                className="fixed inset-0 z-[130] overflow-y-auto bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)] lg:overflow-hidden"
+                className="theme-sand taster-scope fixed inset-0 z-[130] overflow-y-auto bg-[image:var(--taster-bg)] lg:overflow-hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Ad performance audit"
@@ -558,7 +559,7 @@ export default function AdAudit({
             {/* same hairline grid as the taster page, so the audit reads as
                 part of the product rather than a bare modal */}
             <div aria-hidden className="pointer-events-none fixed inset-0">
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--taster-grid)_1px,transparent_1px),linear-gradient(to_bottom,var(--taster-grid)_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
             </div>
 
             <div className="relative mx-auto flex w-full max-w-[1500px] flex-col px-4 py-3 sm:px-6 lg:h-[100dvh] lg:px-8 lg:py-4">
@@ -579,19 +580,24 @@ export default function AdAudit({
                     </p>
                   )}
                 </div>
-                <button
+                <div className="flex shrink-0 items-center gap-2">
+                  <ThemeToggle />
+                  <button
                   onClick={close}
                   disabled={busy}
                   aria-label="Close audit"
                   className="shrink-0 rounded-lg border border-stroke p-2 text-muted transition-colors hover:text-ink disabled:opacity-40"
                 >
                   <X size={16} aria-hidden />
-                </button>
+                  </button>
+                </div>
               </div>
 
               {/* ── upload ─────────────────────────────────────────────── */}
               {!a && (
-                <div className="mt-8">
+                // the canvas is 1500px wide for the DASHBOARD; a drop zone that
+                // wide strands its own label in the middle of an empty field
+                <div className="mx-auto mt-8 w-full max-w-2xl">
                   <div
                     onDragOver={(e) => {
                       e.preventDefault();

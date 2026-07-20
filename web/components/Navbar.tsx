@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import ThemeToggle from "@/components/app/ThemeToggle";
 import Wordmark from "@/components/app/Wordmark";
 
 const LINKS = [
@@ -13,7 +14,16 @@ const LINKS = [
 /** `subpage` = rendered off the landing (e.g. /terms, /privacy): the in-page
  *  anchors become absolute `/#…` so they navigate home first, and the logo
  *  goes to `/` instead of the (non-existent) `#top` anchor. */
-export default function Navbar({ subpage = false }: { subpage?: boolean }) {
+export default function Navbar({
+  subpage = false,
+  appearance = false,
+}: {
+  subpage?: boolean;
+  /** Show the Appearance switcher in the pill. On for the free taster, where
+   *  there is no app rail to host it — floating it over the page collided with
+   *  the verdict panels. */
+  appearance?: boolean;
+}) {
   const base = subpage ? "/" : "";
   return (
     <motion.header
@@ -24,8 +34,23 @@ export default function Navbar({ subpage = false }: { subpage?: boolean }) {
     >
       <nav className="feature-glass flex w-full max-w-5xl items-center justify-between rounded-2xl px-5 py-3">
         <a href={subpage ? "/" : "#top"} className="flex items-center gap-2.5" aria-label="mrk18 home">
-          <Image src="/logo-light.svg" alt="mrk18 logo" width={17} height={26} priority />
-          <Wordmark className="text-[17px] font-extrabold tracking-tight text-[#1b1815]" />
+          <Image
+            src="/logo-light.svg"
+            alt="mrk18 logo"
+            width={17}
+            height={26}
+            priority
+            className="logo-on-light"
+          />
+          <Image
+            src="/logo.svg"
+            alt=""
+            aria-hidden
+            width={17}
+            height={26}
+            className="logo-on-dark"
+          />
+          <Wordmark className="text-[17px] font-extrabold tracking-tight text-ink" />
         </a>
 
         <div className="hidden items-center gap-7 md:flex">
@@ -33,24 +58,25 @@ export default function Navbar({ subpage = false }: { subpage?: boolean }) {
             <a
               key={l.href}
               href={`${base}${l.href}`}
-              className="text-[13.5px] text-[#514a41] transition-colors duration-200 hover:text-[#1b1815]"
+              className="text-[13.5px] text-muted transition-colors duration-200 hover:text-ink"
             >
               {l.label}
             </a>
           ))}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {appearance && <ThemeToggle />}
           <a
             href="/sign-in"
-            className="hidden text-[13.5px] font-medium text-[#514a41] transition-colors duration-200 hover:text-[#1b1815] sm:inline"
+            className="hidden text-[13.5px] font-medium text-muted transition-colors duration-200 hover:text-ink sm:inline"
           >
             Sign in
           </a>
           <a
             href="/sign-up"
-            className="relative overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-white transition-transform duration-200 hover:scale-[1.03]"
-            style={{ background: "#b4532a" }}
+            className="relative overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-[color:var(--cta-ink,#fff)] transition-transform duration-200 hover:scale-[1.03]"
+            style={{ background: "var(--gradient-brand, #b4532a)" }}
           >
             Get started
           </a>
