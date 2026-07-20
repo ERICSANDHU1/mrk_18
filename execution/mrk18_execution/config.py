@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     # Free ad-CSV audit (public /taster/audit). Separate, tighter cap: it's a
     # bigger model call on an upload. No email exists in a no-signup flow, so
     # the cap is per IP.
-    taster_audit_daily_per_ip: int = 2
+    taster_audit_daily_per_ip: int = 3  # free ad audits per IP per UTC day (0 disables)
     # Global fresh-analysis budget per UTC day (0 disables) — the wall that keeps
     # the Groq TPD and the Tavily monthly credits from being drained by strangers:
     # ~4k Groq tokens + ~6 Tavily credits per FRESH analysis; cache hits are free.
