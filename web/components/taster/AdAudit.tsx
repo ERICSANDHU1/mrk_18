@@ -551,7 +551,7 @@ export default function AdAudit({
                 // the dashboard is sized to the viewport at lg and never
                 // scrolls there; below lg the panels stack and scrolling is the
                 // only honest option on a phone
-                className="theme-sand taster-scope fixed inset-0 z-[130] overflow-y-auto bg-[image:var(--taster-bg)] lg:overflow-hidden"
+                className="theme-sand taster-scope fixed inset-0 z-[130] overflow-y-auto bg-[image:var(--taster-bg)]"
             role="dialog"
             aria-modal="true"
             aria-label="Ad performance audit"
@@ -763,8 +763,9 @@ export default function AdAudit({
                     </div>
                   </div>
 
-                  {/* the dashboard: eight panels, sized from the viewport */}
-                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12 lg:grid-rows-2">
+                  {/* the fold: the verdict and the two panels that carry it,
+                      sized to whatever the viewport has left */}
+                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-12">
                     {panels?.trend && (
                       <div className="flex min-h-[220px] flex-col lg:col-span-4 lg:min-h-0">
                         {panels.trend}
@@ -816,23 +817,28 @@ export default function AdAudit({
                         )}
                       </Panel>
                     )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
 
-                    {panels && (
-                      <>
-                        <div className="flex min-h-[220px] flex-col lg:col-span-3 lg:min-h-0">
-                          {panels.ctr}
-                        </div>
-                        <div className="flex min-h-[220px] flex-col lg:col-span-3 lg:min-h-0">
-                          {panels.cost}
-                        </div>
-                      </>
-                    )}
+            {/* below the fold — the detail, in normal flow. Panels get room to
+                breathe here instead of being squeezed into the first screen. */}
+            {a && (
+              <div className="relative mx-auto w-full max-w-[1500px] px-4 pb-10 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
+                  {panels && (
+                    <>
+                      <div className="flex h-[320px] flex-col lg:col-span-3">{panels.ctr}</div>
+                      <div className="flex h-[320px] flex-col lg:col-span-3">{panels.cost}</div>
+                    </>
+                  )}
 
                     <Panel
                       title="What is structurally wrong"
                       note={String(a.structural_findings.length)}
                       caption="The mechanics behind the numbers, worst first."
-                      className="lg:col-span-3"
+                      className="h-[320px] lg:col-span-3"
                     >
                       <ol className="space-y-2">
                         {a.structural_findings.map((f, i) => {
@@ -878,7 +884,7 @@ export default function AdAudit({
                     <Panel
                       title="Do this week"
                       caption="The moves, in order. Then the money to shift."
-                      className="lg:col-span-3"
+                      className="h-[320px] lg:col-span-3"
                     >
                       <ol className="space-y-1.5">
                         {a.this_week.map((t, i) => (
@@ -929,9 +935,8 @@ export default function AdAudit({
 
                     </Panel>
                   </div>
-                </motion.div>
+                </div>
               )}
-            </div>
               </motion.div>
             )}
           </AnimatePresence>,
