@@ -93,6 +93,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // a ?locked= flag means the server gate bounced a non-Founding-500 visitor
+  // here from /chief or /cowork — pop the same upgrade modal the locked tab
+  // shows, then strip the param so a refresh doesn't re-open it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const locked = params.get("locked");
+    if (!locked) return;
+    window.dispatchEvent(new CustomEvent("mrk18:open-upgrade", { detail: { feature: locked } }));
+    params.delete("locked");
+    const qs = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
+
   // the floating CMO panel announces open/close → collapse the rail + pad content
   useEffect(() => {
     const onOpen = () => setCmoOpen(true);
