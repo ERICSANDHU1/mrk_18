@@ -12,9 +12,15 @@ import {
   Zap,
 } from "lucide-react";
 import Image from "next/image";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/sections/Footer";
 import MrkWaitlistCta from "@/components/device/MrkWaitlistCta";
 
-export const metadata: Metadata = { title: "mrk" };
+export const metadata: Metadata = {
+  title: "mrk — the device",
+  description:
+    "mrk is three things in one glossy puck: a mic that hears your meetings, a camera that sees the room, and the CMO agent, carried everywhere you go. Launching after the Founding 500.",
+};
 
 // The device's three organs — ears, eyes, brain. Copy stays inside what the
 // product docs actually promise (camera is a later version; no invented specs).
@@ -83,10 +89,17 @@ const HANDSHAKE = [
   },
 ];
 
-export default function MrkPage() {
+export default function DevicePage() {
   return (
-    <div className="dash-scroll h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-5xl px-5 py-8">
+    <div className="theme-sand relative flex min-h-dvh flex-col">
+      {/* same bone/greige backdrop as the landing */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
+      />
+      <Navbar subpage />
+
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 pb-16 pt-24">
         {/* ── TOP FOMO BAR — waitlist position + opens the apply form in place ── */}
         <MrkWaitlistCta />
 
@@ -153,8 +166,10 @@ export default function MrkPage() {
         </section>
 
         {/* ── WHAT'S INSIDE ── */}
-        <div id="inside" className="mt-14 scroll-mt-6">
-          <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">What&apos;s inside</p>
+        <div id="inside" className="mt-14 scroll-mt-24">
+          <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">
+            What&apos;s inside
+          </p>
           <h2 className="font-display mt-1.5 text-[24px] leading-tight text-ink">
             Three organs. One puck.
           </h2>
@@ -177,7 +192,9 @@ export default function MrkPage() {
                   </span>
                 )}
               </div>
-              <p className="font-data mt-4 text-[10px] uppercase tracking-[0.2em] text-mute-2">{kicker}</p>
+              <p className="font-data mt-4 text-[10px] uppercase tracking-[0.2em] text-mute-2">
+                {kicker}
+              </p>
               <h3 className="font-display mt-1 text-[19px] leading-snug text-ink">{title}</h3>
               <p className="mt-2 flex-1 text-[12.5px] leading-relaxed text-mute">{body}</p>
               <ul className="mt-4 space-y-1.5 border-t border-line pt-3">
@@ -200,7 +217,9 @@ export default function MrkPage() {
                 <Brain size={20} aria-hidden />
               </span>
               <div>
-                <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">03 · Agent</p>
+                <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">
+                  03 · Agent
+                </p>
                 <h3 className="font-display mt-1 text-[21px] leading-snug text-ink">
                   The CMO lives inside.
                 </h3>
@@ -234,7 +253,9 @@ export default function MrkPage() {
 
         {/* ── THE HANDSHAKE ── */}
         <div className="mt-14">
-          <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">The Handshake</p>
+          <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">
+            The Handshake
+          </p>
           <h2 className="font-display mt-1.5 text-[24px] leading-tight text-ink">
             A radar for your people.
           </h2>
@@ -254,7 +275,9 @@ export default function MrkPage() {
             </div>
           ))}
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

@@ -32,7 +32,7 @@ export default function Pricing() {
       <div className="relative z-10 mx-auto max-w-6xl">
         <Reveal>
           <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-muted">
-            05 — Pricing
+            06 — Pricing
           </span>
           <h2 className="mt-6 text-[clamp(2.2rem,5.5vw,4rem)] font-extrabold leading-[1.05] tracking-[-0.03em]">
             Start free. <span className="text-gradient">Lock founder pricing.</span>
