@@ -11,10 +11,11 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/sections/Footer";
 import MrkWaitlistCta from "@/components/device/MrkWaitlistCta";
+import DeviceShowcase from "@/components/device/DeviceShowcase";
+import SmoothScroll from "@/components/SmoothScroll";
 
 export const metadata: Metadata = {
   title: "mrk — the device",
@@ -91,82 +92,33 @@ const HANDSHAKE = [
 
 export default function DevicePage() {
   return (
-    <div className="theme-sand relative flex min-h-dvh flex-col">
-      {/* same bone/greige backdrop as the landing */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
-      />
-      <Navbar subpage />
+    // Lenis (same as the landing) is what makes the showcase's scroll-driven
+    // explode advance: this page's body is the scroll container, not the window,
+    // so framer's useScroll sees nothing without it.
+    <SmoothScroll>
+      <div className="theme-sand relative flex min-h-dvh flex-col">
+        {/* same bone/greige backdrop as the landing */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
+        />
+        <Navbar subpage />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 pb-16 pt-24">
-        {/* ── TOP FOMO BAR — waitlist position + opens the apply form in place ── */}
+      {/* waitlist FOMO bar — also mounts the Founding-500 modal that the
+          showcase's "Reserve a seat" CTA opens */}
+      <div className="mx-auto w-full max-w-5xl px-5 pt-24">
         <MrkWaitlistCta />
+      </div>
 
-        {/* ── HERO — one stage: copy left, device on its aura right ── */}
-        <section className="relative overflow-hidden rounded-3xl border border-line bg-surface px-6 py-8 sm:px-10 sm:py-10">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-24 top-1/2 h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-molten/10 blur-[100px]"
-          />
-          <div className="relative grid items-center gap-8 lg:grid-cols-[1.15fr_1fr]">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-molten/30 bg-molten/[0.06] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-ink">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-molten opacity-70" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-molten" />
-                </span>
-                mrk · coming soon
-              </span>
-              <h1 className="font-display mt-5 text-[clamp(2.1rem,4.2vw,3rem)] leading-[1.05] text-ink">
-                Ears, eyes and a CMO brain — in your pocket.
-              </h1>
-              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-mute">
-                mrk is three things in one glossy puck: a{" "}
-                <span className="font-semibold text-ink">mic</span> that hears your meetings, a{" "}
-                <span className="font-semibold text-ink">camera</span> that sees the room, and the{" "}
-                <span className="font-semibold text-ink">agent</span> — your CMO, carried everywhere
-                you go. Launching after the Founding 500.
-              </p>
-              {/* the trio, up front — jumps to the section below */}
-              <div className="mt-6 flex flex-wrap gap-2">
-                {[
-                  { icon: Mic, label: "Mic" },
-                  { icon: Camera, label: "Camera", tag: "V2" },
-                  { icon: Brain, label: "Agent" },
-                ].map(({ icon: Icon, label, tag }) => (
-                  <a
-                    key={label}
-                    href="#inside"
-                    className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-2 px-3.5 py-1.5 text-[12.5px] font-semibold text-ink transition-colors hover:border-molten/40"
-                  >
-                    <Icon size={14} className="text-molten" aria-hidden />
-                    {label}
-                    {tag && <span className="font-data text-[9.5px] text-mute-2">{tag}</span>}
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div className="relative mx-auto aspect-square w-[min(70vw,320px)]">
-              {/* soft backlight so the black device lifts on dark surfaces too */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-[10%] rounded-full bg-white/[0.06] blur-2xl"
-              />
-              <Image
-                src="/device/new-smile.png"
-                alt="the mrk device"
-                fill
-                sizes="(max-width: 1024px) 70vw, 320px"
-                className="object-contain drop-shadow-2xl"
-                priority
-              />
-            </div>
-          </div>
-        </section>
+      {/* the scroll-driven exploded device — the page's hero, exactly as it ran
+          on the landing before: an assembled puck that fans apart into its nine
+          labelled layers as you scroll. Full-bleed so the horizontal explode has
+          room; falls back to a static shot on mobile. */}
+      <DeviceShowcase />
 
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 pb-16 pt-8">
         {/* ── WHAT'S INSIDE ── */}
-        <div id="inside" className="mt-14 scroll-mt-24">
+        <div id="inside" className="scroll-mt-24">
           <p className="font-data text-[10px] uppercase tracking-[0.2em] text-mute-2">
             What&apos;s inside
           </p>
@@ -277,7 +229,8 @@ export default function DevicePage() {
         </div>
       </main>
 
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </SmoothScroll>
   );
 }
