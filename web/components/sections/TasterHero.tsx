@@ -22,6 +22,56 @@ const ROTATING_WORDS = ["URL", "IDEA"] as const;
 const ROTATE_PAUSE = 2000;   // ms to hold each word before sliding
 const ROTATE_SLIDE = 500;    // ms for the vertical slide transition
 
+/** Char-by-char reveal that still respects word boundaries.
+ *
+ *  Each character animates in its own inline-block cell, which the browser
+ *  treats as an independent break opportunity — so on a narrow screen a
+ *  headline would split mid-word ("Get your verdict" / "s."). Grouping the
+ *  cells of a word inside one whitespace-nowrap span keeps the word atomic
+ *  while leaving the spaces between words breakable. */
+function RevealWords({
+  text,
+  startIndex = 0,
+  className,
+}: {
+  text: string;
+  startIndex?: number;
+  className: string;
+}) {
+  const words = text.split(" ");
+  // each word's first character index in the whole string, so the stagger keeps
+  // running across words (and across both headline lines) without a counter
+  const offsets = words.map(
+    (_, wi) =>
+      startIndex + words.slice(0, wi).reduce((sum, w) => sum + w.length + 1, 0),
+  );
+  return (
+    <>
+      {words.map((word, wi) => (
+        <span key={wi} className="inline-block whitespace-nowrap">
+          {word.split("").map((char, ci) => (
+            <span key={ci} className="inline-block overflow-hidden align-bottom">
+              <motion.span
+                className={`${className} inline-block`}
+                initial={{ y: "112%" }}
+                animate={{ y: 0 }}
+                transition={{
+                  delay: 2.3 + (offsets[wi] + ci) * 0.03,
+                  duration: 0.6,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                {char}
+              </motion.span>
+            </span>
+          ))}
+          {wi < words.length - 1 && <span className="inline-block">{" "}</span>}
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** Slot-machine ticker: slides words vertically in a fixed-height mask.
  *  GPU-accelerated (translate3d), no layout shift, inherits surrounding type.
  *  Only the highlighted word rotates — the rest of the headline is static. */
@@ -218,19 +268,9 @@ export default function TasterHero() {
             <span aria-label={TAGLINE}>
               {/* Line 1: "Drop your " (char reveal) + rotating word + "." */}
               <span className="block">
-                {/* Static chars: "Drop your " — 10 chars (including trailing space) */}
-                {"Drop your ".split("").map((char, i) => (
-                  <span key={i} className="inline-block overflow-hidden align-bottom">
-                    <motion.span
-                      className="text-ink inline-block"
-                      initial={{ y: "112%" }}
-                      animate={{ y: 0 }}
-                      transition={{ delay: 2.3 + i * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      {char === " " ? "\u00A0" : char}
-                    </motion.span>
-                  </span>
-                ))}
+                {/* "Drop your" — word-grouped so it can never split mid-word */}
+                <RevealWords text="Drop your" className="text-ink" />
+                <span className="inline-block">{" "}</span>
                 {/* Rotating word: revealed alongside the last static char, then loops */}
                 <span className="inline-block overflow-hidden align-bottom">
                   <motion.span
@@ -256,22 +296,9 @@ export default function TasterHero() {
               </span>
               {/* Line 2: "Meet your CMO." — char-by-char reveal, no rotation */}
               <span className="block">
-                {TAGLINE_LINES[1].split("").map((char, i) => {
-                  const offset = 14; // length of "Drop your URL."
-                  return (
-                    <span key={i} className="inline-block overflow-hidden align-bottom">
-                      <motion.span
-                        className="text-gradient inline-block"
-                        initial={{ y: "112%" }}
-                        animate={{ y: 0 }}
-                        transition={{ delay: 2.3 + (offset + i) * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                      >
-                        {/* nbsp escape — keeps spaces visible inside overflow-hidden cells */}
-                        {char === " " ? "\u00A0" : char}
-                      </motion.span>
-                    </span>
-                  );
-                })}
+                {/* offset 14 = length of "Drop your URL.", so line 2 keeps
+                    revealing in sequence after line 1 */}
+                <RevealWords text={TAGLINE_LINES[1]} startIndex={14} className="text-gradient" />
               </span>
             </span>
           )}
@@ -429,11 +456,14 @@ export default function TasterHero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 3.15, duration: 0.7 }}
-          className="mt-6 flex flex-wrap items-center justify-center gap-2.5"
+          // the label used to sit INSIDE the wrapping row, so on a phone it
+          // shared a line with the first chip and the rest wrapped raggedly
+          className="mt-6 flex flex-col items-center gap-2.5 sm:flex-row sm:flex-wrap sm:justify-center"
         >
           <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-muted">
             {recent.length >= 2 ? "Recently analyzed" : "Try an example"}
           </span>
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
           {chips.map((c) => (
             <button
               key={c.domain}
@@ -451,6 +481,7 @@ export default function TasterHero() {
               {c.company}
             </button>
           ))}
+          </div>
         </motion.div>
       </div>
     </section>

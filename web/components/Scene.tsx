@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float } from "@react-three/drei";
 import * as THREE from "three";
@@ -37,6 +37,17 @@ const COLUMN_SHAPES: ShapeDef[] = [
   { kind: "torus", color: "#E0490E", pos: [2.6, -0.6, -2.8], size: 0.65, speed: 0.18 },
   { kind: "icosa", color: "#8C5A2B", pos: [-2.2, -3.1, -2.6], size: 0.7, speed: 0.26 },
   { kind: "sphere", color: "#E0490E", pos: [2.3, -3.3, -2.4], size: 0.45, speed: 0.34 },
+];
+
+// Phone staging. The camera keeps a fixed VERTICAL fov, so a narrow viewport
+// sees a narrower slice of the world: the landing cast's x=±5 shapes fall
+// off-screen while its centre shapes loom over the hero copy. This set is
+// smaller, fewer, and hugs the edges so the middle column stays readable.
+const MOBILE_SHAPES: ShapeDef[] = [
+  { kind: "icosa", color: "#FF6A00", pos: [-2.6, 3.4, -3.4], size: 0.6, speed: 0.22 },
+  { kind: "sphere", color: "#F2C879", pos: [2.7, 2.6, -3.6], size: 0.42, speed: 0.3 },
+  { kind: "torus", color: "#E0490E", pos: [2.9, -2.6, -3.2], size: 0.5, speed: 0.18 },
+  { kind: "icosa", color: "#8C5A2B", pos: [-2.8, -3.2, -3.4], size: 0.5, speed: 0.26 },
 ];
 
 function Shape({ def }: { def: ShapeDef }) {
@@ -129,14 +140,33 @@ function CameraRig() {
   return null;
 }
 
+/** True below the `sm` breakpoint. Subscribed rather than read once, so a
+ *  rotation or resize restages the cast instead of leaving phone shapes on a
+ *  desktop canvas. */
+function useIsNarrow() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia("(max-width: 639px)");
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(max-width: 639px)").matches,
+    () => false,
+  );
+}
+
 export default function Scene({ variant = "landing" }: { variant?: "landing" | "column" }) {
-  const shapes = variant === "column" ? COLUMN_SHAPES : SHAPES;
+  const narrow = useIsNarrow();
+  const shapes =
+    variant === "column" ? COLUMN_SHAPES : narrow ? MOBILE_SHAPES : SHAPES;
   return (
     <Canvas
       dpr={[1, 1.75]}
       camera={{ position: [0, 0, 9], fov: 42 }}
       gl={{ antialias: true, alpha: true }}
-      style={{ opacity: 0.6 }}
+      // the cast sits behind the copy, so it is quieter on a phone where there
+      // is no room for it to be decorative without being noise
+      style={{ opacity: narrow ? 0.42 : 0.6 }}
     >
       <ambientLight intensity={0.35} />
       <directionalLight position={[5, 6, 4]} intensity={2.1} color="#FFF3E4" />
