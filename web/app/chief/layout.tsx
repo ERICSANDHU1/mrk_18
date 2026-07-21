@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Anton, Archivo, DM_Mono } from "next/font/google";
 import AppShell from "@/components/app/AppShell";
+import { requireProAccess } from "@/lib/entitlements-server";
 
 const anton = Anton({ variable: "--font-anton", subsets: ["latin"], weight: "400" });
 const archivo = Archivo({
@@ -15,8 +16,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Chief shell — same rail + theme as the rest of the app. */
-export default function ChiefLayout({ children }: { children: React.ReactNode }) {
+/** Chief shell — same rail + theme as the rest of the app. Founding-500 only:
+ *  the gate runs before anything renders, so the URL can't be typed past. */
+export default async function ChiefLayout({ children }: { children: React.ReactNode }) {
+  await requireProAccess("Chief");
   return (
     <div
       className={`${anton.variable} ${archivo.variable} ${dmMono.variable} app-scope h-dvh overflow-hidden bg-bg text-ink`}

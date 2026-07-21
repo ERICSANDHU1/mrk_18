@@ -4,11 +4,11 @@
  *  account, plus any Founding 500 member you onboard by hand. Everyone else
  *  keeps the 🔒 + upgrade modal, so the conversion funnel stays intact.
  *
- *  NOTE: this is a UI affordance, not a security boundary — the /chief and
- *  /cowork pages have no server-side gate, so a signed-in user can still reach
- *  them by typing the URL. Enforce server-side before anything genuinely paid
- *  or sensitive lives behind it. Replace this with a real per-founder plan flag
- *  from the DB once billing ships.
+ *  This function is the shared allowlist check. The /chief and /cowork route
+ *  layouts enforce it SERVER-SIDE via requireProAccess (entitlements-server.ts),
+ *  so the URL can't be typed past; here it also drives the Rail's 🔒 UI. Replace
+ *  the email allowlist with a real per-founder plan flag from the DB once
+ *  billing ships — call sites stay the same.
  */
 export function hasProAccess(email?: string | null): boolean {
   if (!email) return false;
