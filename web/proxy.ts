@@ -14,6 +14,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms",
   "/privacy",
   "/contact", // public legal/contact page — Meta & Google app review must reach it signed-out
+  "/device", // public product page for the mrk hardware, linked from the landing
   "/taster(.*)", // free no-signup analysis pages — the whole point is no auth
   "/api/apply", // public Founding-500 POST (honeypot + rate-limited); also serves the standalone /form site via CORS
 ]);

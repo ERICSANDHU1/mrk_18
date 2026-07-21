@@ -10,6 +10,7 @@ import TasterHero from "../components/sections/TasterHero";
 import ProductReel from "../components/sections/ProductReel";
 import HowItWorks from "../components/sections/HowItWorks";
 import Features from "../components/sections/Features";
+import Device from "../components/sections/Device";
 import Pricing from "../components/sections/Pricing";
 import Contact from "../components/sections/Contact";
 import Footer from "../components/sections/Footer";
@@ -36,6 +37,7 @@ export default function Home() {
           <ProductReel />
           <HowItWorks />
           <Features />
+          <Device />
           <Pricing />
           <Contact />
         </main>

@@ -33,7 +33,7 @@ export default function CmoConcierge() {
   // which of the three tabs we're on — the greeting re-toggles whenever this changes
   const tab = pathname.startsWith("/chief")
     ? "chief"
-    : pathname.startsWith("/cowork") || pathname.startsWith("/mrk")
+    : pathname.startsWith("/cowork")
       ? "comrk"
       : pathname.startsWith("/chat")
         ? "chat"
