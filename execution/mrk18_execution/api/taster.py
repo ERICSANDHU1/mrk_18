@@ -344,7 +344,10 @@ _SAMPLE_NOTE = "SAMPLE — taster engine not configured; this is canned dev outp
 
 # Bumped when the results shape changes — cached rows from an older shape are
 # treated as misses and regenerated, so the frontend renders one shape only.
-_PAYLOAD_V = 6
+# bumped to 7: the identity-extraction fix (demo-client sites like theaicmo.com
+# were misidentified, poisoning competitor discovery) — flush cached rows so the
+# wrong competitors regenerate on next view.
+_PAYLOAD_V = 7
 
 # The combined call must fit medium reasoning tokens + the full 4-card JSON
 # (cards + rivals/traits/motion + key_insights + quick_wins + positioning).
@@ -563,14 +566,27 @@ async def _gather_context(
     competitors: list[str] = []
 
     # who is this? (needed to search for anything useful)
+    #
+    # The domain is the anchor, on purpose. Product sites often LEAD with demo /
+    # example / case-study content featuring a fictional sample client — e.g.
+    # theaicmo.com opens with a mock "Aurora Coffee" email campaign to show off
+    # what it generates. Reading the top of the page naively identifies the
+    # company as "Aurora Coffee" selling "single-origin coffee", which then makes
+    # the competitor search return coffee roasters. Telling the extractor to
+    # identify the OWNER of the domain and ignore demo clients fixes it (the
+    # brand almost always matches the domain).
     company, offer = domain, ""
     try:
         ident = await _mini_json(
             client,
             mini_model,
-            'Extract from this website text: {"company": "<brand name>", "offer": "<what '
-            'they sell, one plain sentence>"}. JSON only.',
-            f"Website: {url}\n\n{site_text[:2500]}",
+            f"This is the website at {domain}. It MAY show demo, example, sample, or "
+            "case-study content featuring fictional clients (a made-up brand used to "
+            f"showcase the product). Identify the company that OWNS and OPERATES {domain} "
+            "— its own product/brand — NOT any sample client shown in a demo. The brand "
+            'usually matches the domain. Return {"company": "<site owner brand>", "offer": '
+            '"<what THEY sell, one plain sentence>"}. JSON only.',
+            f"Website: {url}\n\n{site_text[:4000]}",
         )
         if isinstance(ident, dict):
             company = str(ident.get("company") or domain).strip()[:80]
