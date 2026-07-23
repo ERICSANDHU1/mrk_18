@@ -26,6 +26,7 @@ from .review import router as review_router
 from .runs import router as runs_router
 from .audit import router as audit_router
 from .taster import router as taster_router
+from .taster_chat import router as taster_chat_router
 from .webhooks import router as webhooks_router
 
 if sys.platform == "win32":
@@ -356,6 +357,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     app.include_router(apply_router)
     app.include_router(taster_router)
     app.include_router(audit_router)
+    app.include_router(taster_chat_router)
     app.include_router(intake_router)
     app.include_router(runs_router)
     app.include_router(meta_router)

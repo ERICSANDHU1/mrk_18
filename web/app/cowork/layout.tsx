@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 /** Cowork shell — same rail as the rest of the app, full-height section content.
  *  Founding-500 only: the gate runs before render, so the URL can't be typed past. */
 export default async function CoworkLayout({ children }: { children: React.ReactNode }) {
-  await requireProAccess("Comrk");
+  await requireProAccess();
   return (
     <div
       className={`${anton.variable} ${archivo.variable} ${dmMono.variable} app-scope h-dvh overflow-hidden bg-bg text-ink`}

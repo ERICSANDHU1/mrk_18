@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 /** Chief shell — same rail + theme as the rest of the app. Founding-500 only:
  *  the gate runs before anything renders, so the URL can't be typed past. */
 export default async function ChiefLayout({ children }: { children: React.ReactNode }) {
-  await requireProAccess("Chief");
+  await requireProAccess();
   return (
     <div
       className={`${anton.variable} ${archivo.variable} ${dmMono.variable} app-scope h-dvh overflow-hidden bg-bg text-ink`}

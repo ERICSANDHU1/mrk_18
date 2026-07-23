@@ -7,8 +7,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAuth, useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Waitlist from "@/components/sections/Waitlist";
-import FoundingToast from "@/components/taster/FoundingToast";
 import AdAudit from "@/components/taster/AdAudit";
+import TasterChat from "@/components/taster/TasterChat";
 
 /** The taster explore page (/taster/[domain]) — the hero hands the URL here and
  *  this page runs the analysis with a live step tracker, then lays the result
@@ -310,9 +310,14 @@ export default function TasterExplore({
 
       {/* appearance switcher lives in the pill: present in every phase, and
           never floating over the verdict panels */}
-      <Navbar subpage appearance />
+      <Navbar subpage appearance unlock />
 
-      <main className="mx-auto flex h-full w-full max-w-[1400px] flex-col px-5 pb-4 pt-24">
+      <main
+        className={`mx-auto flex h-full w-full max-w-[1400px] flex-col px-5 pt-24 ${
+          // reserve room at the bottom for the fixed CMO chat composer (done + signed-out)
+          phase === "done" ? "pb-24" : "pb-4"
+        }`}
+      >
         {phase === "loading" && (
           <div className="grid flex-1 place-items-center">
             <div className="glass w-full max-w-md rounded-2xl p-7">
@@ -708,8 +713,26 @@ export default function TasterExplore({
         )}
       </main>
 
-      {/* Ask 1 — post-analysis toast (signed-out visitors only, once results land) */}
-      {phase === "done" && isLoaded && !isSignedIn && <FoundingToast />}
+      {/* The post-analysis hook, for signed-out visitors once results land: a
+          follow-up chat grounded in the verdict they just saw, pinned to the
+          bottom. It replaces the old FoundingToast — same signup goal, but the
+          founder gets to talk to their CMO first. Both together was two nudges
+          fighting for the bottom-right corner. */}
+      {phase === "done" && data && isLoaded && !isSignedIn && <TasterChat context={data} />}
+
+      {/* Floating "Unlock the full CMO" CTA — its own button in the bottom-right
+          corner (not in the navbar). Desktop only: on mobile it collided with the
+          chat composer, and mobile still has the Unlock CTA in the right-rail
+          panel plus the chat's own signup wall. */}
+      {phase === "done" && data && (
+        <button
+          onClick={openWaitlist}
+          className="fixed bottom-6 right-6 z-40 hidden items-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_10px_36px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow duration-300 hover:shadow-[0_14px_48px_var(--cta-glow-strong,rgba(255,106,0,0.5))] lg:inline-flex"
+          style={{ background: "var(--gradient-brand)" }}
+        >
+          Unlock the full CMO →
+        </button>
+      )}
 
       {/* the Founding-500 application modal — opened by the gate CTA */}
       <Waitlist />

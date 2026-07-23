@@ -14,7 +14,8 @@ export default function SignUpPage() {
         </p>
       </div>
       <div className="auth-rise w-full" style={{ animationDelay: "0.16s" }}>
-        <SignUp />
+        {/* new accounts land in Chat too — one consistent home base */}
+        <SignUp forceRedirectUrl="/chat" />
       </div>
     </>
   );

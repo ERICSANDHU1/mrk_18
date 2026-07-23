@@ -14,7 +14,8 @@ export default function SignInPage() {
         </p>
       </div>
       <div className="auth-rise w-full" style={{ animationDelay: "0.16s" }}>
-        <SignIn />
+        {/* always land in Chat after signing in — the founder's home base */}
+        <SignIn forceRedirectUrl="/chat" />
       </div>
     </>
   );
