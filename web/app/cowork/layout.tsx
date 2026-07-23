@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Anton, Archivo, DM_Mono } from "next/font/google";
 import AppShell from "@/components/app/AppShell";
 import CmoPanel from "@/components/app/CmoPanel";
-import { requireProAccess } from "@/lib/entitlements-server";
 
 const anton = Anton({ variable: "--font-anton", subsets: ["latin"], weight: "400" });
 const archivo = Archivo({
@@ -18,9 +17,9 @@ export const metadata: Metadata = {
 };
 
 /** Cowork shell — same rail as the rest of the app, full-height section content.
- *  Founding-500 only: the gate runs before render, so the URL can't be typed past. */
-export default async function CoworkLayout({ children }: { children: React.ReactNode }) {
-  await requireProAccess();
+ *  Open to all signed-in users: non-members get a demo (sample data, no backend)
+ *  via the cowork page; the real /api routes stay auth-gated per user. */
+export default function CoworkLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={`${anton.variable} ${archivo.variable} ${dmMono.variable} app-scope h-dvh overflow-hidden bg-bg text-ink`}

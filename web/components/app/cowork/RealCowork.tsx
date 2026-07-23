@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/app/ui/Skeleton";
 import StartRunButton from "./StartRunButton";
+import DemoBanner from "@/components/app/DemoBanner";
+import { COMRK_DEMO } from "@/lib/demo-mode";
 
 export interface FounderProfile {
   company_name: string;
@@ -135,12 +137,26 @@ function Widget({
  *  the desk, the pipeline visualised (runs → review → approved → published),
  *  live content + run detail, and the not-yet-wired capabilities folded into
  *  one quiet card instead of shouting placeholders. */
-export default function RealCowork({ profile }: { profile: FounderProfile }) {
-  const [content, setContent] = useState<ContentItem[]>([]);
-  const [runs, setRuns] = useState<Run[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function RealCowork({
+  profile,
+  demo = false,
+}: {
+  profile: FounderProfile;
+  demo?: boolean;
+}) {
+  // Demo visitors start from sample data and never hit the backend.
+  const [content, setContent] = useState<ContentItem[]>(
+    demo ? (COMRK_DEMO.content as ContentItem[]) : [],
+  );
+  const [runs, setRuns] = useState<Run[]>(demo ? (COMRK_DEMO.runs as Run[]) : []);
+  const [loading, setLoading] = useState(!demo);
+
+  // in demo the run/content detail pages aren't populated, so their links point
+  // to /pricing instead — you can see the desk, unlocking runs it for real
+  const linkTo = (real: string) => (demo ? "/pricing" : real);
 
   useEffect(() => {
+    if (demo) return;
     let active = true;
     const j = (u: string) =>
       fetch(u, { cache: "no-store" })
@@ -155,7 +171,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [demo]);
 
   const pending = runs.filter(
     (r) => r.status === "awaiting_gate1" || r.status === "awaiting_gate2",
@@ -179,7 +195,9 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
           : "Start your first run — I'll turn your brief into strategy, posts and scripts for your approval.";
 
   return (
-    <div className="dash-scroll h-full overflow-y-auto">
+    <div className="flex h-full flex-col">
+      {demo && <DemoBanner section="Comrk" />}
+      <div className="dash-scroll min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-4xl px-5 py-6">
         {/* header */}
         <div className="mb-5 flex items-start justify-between gap-3">
@@ -187,7 +205,17 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
             <h1 className="font-display text-[28px] leading-none text-ink">Comrk</h1>
             <p className="mt-1.5 text-[12.5px] text-mute">{profile.company_name} · your execution desk</p>
           </div>
-          <StartRunButton />
+          {demo ? (
+            <Link
+              href="/pricing"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)]"
+              style={{ background: "var(--gradient-brand)" }}
+            >
+              <Rocket size={14} aria-hidden /> Unlock to run
+            </Link>
+          ) : (
+            <StartRunButton />
+          )}
         </div>
 
         {/* CMO read — one line that says what matters; pending approvals live here */}
@@ -201,7 +229,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
               {pending.map((r) => (
                 <Link
                   key={r.run_id}
-                  href={`/cowork/run/${r.run_id}`}
+                  href={linkTo(`/cowork/run/${r.run_id}`)}
                   className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-molten/10"
                 >
                   <span className="text-ink">
@@ -279,7 +307,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
                   <Link
                     key={c.item_id}
                     // deep-link straight to this post's slide in the run deck
-                    href={`/cowork/run/${c.run_id}?item=${c.item_id}`}
+                    href={linkTo(`/cowork/run/${c.run_id}?item=${c.item_id}`)}
                     className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[12.5px] transition-colors hover:bg-surface-2"
                   >
                     <span className="truncate text-ink">
@@ -321,7 +349,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
                   return (
                     <Link
                       key={r.run_id}
-                      href={`/cowork/run/${r.run_id}`}
+                      href={linkTo(`/cowork/run/${r.run_id}`)}
                       className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12.5px] transition-colors hover:bg-surface-2"
                     >
                       <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${m.dot}`} />
@@ -371,6 +399,7 @@ export default function RealCowork({ profile }: { profile: FounderProfile }) {
             ))}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
