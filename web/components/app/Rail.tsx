@@ -6,7 +6,7 @@ import Wordmark from "@/components/app/Wordmark";
 import ChatRecents from "@/components/app/ChatRecents";
 import CoworkRecents from "@/components/app/CoworkRecents";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronsLeft,
   ChevronsRight,
@@ -41,8 +41,6 @@ const TOP: NavItem[] = [
   { href: "/chief", label: "Chief", icon: Crown, exact: false, locked: true },
 ];
 
-const openUpgrade = (feature: string) =>
-  window.dispatchEvent(new CustomEvent("mrk18:open-upgrade", { detail: { feature } }));
 const BOTTOM: NavItem = { href: "/console", label: "Dashboard", icon: LayoutDashboard, exact: true };
 
 // Chief's rooms — the command-center areas, one page each (shown in the sidebar
@@ -114,6 +112,7 @@ type Workspace = { name: string; initial: string };
 /** Section-switcher rail — collapses to icons, expands to a labelled nav. */
 export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
 
   // Real workspace identity = the founder's own company (from their profile).
@@ -160,12 +159,12 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
     const Icon = item.icon;
     if (item.locked) {
-      // Founding 500 gate — opens the upgrade modal instead of navigating
+      // Founding 500 gate — opens the pricing page (3 tiers) instead of the tab
       return (
         <button
           key={item.href}
           type="button"
-          onClick={() => openUpgrade(item.label)}
+          onClick={() => router.push("/pricing")}
           title={`${item.label} — Founding 500 only`}
           className={`group relative flex items-center rounded-xl text-mute-2 opacity-70 transition-colors duration-200 hover:bg-surface hover:text-ink ${
             collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
@@ -257,7 +256,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                     <button
                       key={t.href}
                       type="button"
-                      onClick={() => openUpgrade(t.label)}
+                      onClick={() => router.push("/pricing")}
                       title={`${t.label} — Founding 500 only`}
                       className={`${cls} opacity-70`}
                     >
