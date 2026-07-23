@@ -637,6 +637,38 @@ export default function TasterExplore({
               transition={{ delay: reduceMotion ? 0 : 0.2, duration: 0.45 }}
               className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto"
             >
+              {/* the upgrade panel is pinned to the TOP of the rail so every
+                  visitor sees the full-CMO CTA without scrolling past insights */}
+              <div className="glass shrink-0 rounded-2xl p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+                  What the full CMO does next
+                </p>
+                <ul className="mt-2.5 space-y-2">
+                  {LOCKED_MOVES.map((m) => (
+                    <li key={m} className="flex items-center gap-2 text-muted">
+                      <span className="shrink-0 text-oxblood">
+                        <LockIcon />
+                      </span>
+                      <span className="text-[11.5px] font-medium blur-[1.5px] select-none">{m}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[11.5px] leading-relaxed text-ink/85">
+                  This page is the taster — roughly 10% of the brain. The full CMO reads your
+                  real numbers, flags what&apos;s leaking money, and executes with your approval.
+                </p>
+                <button
+                  onClick={openWaitlist}
+                  className="mt-3.5 w-full rounded-xl px-5 py-2.5 text-[13px] font-semibold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_10px_36px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow duration-300 hover:shadow-[0_14px_48px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
+                  style={{ background: "var(--gradient-brand)" }}
+                >
+                  Unlock the full CMO →
+                </button>
+                <p className="mt-2 text-center text-[10.5px] text-muted">
+                  Pro — ₹3,499/mo (~$40) · Founding-500 pricing locked for life
+                </p>
+              </div>
+
               {(data.key_insights?.length ?? 0) > 0 && (
                 <div className="glass rounded-2xl p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
@@ -678,36 +710,6 @@ export default function TasterExplore({
                   </ol>
                 </div>
               )}
-
-              <div className="glass rounded-2xl p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                  What the full CMO does next
-                </p>
-                <ul className="mt-2.5 space-y-2">
-                  {LOCKED_MOVES.map((m) => (
-                    <li key={m} className="flex items-center gap-2 text-muted">
-                      <span className="shrink-0 text-oxblood">
-                        <LockIcon />
-                      </span>
-                      <span className="text-[11.5px] font-medium blur-[1.5px] select-none">{m}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-[11.5px] leading-relaxed text-ink/85">
-                  This page is the taster — roughly 10% of the brain. The full CMO reads your
-                  real numbers, flags what&apos;s leaking money, and executes with your approval.
-                </p>
-                <button
-                  onClick={openWaitlist}
-                  className="mt-3.5 w-full rounded-xl px-5 py-2.5 text-[13px] font-semibold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_10px_36px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow duration-300 hover:shadow-[0_14px_48px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
-                  style={{ background: "var(--gradient-brand)" }}
-                >
-                  Unlock the full CMO →
-                </button>
-                <p className="mt-2 text-center text-[10.5px] text-muted">
-                  Pro — ₹3,499/mo (~$40) · Founding-500 pricing locked for life
-                </p>
-              </div>
             </motion.aside>
           </div>
         )}

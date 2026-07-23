@@ -271,6 +271,27 @@ body {
   border-radius: 4px;
 }
 
+/* The taster chat composer draws its own clean focus state on the WHOLE bar
+   (a boundary highlight, focus-within), so the input inside must not ALSO draw
+   the global offset ring — a detached light-grey rectangle that reads as an ugly
+   "white line" in dark mode. This rule is unlayered like the one above and more
+   specific, so it wins even though Tailwind's focus:outline-none is layered
+   (layered utilities lose to any unlayered rule). */
+.taster-composer input:focus,
+.taster-composer input:focus-visible {
+  outline: none;
+}
+/* !important: the .glass border/shadow is set at a higher specificity
+   (.mrk18-dark .taster-scope .glass), so a clean focus state needs to win
+   outright. A 1px ring that hugs the rounded corners (box-shadow follows
+   border-radius) instead of the detached, offset outline. */
+.taster-composer:focus-within {
+  border-color: var(--molten) !important;
+  box-shadow:
+    0 0 0 1px var(--molten),
+    0 12px 40px var(--shadow-color) !important;
+}
+
 /* ---------- auth (sign-in / sign-up) ---------- */
 
 /* staggered load-in — elements are visible by default; the animation only

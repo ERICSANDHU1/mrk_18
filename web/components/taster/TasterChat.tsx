@@ -150,7 +150,7 @@ export default function TasterChat({ context }: { context: any }) {
 
         {/* the composer — always pinned at the bottom */}
         {!showWall ? (
-          <div className="glass flex items-center gap-2 rounded-2xl p-1.5 pl-4 shadow-[0_10px_40px_var(--shadow-color)]">
+          <div className="taster-composer glass flex items-center gap-2 rounded-2xl p-1.5 pl-4 shadow-[0_10px_40px_var(--shadow-color)] transition-[border-color,box-shadow] duration-200">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
