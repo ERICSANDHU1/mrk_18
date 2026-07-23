@@ -7,8 +7,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useAuth, useUser } from "@clerk/nextjs";
 import Navbar from "@/components/Navbar";
 import Waitlist from "@/components/sections/Waitlist";
-import FoundingToast from "@/components/taster/FoundingToast";
 import AdAudit from "@/components/taster/AdAudit";
+import TasterChat from "@/components/taster/TasterChat";
 
 /** The taster explore page (/taster/[domain]) — the hero hands the URL here and
  *  this page runs the analysis with a live step tracker, then lays the result
@@ -312,7 +312,12 @@ export default function TasterExplore({
           never floating over the verdict panels */}
       <Navbar subpage appearance />
 
-      <main className="mx-auto flex h-full w-full max-w-[1400px] flex-col px-5 pb-4 pt-24">
+      <main
+        className={`mx-auto flex h-full w-full max-w-[1400px] flex-col px-5 pt-24 ${
+          // reserve room at the bottom for the fixed CMO chat composer (done + signed-out)
+          phase === "done" ? "pb-24" : "pb-4"
+        }`}
+      >
         {phase === "loading" && (
           <div className="grid flex-1 place-items-center">
             <div className="glass w-full max-w-md rounded-2xl p-7">
@@ -708,8 +713,12 @@ export default function TasterExplore({
         )}
       </main>
 
-      {/* Ask 1 — post-analysis toast (signed-out visitors only, once results land) */}
-      {phase === "done" && isLoaded && !isSignedIn && <FoundingToast />}
+      {/* The post-analysis hook, for signed-out visitors once results land: a
+          follow-up chat grounded in the verdict they just saw, pinned to the
+          bottom. It replaces the old FoundingToast — same signup goal, but the
+          founder gets to talk to their CMO first. Both together was two nudges
+          fighting for the bottom-right corner. */}
+      {phase === "done" && data && isLoaded && !isSignedIn && <TasterChat context={data} />}
 
       {/* the Founding-500 application modal — opened by the gate CTA */}
       <Waitlist />

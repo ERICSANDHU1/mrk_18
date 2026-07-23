@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     # bigger model call on an upload. No email exists in a no-signup flow, so
     # the cap is per IP.
     taster_audit_daily_per_ip: int = 3  # free ad audits per IP per UTC day (0 disables)
+    # Free follow-up chat on the taster verdict (public /taster/chat). A separate
+    # model from the cards/audit so it doesn't compete for gpt-oss's tight 8K TPM;
+    # llama-3.3-70b (12K TPM) keeps replies snappy. `free_turns` is the
+    # per-conversation wall the FRONTEND enforces (then the signup CTA);
+    # `daily_per_ip` is the server-side abuse ceiling across conversations.
+    taster_chat_model: str = "llama-3.3-70b-versatile"
+    taster_chat_free_turns: int = 5  # user messages per conversation before signup
+    taster_chat_daily_per_ip: int = 30  # server-side per-IP abuse ceiling (0 disables)
+    taster_chat_max_tokens: int = 320  # short, punchy CMO replies — cost + abuse guard
     # Global fresh-analysis budget per UTC day (0 disables) — the wall that keeps
     # the Groq TPD and the Tavily monthly credits from being drained by strangers:
     # ~4k Groq tokens + ~6 Tavily credits per FRESH analysis; cache hits are free.
