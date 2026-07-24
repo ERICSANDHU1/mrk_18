@@ -713,12 +713,13 @@ export default function TasterExplore({
         )}
       </main>
 
-      {/* The post-analysis hook, for signed-out visitors once results land: a
-          follow-up chat grounded in the verdict they just saw, pinned to the
-          bottom. It replaces the old FoundingToast — same signup goal, but the
-          founder gets to talk to their CMO first. Both together was two nudges
-          fighting for the bottom-right corner. */}
-      {phase === "done" && data && isLoaded && !isSignedIn && <TasterChat context={data} />}
+      {/* The post-analysis hook, once results land: a follow-up chat grounded in
+          the verdict, pinned to the bottom. Signed-out visitors get 5 free turns
+          then a sign-in wall; signed-in visitors get the composer too, but
+          starting a chat funnels them to the full CMO in the app. */}
+      {phase === "done" && data && isLoaded && (
+        <TasterChat context={data} authed={!!isSignedIn} />
+      )}
 
       {/* Floating "Unlock the full CMO" CTA — its own button in the bottom-right
           corner (not in the navbar). Desktop only: on mobile it collided with the

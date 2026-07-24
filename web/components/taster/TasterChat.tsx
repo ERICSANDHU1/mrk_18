@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowUp, Check, Loader2, Lock, Sparkles, X } from "lucide-react";
 
@@ -15,8 +16,17 @@ const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the taster payload shape lives in TasterExplore
-export default function TasterChat({ context }: { context: any }) {
+export default function TasterChat({
+  context,
+  authed = false,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the taster payload shape lives in TasterExplore
+  context: any;
+  /** Signed-in visitors get the composer too, but starting a chat sends them to
+   *  the full CMO in the app (/chat) rather than the rate-limited taster chat. */
+  authed?: boolean;
+}) {
+  const router = useRouter();
   const reduce = useReducedMotion();
   const company = (context?.company || context?.domain || "your business") as string;
 
@@ -42,6 +52,11 @@ export default function TasterChat({ context }: { context: any }) {
   }, [convo, busy, expanded]);
 
   const send = async () => {
+    // Signed-in: they already have the real, unlimited CMO — funnel them there.
+    if (authed) {
+      router.push("/chat");
+      return;
+    }
     const text = input.trim();
     if (!text || busy || outOfTurns || walled) return;
     setExpanded(true);
@@ -131,15 +146,15 @@ export default function TasterChat({ context }: { context: any }) {
                       <Lock size={12} aria-hidden /> That&apos;s your free session
                     </p>
                     <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-ink">
-                      Sign up free to keep the conversation going — and unlock the CMO that
+                      Sign in to keep going — 5 more chats with your mrk18 CMO, then the CMO that
                       actually <span className="font-semibold">does</span> the work, not just advises.
                     </p>
                     <Link
-                      href="/sign-up"
+                      href="/sign-in"
                       className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)]"
                       style={{ background: "var(--gradient-brand)" }}
                     >
-                      <Check size={14} aria-hidden /> Sign up free →
+                      <Check size={14} aria-hidden /> Sign in for 5 more →
                     </Link>
                   </div>
                 )}
@@ -154,7 +169,14 @@ export default function TasterChat({ context }: { context: any }) {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onFocus={() => setExpanded(true)}
+              onFocus={() => {
+                // starting a chat while signed in → straight to the app
+                if (authed) {
+                  router.push("/chat");
+                  return;
+                }
+                setExpanded(true);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -162,7 +184,9 @@ export default function TasterChat({ context }: { context: any }) {
                 }
               }}
               disabled={busy}
-              placeholder={`Ask your CMO about ${company}…`}
+              placeholder={
+                authed ? "Continue with your CMO in the app →" : `Ask your CMO about ${company}…`
+              }
               className="min-w-0 flex-1 bg-transparent text-[14px] text-ink placeholder:text-mute-2 focus:outline-none"
               aria-label="Ask your CMO"
             />
@@ -178,16 +202,18 @@ export default function TasterChat({ context }: { context: any }) {
           </div>
         ) : (
           <Link
-            href="/sign-up"
+            href="/sign-in"
             className="glass flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[13.5px] font-bold text-ink shadow-[0_10px_40px_var(--shadow-color)]"
           >
-            <Lock size={14} className="text-molten" aria-hidden /> Sign up free to keep chatting with your CMO →
+            <Lock size={14} className="text-molten" aria-hidden /> Sign in for 5 more chats with mrk18 →
           </Link>
         )}
 
         {!expanded && !showWall && (
           <p className="mt-1.5 text-center text-[11px] text-mute-2">
-            {freeTurns} free questions · grounded in your verdict · no sign-up to start
+            {authed
+              ? "Pick up with your full CMO in the app →"
+              : `${freeTurns} free questions · grounded in your verdict · no sign-up to start`}
           </p>
         )}
       </div>
