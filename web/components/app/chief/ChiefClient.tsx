@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -8,6 +9,8 @@ import {
   CornerDownLeft,
   Loader2,
 } from "lucide-react";
+import { useDemoMode, CHIEF_DEMO } from "@/lib/demo-mode";
+import DemoBanner from "@/components/app/DemoBanner";
 import {
   Area,
   AreaChart,
@@ -92,17 +95,29 @@ const tooltipStyle = {
  *  funnel), the CMO's read on it, and the chief chat. The detail rooms (Leaks,
  *  Eagle view, Channels, Content, Funnel, Watchdog) live in the sidebar. */
 export default function ChiefClient() {
-  const [analytics, setAnalytics] = useState<Analytics>(null);
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [company, setCompany] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [chat, setChat] = useState<ChatMsg[]>([]);
+  const router = useRouter();
+  const { ready, demo } = useDemoMode();
+  const [analyticsState, setAnalyticsState] = useState<Analytics>(null);
+  const [connectionsState, setConnectionsState] = useState<Connection[]>([]);
+  const [companyState, setCompanyState] = useState("");
+  const [loadingState, setLoadingState] = useState(true);
+  const [userChat, setUserChat] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
   const [chatErr, setChatErr] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
+  // Demo visitors read static fixtures (no backend); members use fetched data.
+  // Deriving instead of setState-in-effect keeps the demo path out of the render
+  // loop entirely.
+  const analytics = demo ? (CHIEF_DEMO.analytics as Analytics) : analyticsState;
+  const connections = demo ? CHIEF_DEMO.connections : connectionsState;
+  const company = demo ? CHIEF_DEMO.company : companyState;
+  const loading = demo ? false : loadingState;
+  const chat = demo ? CHIEF_DEMO.chat : userChat;
+
   useEffect(() => {
+    if (!ready || demo) return;
     let active = true;
     const j = (url: string) =>
       fetch(url, { cache: "no-store" })
@@ -111,16 +126,16 @@ export default function ChiefClient() {
     Promise.all([j("/api/analytics/latest"), j("/api/connections"), j("/api/me/profile")]).then(
       ([a, c, prof]) => {
         if (!active) return;
-        setAnalytics(a ?? null);
-        setConnections(Array.isArray(c) ? c : []);
-        setCompany(prof?.profile?.company_name ?? "");
-        setLoading(false);
+        setAnalyticsState(a ?? null);
+        setConnectionsState(Array.isArray(c) ? c : []);
+        setCompanyState(prof?.profile?.company_name ?? "");
+        setLoadingState(false);
       },
     );
     return () => {
       active = false;
     };
-  }, []);
+  }, [ready, demo]);
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
@@ -131,11 +146,16 @@ export default function ChiefClient() {
     async (raw: string) => {
       const text = raw.trim();
       if (!text || sendingChat) return;
+      // Demo visitors don't call the CMO — they're routed to unlock instead.
+      if (demo) {
+        router.push("/pricing");
+        return;
+      }
       setDraft("");
       setChatErr(null);
       setSendingChat(true);
       const next: ChatMsg[] = [...chat, { id: `u-${Date.now()}`, role: "user", text }];
-      setChat(next);
+      setUserChat(next);
       const history = next.map((m) => ({
         role: m.role === "cmo" ? "assistant" : "user",
         content: m.text,
@@ -148,7 +168,7 @@ export default function ChiefClient() {
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && typeof data.reply === "string") {
-          setChat((m) => [...m, { id: `c-${Date.now()}`, role: "cmo", text: data.reply }]);
+          setUserChat((m) => [...m, { id: `c-${Date.now()}`, role: "cmo", text: data.reply }]);
         } else {
           const noFounder = res.status === 400 && /no founder/i.test(data.error || "");
           setChatErr(
@@ -163,7 +183,7 @@ export default function ChiefClient() {
         setSendingChat(false);
       }
     },
-    [chat, sendingChat],
+    [chat, sendingChat, demo, router],
   );
 
   const diag = analytics?.diagnosis ?? null;
@@ -173,6 +193,7 @@ export default function ChiefClient() {
 
   return (
     <div className="flex h-full flex-col">
+      {demo && <DemoBanner section="Chief" />}
       <div className="dash-scroll min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-4xl px-5 py-6">
         {/* header */}
@@ -411,7 +432,13 @@ export default function ChiefClient() {
                   submitChat(draft);
                 }
               }}
-              placeholder={chat.length ? "Reply to your chief…" : 'Ask your chief anything — "why is CAC up?"'}
+              placeholder={
+                demo
+                  ? "Unlock to ask your chief anything →"
+                  : chat.length
+                    ? "Reply to your chief…"
+                    : 'Ask your chief anything — "why is CAC up?"'
+              }
               style={{ outline: "none" }}
               className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink placeholder:text-mute-2"
             />

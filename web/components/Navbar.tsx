@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { UserButton, useUser } from "@clerk/nextjs";
 import ThemeToggle from "@/components/app/ThemeToggle";
 import Wordmark from "@/components/app/Wordmark";
 
@@ -31,6 +32,7 @@ export default function Navbar({
   unlock?: boolean;
 }) {
   const base = subpage ? "/" : "";
+  const { isSignedIn, isLoaded } = useUser();
   return (
     <motion.header
       initial={{ opacity: 0 }}
@@ -75,23 +77,41 @@ export default function Navbar({
 
         <div className="flex items-center gap-3">
           {appearance && <ThemeToggle />}
-          {/* Taster: keep Sign in in the bar; the "Unlock the full CMO" CTA lives
-              as a floating button in the page's bottom-right corner instead. */}
-          <a
-            href="/sign-in"
-            className="text-[13.5px] font-medium text-muted transition-colors duration-200 hover:text-ink"
-          >
-            Sign in
-          </a>
-          {!unlock && (
-            <a
-              href="/sign-up"
-              className="relative overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-[color:var(--cta-ink,#fff)] transition-transform duration-200 hover:scale-[1.03]"
-              style={{ background: "var(--gradient-brand, #b4532a)" }}
-            >
-              Get started
-            </a>
-          )}
+          {/* auth-aware: reflects whether you're actually signed in. Gated on
+              isLoaded so the wrong state never flashes before Clerk resolves. */}
+          {isLoaded &&
+            (isSignedIn ? (
+              <>
+                <a
+                  href="/chat"
+                  className="relative overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-[color:var(--cta-ink,#fff)] transition-transform duration-200 hover:scale-[1.03]"
+                  style={{ background: "var(--gradient-brand, #b4532a)" }}
+                >
+                  Go to app →
+                </a>
+                <UserButton
+                  appearance={{ elements: { avatarBox: "h-8 w-8 rounded-lg border border-line" } }}
+                />
+              </>
+            ) : (
+              <>
+                <a
+                  href="/sign-in"
+                  className="text-[13.5px] font-medium text-muted transition-colors duration-200 hover:text-ink"
+                >
+                  Sign in
+                </a>
+                {!unlock && (
+                  <a
+                    href="/sign-up"
+                    className="relative overflow-hidden rounded-xl px-4 py-2 text-[13.5px] font-semibold text-[color:var(--cta-ink,#fff)] transition-transform duration-200 hover:scale-[1.03]"
+                    style={{ background: "var(--gradient-brand, #b4532a)" }}
+                  >
+                    Get started
+                  </a>
+                )}
+              </>
+            ))}
         </div>
       </nav>
     </motion.header>

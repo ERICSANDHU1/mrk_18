@@ -159,13 +159,14 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
     const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
     const Icon = item.icon;
     if (item.locked) {
-      // Founding 500 gate — opens the pricing page (3 tiers) instead of the tab
+      // Founding-500 preview — non-members enter the section as a demo (sample
+      // data), with an Unlock banner inside. The lock stays as a "premium" hint.
       return (
         <button
           key={item.href}
           type="button"
-          onClick={() => router.push("/pricing")}
-          title={`${item.label} — Founding 500 only`}
+          onClick={() => router.push(item.href)}
+          title={`${item.label} — preview (Founding 500 to run it for real)`}
           className={`group relative flex items-center rounded-xl text-mute-2 opacity-70 transition-colors duration-200 hover:bg-surface hover:text-ink ${
             collapsed ? "h-10 w-10 justify-center" : "w-full gap-3 px-3 py-2.5"
           }`}
@@ -256,8 +257,8 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                     <button
                       key={t.href}
                       type="button"
-                      onClick={() => router.push("/pricing")}
-                      title={`${t.label} — Founding 500 only`}
+                      onClick={() => router.push(t.href)}
+                      title={`${t.label} — preview (Founding 500 to run it for real)`}
                       className={`${cls} opacity-70`}
                     >
                       <Lock size={12} className="text-molten" aria-hidden />
