@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
+import { useDemoMode } from "@/lib/demo-mode";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -87,6 +88,7 @@ function writeRunFor(p: ParsedCsv, diag: Diagnosis, clar: string[], ch: ChatMsg[
  *  pinned chat. Output-first results with an Input-Data drawer; every run is
  *  saved to the Recent Runs rail (Chief-scoped). Nothing auto-runs. */
 export default function CsvUpload() {
+  const { demo } = useDemoMode();
   const [parsed, setParsed] = useState<ParsedCsv | null>(null);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,6 +250,15 @@ export default function CsvUpload() {
   // the ONLY place the interpreter is called (initial run + every refine)
   const runDiagnose = useCallback(
     async (clar: string[], fromChat: boolean) => {
+      // Demo visitors don't run the real interpreter (the paid brain) — clicking
+      // Run analysis opens the "unlock the full CMO" popup instead of hitting the
+      // backend. (This is also what shows while the vLLM brain is offline.)
+      if (demo) {
+        window.dispatchEvent(
+          new CustomEvent("mrk18:open-upgrade", { detail: { feature: "Chief" } }),
+        );
+        return;
+      }
       if (!parsed) return;
       setAnalyzing(true);
       setAnalysisError(null);
@@ -288,7 +299,7 @@ export default function CsvUpload() {
         setAnalyzing(false);
       }
     },
-    [parsed],
+    [parsed, demo],
   );
 
   const runAnalysis = useCallback(() => {
