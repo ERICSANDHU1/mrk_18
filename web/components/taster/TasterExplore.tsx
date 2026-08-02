@@ -625,7 +625,13 @@ export default function TasterExplore({
                   }}
                   className="min-h-0"
                 >
-                  <AdAudit brandContext={data.company || data.domain} variant="card" />
+                  <AdAudit
+                    brandContext={data.company || data.domain}
+                    variant="card"
+                    onGate={() =>
+                      router.push(isLoaded && isSignedIn ? "/chief/analytics" : "/sign-up")
+                    }
+                  />
                 </motion.div>
               </div>
             </div>

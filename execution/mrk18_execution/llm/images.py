@@ -29,19 +29,35 @@ class ImageEngine(Protocol):
 
 
 class PollinationsEngine:
-    """Free keyless image API (FLUX-based). Pilot default; swap out any day."""
+    """Free keyless image API (FLUX-based). Pilot default; swap out any day.
+
+    Pollinations is generous but flaky (occasional ReadError / empty body), so we
+    retry a few times with a fresh random seed each attempt — the seed also gives
+    genuine variety between two posts of the same brand."""
 
     name = "pollinations/flux"
 
     async def generate(self, prompt: str, width: int, height: int) -> bytes:
-        url = (
-            f"https://image.pollinations.ai/prompt/{quote(prompt[:800])}"
-            f"?width={width}&height={height}&model=flux&nologo=true"
-        )
-        async with httpx.AsyncClient(timeout=180) as client:
-            resp = await client.get(url, follow_redirects=True)
-            resp.raise_for_status()
-            return resp.content
+        import random
+
+        last: Exception | None = None
+        for _ in range(3):
+            seed = random.randint(1, 1_000_000)
+            url = (
+                f"https://image.pollinations.ai/prompt/{quote(prompt[:800])}"
+                f"?width={width}&height={height}&model=flux&nologo=true&seed={seed}"
+            )
+            try:
+                async with httpx.AsyncClient(timeout=180) as client:
+                    resp = await client.get(url, follow_redirects=True)
+                    resp.raise_for_status()
+                    if resp.content and len(resp.content) > 1000:  # a real image, not an error stub
+                        return resp.content
+                    last = RuntimeError("pollinations returned an empty image")
+            except Exception as exc:  # noqa: BLE001 — retry transient network/read errors
+                last = exc
+            await asyncio.sleep(2)
+        raise last or RuntimeError("pollinations image failed after retries")
 
 
 class CloudflareImageEngine:
@@ -105,6 +121,59 @@ class FalImageEngine:
             return resp.content
 
 
+class GeminiImageEngine:
+    """Gemini 2.5 Flash Image (Nano Banana) — the Create Campaigns engine.
+
+    Unlike FLUX, it renders legible HEADLINE TEXT and composites a REFERENCE image
+    (the founder's real product / logo) into the scene in a single call — so a
+    finished branded creative needs no separate text compositor. `refs` carries
+    those reference images (JPEG bytes). Free tier by default (Google may use
+    free-tier inputs/outputs to improve models); flip to the paid tier — same
+    code — to remove that once there's revenue.
+    """
+
+    name = "gemini/2.5-flash-image"
+
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-image"):
+        self._key = api_key
+        self._url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        )
+
+    async def generate(
+        self, prompt: str, width: int, height: int, refs: list[bytes] | None = None
+    ) -> bytes:
+        import base64
+
+        # the key rides an auth HEADER, never the URL query string (keeps it out
+        # of logs/proxies). Reference images (product/logo) go inline alongside
+        # the prompt — that's what makes the creative on-brand instead of generic.
+        parts: list[dict] = [{"text": prompt}]
+        for ref in refs or []:
+            parts.append(
+                {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(ref).decode()}}
+            )
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(
+                self._url,
+                headers={"x-goog-api-key": self._key, "Content-Type": "application/json"},
+                json={"contents": [{"parts": parts}]},
+            )
+            # surface Google's actual error body (which quota / why) instead of a
+            # bare status — a 429 on the first call usually means the free tier
+            # doesn't cover image generation (needs billing enabled = paid tier).
+            if resp.status_code >= 400:
+                raise RuntimeError(f"gemini image HTTP {resp.status_code}: {resp.text[:500]}")
+            data = resp.json()
+        for cand in data.get("candidates", []):
+            for part in cand.get("content", {}).get("parts", []):
+                inline = part.get("inlineData") or part.get("inline_data")
+                if inline and inline.get("data"):
+                    return base64.b64decode(inline["data"])
+        # a safety block or a text-only reply yields no image → surface it honestly
+        raise RuntimeError(f"gemini image: no image in response ({str(data)[:200]})")
+
+
 def to_jpeg(raw: bytes, width: int, height: int) -> bytes:
     """Normalize any image to a JPEG of exactly width x height (cover-crop)."""
     img = Image.open(io.BytesIO(raw)).convert("RGB")
@@ -121,12 +190,33 @@ def to_jpeg(raw: bytes, width: int, height: int) -> bytes:
 
 def pick_engine(settings) -> "ImageEngine | None":
     """Engine by available credentials: Cloudflare free tier first, then fal.
-    None = pipeline still runs; posts ship without images (graceful degrade)."""
+    None = pipeline still runs; posts ship without images (graceful degrade).
+    This is the autonomous PHOTO-FUNNEL path — Create Campaigns uses
+    pick_campaign_engine instead (Gemini only)."""
     if settings.cf_account_id and settings.cf_api_token:
         return CloudflareImageEngine(settings.cf_account_id, settings.cf_api_token)
     if settings.fal_key:
         return FalImageEngine(settings.fal_key)
     return None
+
+
+def pick_campaign_engine(settings) -> "ImageEngine":
+    """Create Campaigns / Studio image engine.
+
+    BRIDGE (until the DGX-1 GPU runs self-hosted Qwen-Image — the real, free,
+    text-native destination): a free FLUX engine renders the product/background
+    ONLY, then the poster compositor (creative/poster.py) bakes the headline +
+    logo + brand palette on top, since FLUX can't render legible text.
+
+    Cloudflare Workers AI FLUX (free tier) when CF creds are set; otherwise
+    Pollinations FLUX (keyless, zero-setup) so campaigns always have a base image.
+    Nano Banana stays available as a paid opt-in: set gemini_api_key AND
+    campaign_image_engine="gemini" to switch (GeminiImageEngine, ~₹3.4/img)."""
+    if settings.campaign_image_engine == "gemini" and settings.gemini_api_key:
+        return GeminiImageEngine(settings.gemini_api_key, settings.gemini_image_model)
+    if settings.cf_account_id and settings.cf_api_token:
+        return CloudflareImageEngine(settings.cf_account_id, settings.cf_api_token)
+    return PollinationsEngine()
 
 
 class MediaStore(Protocol):

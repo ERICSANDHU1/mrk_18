@@ -349,10 +349,15 @@ function Stat({ label, value }: { label: string; value: string }) {
 export default function AdAudit({
   brandContext,
   variant = "panel",
+  onGate,
 }: {
   brandContext?: string;
   /** "card" sits in the verdict grid as the 4th cell; "panel" is the rail block. */
   variant?: "panel" | "card";
+  /** When set, the CTA calls this instead of opening the audit inline — used on
+   *  the public taster/studio to funnel the click into sign-up first. The real
+   *  audit tool then lives in the app (Chief → Analytics interpreter). */
+  onGate?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -362,6 +367,10 @@ export default function AdAudit({
   const [fileName, setFileName] = useState("");
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // one entry point for every "open the audit" control — a gate short-circuits
+  // it to sign-up on the anonymous pages, and opens it inline everywhere else.
+  const openAudit = onGate ?? (() => setOpen(true));
 
   // The overlay is React state, so without this the browser Back button (and
   // the Android back gesture) would navigate the PAGE away — dumping the
@@ -487,7 +496,7 @@ export default function AdAudit({
                 </p>
               )}
               <button
-                onClick={() => setOpen(true)}
+                onClick={openAudit}
                 className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-bold text-molten transition-opacity hover:opacity-80"
               >
                 View the full audit <ArrowRight size={13} aria-hidden />
@@ -503,7 +512,7 @@ export default function AdAudit({
                 Drop your Meta or Google CSV — your CMO finds where the money leaks. Free.
               </p>
               <button
-                onClick={() => setOpen(true)}
+                onClick={openAudit}
                 className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12.5px] font-bold text-[color:var(--cta-ink,#0a0a0b)]"
                 style={{ background: "var(--gradient-brand)" }}
               >
@@ -524,7 +533,7 @@ export default function AdAudit({
             Drop your Meta or Google CSV export — your CMO finds where the money leaks. Still free.
           </p>
           <button
-            onClick={() => setOpen(true)}
+            onClick={openAudit}
             className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-bold text-[color:var(--cta-ink,#0a0a0b)] shadow-[0_10px_36px_var(--cta-glow,rgba(255,106,0,0.35))] transition-shadow hover:shadow-[0_14px_48px_var(--cta-glow-strong,rgba(255,106,0,0.5))]"
             style={{ background: "var(--gradient-brand)" }}
           >

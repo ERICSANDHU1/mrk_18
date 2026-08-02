@@ -236,6 +236,14 @@ def _cap_reached(ip: str, cap: int, bucket: str = "taster") -> bool:
     return day == today and count >= cap
 
 
+def _daily_used(ip: str, bucket: str = "taster") -> int:
+    """How many this key has spent today in `bucket` (0 if none / a new day).
+    Used to report an honest 'free left' count to the frontend."""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    day, count = _daily.get(f"{bucket}:{ip}", (today, 0))
+    return count if day == today else 0
+
+
 def _consume_daily(ip: str, bucket: str = "taster") -> None:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     key = f"{bucket}:{ip}"

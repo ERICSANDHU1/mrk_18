@@ -405,6 +405,23 @@ class TasterCacheRow(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
+class BrandDNARow(Base):
+    """The account's persisted Business DNA — the Studio shared object (Taste the
+    Brain feature). One row per signed-in account (auth user); read by the DNA
+    screen, Talk-to-CMO, and Create Campaigns, never re-derived. `payload` holds
+    the structured DNA (overview, tagline, tags, colours, fonts, logo, source).
+    Editable (paid) → edits update this single row and propagate everywhere."""
+
+    __tablename__ = "brand_dna"
+
+    auth_user_id: Mapped[str] = mapped_column(AuthSubject, primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
 class AuditRow(Base):
     __tablename__ = "audit_log"
 

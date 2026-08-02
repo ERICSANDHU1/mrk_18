@@ -130,6 +130,98 @@ async def run_slide_ask(
     return {"reply": reply}
 
 
+class ComrkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    messages: list[VoiceTurn] = Field(min_length=1, max_length=40)
+
+
+@router.post("/founders/{founder_id}/comrk", response_model=dict)
+async def comrk_chat(
+    founder_id: UUID,
+    body: ComrkRequest,
+    request: Request,
+    founder=Depends(require_founder),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """The Comrk free-form chat: retrieve the founder's Company-Brain knowledge,
+    a cheap classifier routes the message to the right adapter, and that adapter
+    replies — grounded in profile + RAG, in plain chat text (not slides).
+
+    Brain-ready: the router picks an AgentRole; the socket serves the matching
+    trained adapter on the Brain, or the pilot Groq seat today — one env flip."""
+    socket = getattr(request.app.state, "llm_socket", None) or getattr(
+        request.app.state, "voice_socket", None
+    )
+    if socket is None:
+        raise HTTPException(
+            status_code=503, detail="the CMO is unavailable — no model configured (set GROQ_API_KEY)."
+        )
+    if body.messages[-1].role != "user":
+        raise HTTPException(status_code=422, detail="the last message must be from the user")
+
+    from ..agents.cmo import comrk_reply, pick_adapter
+
+    profile = await _profile(session, founder.id)
+    messages = [{"role": t.role, "content": t.content} for t in body.messages]
+    query = messages[-1]["content"]
+
+    # RAG — the founder's own Company-Brain knowledge (skipped if no embed engine)
+    chunks: list[dict] = []
+    engine = getattr(request.app.state, "embedding_engine", None)
+    if engine is not None:
+        try:
+            from ..rag import store
+
+            chunks = await store.retrieve(
+                session, founder_id=founder.id, query=query, engine=engine, k=6
+            )
+        except Exception:  # noqa: BLE001 — retrieval is a bonus, never a blocker
+            chunks = []
+
+    role = await pick_adapter(socket, query, profile)  # the router
+    try:
+        reply, _usage = await comrk_reply(
+            socket, profile=profile, messages=messages, chunks=chunks, role=role
+        )
+    except Exception as exc:  # noqa: BLE001 — fail soft with a clear reason
+        raise HTTPException(
+            status_code=502, detail=f"the CMO couldn't respond right now: {exc}"
+        ) from exc
+    return {"reply": reply, "adapter": role.value}
+
+
+@router.post("/founders/{founder_id}/brain/build", response_model=dict)
+async def build_brain(
+    founder_id: UUID,
+    request: Request,
+    founder=Depends(require_founder),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Onboarding hook / 'refresh my Brain': analyse the founder's site on the FREE
+    model (taster verdict + Business DNA) and ingest it into their Company Brain
+    (RAG), so the routed Brain chat is grounded from message one."""
+    profile = await _profile(session, founder.id)
+    url = (profile.get("website") or "").strip()
+    if not url:
+        raise HTTPException(status_code=422, detail="no website on file — add it in onboarding")
+    socket = getattr(request.app.state, "llm_socket", None) or getattr(
+        request.app.state, "voice_socket", None
+    )
+    engine = getattr(request.app.state, "embedding_engine", None)
+    if socket is None or engine is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Brain build needs GROQ + Cloudflare embeddings configured",
+        )
+    from ..agents.company_brain import build_company_brain
+
+    try:
+        return await build_company_brain(session, socket, engine, founder.id, url)
+    except Exception as exc:  # noqa: BLE001 — surface a clear reason
+        raise HTTPException(status_code=502, detail=f"couldn't build your Brain: {exc}") from exc
+
+
 async def _whisper_transcribe(request: Request) -> dict:
     """Shared STT: raw audio body (webm/mp4/wav) → Groq Whisper large-v3-turbo
     → {text}. Free tier: 2k requests/day."""

@@ -168,7 +168,9 @@ export default function TasterHero() {
     }
     setErr(null);
     setNavigating(true);
-    router.push(`/taster/${encodeURIComponent(domain)}`);
+    // the unified Studio: one URL → the taster verdict + the real Business DNA +
+    // the CMO agent, all on one screen (was /taster/[domain]).
+    router.push(`/studio/${encodeURIComponent(domain)}`);
   }
 
   function goIdea() {

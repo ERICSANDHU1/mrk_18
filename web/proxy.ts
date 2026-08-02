@@ -17,6 +17,8 @@ const isPublicRoute = createRouteMatcher([
   "/device", // public product page for the mrk hardware, linked from the landing
   "/pricing", // public 3-tier plans page; also the locked-tab / gate destination
   "/taster(.*)", // free no-signup analysis pages — the whole point is no auth
+  "/studio(.*)", // unified Studio: the full read (verdict + Business DNA) is free/anon; only Create gates
+  "/brain(.*)", // standalone Brain test bench — isolated, no auth
   "/api/apply", // public Founding-500 POST (honeypot + rate-limited); also serves the standalone /form site via CORS
 ]);
 
