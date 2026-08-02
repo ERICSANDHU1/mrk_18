@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # before the analysis agents run. Unset → runs proceed with no web context.
     tavily_api_key: str = ""
 
+    # Brandfetch Brand API — the REAL brand kit (logo, colours, fonts) by domain
+    # for the Studio Business DNA, so assets are pulled from the actual brand, not
+    # LLM-guessed. Free developer tier (100 requests, no card, no attribution);
+    # DNA is cached per domain, so that's 100 UNIQUE brands. Unset → DNA ships
+    # copy-only (colours/fonts/logo blank) and never breaks. brandfetch.com/developers
+    brandfetch_api_key: str = ""
+
     # Free taster (public POST /taster) — the no-signup URL analysis in the
     # landing hero. Served by a DEDICATED RunPod Serverless vLLM endpoint
     # (Mistral-7B base + 4 LoRA adapters: usp, differentiation, brand_analysis,
@@ -87,6 +94,24 @@ class Settings(BaseSettings):
     cf_account_id: str = ""
     cf_api_token: str = ""
     fal_key: str = ""
+
+    # Create Campaigns / "Taste the Brain" (Studio) — the free branded-creative
+    # taste that converts. Images come ONLY from Gemini 2.5 Flash Image (Nano
+    # Banana): it renders headline text + composites the real product in ONE call
+    # (FLUX can't), so no separate compositor. Free tier now (data-usage caveat
+    # accepted); the ~image/day free pool is a GLOBAL per-key budget → guarded by
+    # campaigns_daily_global. Unset → the campaign image step degrades to
+    # caption-only, the app still runs. Copy stays on the Groq socket (Brain-ready).
+    gemini_api_key: str = ""
+    gemini_image_model: str = "gemini-2.5-flash-image"
+    campaigns_per_account: int = 4  # free branded creatives per account: 2 auto + 2 prompted (0 disables)
+    campaigns_daily_global: int = 400  # global/day ceiling on generations (0 disables)
+    # Campaign image engine (bridge until the DGX-1 serves Qwen-Image):
+    # "flux"   → free FLUX base (Cloudflare if creds, else keyless Pollinations)
+    #            + the poster compositor bakes headline/logo/palette (DEFAULT, ₹0)
+    # "gemini" → paid Nano Banana (needs gemini_api_key + billing, ~₹3.4/img)
+    # "qwen"   → future self-hosted Qwen-Image on the DGX-1 (native text, ₹0)
+    campaign_image_engine: str = "flux"
 
     # Meta (Facebook) Marketing API — read-only ad-data connector (ads_read).
     # Unset → the "Connect Meta" provider is simply not registered and the start

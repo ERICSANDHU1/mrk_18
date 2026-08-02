@@ -5,9 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
+  ArrowRight,
   ArrowUp,
   AudioLines,
+  Brain,
   Loader2,
+  Lock,
   Mic,
   PenLine,
   PhoneOff,
@@ -15,6 +18,7 @@ import {
   Sparkles,
   Swords,
   Target,
+  X,
 } from "lucide-react";
 import { cleanCmoText } from "@/lib/text";
 import { useCmoVoiceCall } from "@/components/app/useCmoVoiceCall";
@@ -69,6 +73,11 @@ export default function ChatClient() {
   const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // free-chat funnel — used/cap come from the account (Clerk metadata via
+  // /api/chat-usage); at the cap we pop the onboarding / upgrade modal.
+  const [quota, setQuota] = useState<{ used: number; cap: number; onboarded: boolean } | null>(null);
+  const [showQuota, setShowQuota] = useState(false);
+  const limitReached = !!quota && quota.used >= quota.cap;
   const threadRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
@@ -83,6 +92,17 @@ export default function ChatClient() {
   useEffect(() => {
     setGreeting(greetingFor(new Date().getHours(), user?.firstName));
   }, [user?.firstName]);
+
+  // how many free chats this account has left (and which tier they're on)
+  useEffect(() => {
+    fetch("/api/chat-usage", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((q) => {
+        if (q && typeof q.used === "number")
+          setQuota({ used: q.used, cap: q.cap, onboarded: !!q.onboarded });
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
@@ -259,6 +279,11 @@ export default function ChatClient() {
     async (raw: string, voice = false) => {
       const text = raw.trim();
       if (!text || sending) return;
+      // out of free chats → the popup is the only way forward, not another turn
+      if (quota && quota.used >= quota.cap) {
+        setShowQuota(true);
+        return;
+      }
       setDraft("");
       requestAnimationFrame(resize);
       setError(null);
@@ -284,6 +309,20 @@ export default function ChatClient() {
           setMessages(full);
           void persist(full);
           if (voice) speak(cleanCmoText(data.reply));
+          // the server charged this turn → sync the counter; pop the modal the
+          // instant the free allowance is spent
+          if (data.usage && typeof data.usage.used === "number") {
+            setQuota({ used: data.usage.used, cap: data.usage.cap, onboarded: !!data.usage.onboarded });
+            if (data.usage.used >= data.usage.cap) setShowQuota(true);
+          }
+        } else if (res.status === 402 && data.limit_reached) {
+          // backstop: the account was already at its cap. Drop the unanswered
+          // turn and let the popup do the talking.
+          setMessages(next.slice(0, -1));
+          setQuota((q) =>
+            q ? { ...q, used: q.cap } : { used: 1, cap: 1, onboarded: !!data.onboarded },
+          );
+          setShowQuota(true);
         } else {
           const noFounder = res.status === 400 && /no founder/i.test(data.error || "");
           setError(noFounder ? ONBOARDING_PROMPT : data.error || "The CMO couldn't respond.");
@@ -294,7 +333,7 @@ export default function ChatClient() {
         setSending(false);
       }
     },
-    [messages, sending, resize, persist, speak],
+    [messages, sending, resize, persist, speak, quota],
   );
 
   // mic = push-to-talk: listen, fill the input, auto-send, then speak the reply
@@ -447,6 +486,17 @@ export default function ChatClient() {
           </button>
         </div>
         <div className="flex items-center gap-2 pr-1 text-[11px] text-mute-2">
+          {quota && quota.cap - quota.used <= 5 && (
+            <span
+              className={`font-data rounded-full border px-2 py-0.5 ${
+                quota.cap - quota.used <= 1
+                  ? "border-molten/40 bg-molten/10 text-molten"
+                  : "border-line text-mute-2"
+              }`}
+            >
+              {Math.max(0, quota.cap - quota.used)} free {quota.cap - quota.used === 1 ? "chat" : "chats"} left
+            </span>
+          )}
           <span className="hidden sm:inline">
             {listening ? "Listening — speak now" : "Enter to send · Shift+Enter for newline"}
           </span>
@@ -456,8 +506,31 @@ export default function ChatClient() {
     </div>
   );
 
+  // at the cap the composer is replaced by this — the only forward door is the
+  // popup (onboarding for 10 more, or Founding 500 once onboarded)
+  const limitBar = (
+    <button
+      onClick={() => setShowQuota(true)}
+      className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[13.5px] font-bold text-[color:var(--cta-ink,#fff)] shadow-sm transition-transform hover:scale-[1.01]"
+      style={{ background: "var(--gradient-brand)" }}
+    >
+      <Lock size={15} aria-hidden />
+      {quota?.onboarded
+        ? "You've used your free chats — unlock more"
+        : "Give your CMO full context to unlock 10 more chats"}
+      <ArrowRight size={15} aria-hidden />
+    </button>
+  );
+
   return (
     <div className="flex h-full flex-col">
+      {showQuota && quota && (
+        <QuotaModal
+          onboarded={quota.onboarded}
+          onClose={() => setShowQuota(false)}
+          onAct={() => router.push(quota.onboarded ? "/pricing" : "/onboarding?from=chat")}
+        />
+      )}
       {/* header */}
       <header className="flex shrink-0 items-center gap-2.5 border-b border-line px-5 py-3">
         <span className="grid h-8 w-8 place-items-center rounded-xl border border-line bg-surface">
@@ -486,7 +559,7 @@ export default function ChatClient() {
 
             {error && <p className="mb-2 px-1 text-center text-[12px] text-ember">{error}</p>}
             {callBar}
-            {composer}
+            {limitReached ? limitBar : composer}
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               {PILLS.map(({ word, prompt, icon: Icon }) => (
@@ -538,11 +611,81 @@ export default function ChatClient() {
             <div className="mx-auto w-full max-w-3xl">
               {error && <p className="mb-2 px-1 text-[12px] text-ember">{error}</p>}
               {callBar}
-              {composer}
+              {limitReached ? limitBar : composer}
             </div>
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** The free-chat wall — a classy popup, not a dead end. Before onboarding it
+ *  asks for the founder's full company context (and opens onboarding); once
+ *  onboarded it points at Founding 500. */
+function QuotaModal({
+  onboarded,
+  onClose,
+  onAct,
+}: {
+  onboarded: boolean;
+  onClose: () => void;
+  onAct: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className="relative w-full max-w-md rounded-2xl border border-line bg-surface p-7 text-center shadow-2xl shadow-[var(--shadow-color)]">
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-mute-2 transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          <X size={16} aria-hidden />
+        </button>
+        <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-molten/30 bg-molten/10 text-molten">
+          {onboarded ? <Lock size={24} aria-hidden /> : <Brain size={24} aria-hidden />}
+        </span>
+        <h2 className="font-display text-[24px] leading-tight text-ink">
+          {onboarded ? "You've used your free chats" : "Your CMO wants the full picture"}
+        </h2>
+        <p className="mx-auto mt-2.5 max-w-sm text-[13.5px] leading-relaxed text-mute">
+          {onboarded ? (
+            <>
+              Your CMO is just getting started. <span className="font-semibold text-ink">Founding 500</span>{" "}
+              unlocks unlimited chats, campaigns and the full command center — built for founders who mean it.
+            </>
+          ) : (
+            <>
+              That&apos;s your 5 free chats. Right now your CMO is guessing — give it the{" "}
+              <span className="font-semibold text-ink">full context of your company</span> (who you serve, your
+              edge, your goals) and it unlocks <span className="font-semibold text-ink">10 more chats</span>,
+              tuned to you.
+            </>
+          )}
+        </p>
+        <button
+          onClick={onAct}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[14px] font-bold text-[color:var(--cta-ink,#fff)] transition-transform hover:scale-[1.02]"
+          style={{ background: "var(--gradient-brand)" }}
+        >
+          {onboarded ? (
+            <>
+              See Founding 500 <ArrowRight size={15} aria-hidden />
+            </>
+          ) : (
+            <>
+              <Sparkles size={15} aria-hidden /> Give my CMO full context
+            </>
+          )}
+        </button>
+        <button
+          onClick={onClose}
+          className="mt-2.5 text-[12px] font-semibold text-mute-2 transition-colors hover:text-ink"
+        >
+          Maybe later
+        </button>
+      </div>
     </div>
   );
 }

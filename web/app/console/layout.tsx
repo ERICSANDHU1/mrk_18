@@ -28,7 +28,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   } catch {
     status = 0; // backend unreachable → don't bounce; let the page degrade
   }
-  if (status === 403) redirect("/cowork"); // 403 = signed in but no founder record
+  if (status === 403) redirect("/onboarding"); // 403 = signed in but no founder record → set up first
   return (
     <div
       className={`${anton.variable} ${archivo.variable} ${dmMono.variable} app-scope h-dvh overflow-hidden bg-bg text-ink`}

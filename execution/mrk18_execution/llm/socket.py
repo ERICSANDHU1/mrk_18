@@ -163,11 +163,16 @@ def brain_registry(
         AgentRole.CONTENT: dict(max_tokens=1800, temperature=0.6),
         AgentRole.COMMENT: dict(max_tokens=400, temperature=0.5),
     }
+    # Qwen3 is a reasoning model — off by default it emits <think>…</think> before
+    # the answer. Disable thinking so the CMO returns clean copy (and burns no
+    # reasoning tokens). vLLM passes chat_template_kwargs to the Qwen3 template.
+    no_think = {"chat_template_kwargs": {"enable_thinking": False}}
     return {
         role: ModelSeat(
             base_url=base_url,
             api_key=api_key,
             model=BRAIN_ADAPTERS.get(role, base_model),
+            extra=no_think,
             **per_role.get(role, {}),
         )
         for role in AgentRole

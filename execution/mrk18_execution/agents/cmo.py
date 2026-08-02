@@ -7,6 +7,10 @@ the founder's company memory, on a fast model (never the cold-start Brain on a
 live call).
 """
 
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict
+
 from ..llm.socket import AgentRole, LLMSocket, Usage
 
 _MAX_VOICE_TOKENS = 70  # ONE short spoken sentence per turn on a live call
@@ -187,6 +191,114 @@ async def ask_about_run(
         f"THEIR COMPANY MEMORY:\n{_company_brief(profile)}"
     )
     return await socket.chat(role, system, messages, max_tokens=700, temperature=0.5)
+
+
+# ── Comrk free-form chat: classifier-routed + RAG-grounded ──────────────────
+# One open chat box: a cheap classifier (TRIAGE seat) reads the message + company
+# basics and picks WHICH adapter answers; the chosen adapter replies, grounded in
+# the founder's profile + retrieved Company-Brain knowledge. Groq now (roles all
+# resolve to the pilot model, so routing is a no-op picker), the trained Brain
+# later (roles -> real adapters) — same code, one env flip (BRAIN_BASE_URL).
+
+_ROUTE_LABELS: dict[str, AgentRole] = {
+    "positioning": AgentRole.MARKET_INTEL,  # competitors, market read, brand position
+    "audience": AgentRole.AUDIENCE,          # ICP, target customer, segments
+    "usp": AgentRole.USP,                    # differentiation, unique selling point
+    "funnel": AgentRole.STRATEGY,            # GTM, channels, growth strategy
+    "content": AgentRole.CONTENT,            # write a post / caption / ad / hook / email
+    "script": AgentRole.SCRIPT,              # reel / short-video script
+    "analytics": AgentRole.ANALYTICS,        # metrics, ad spend, performance, ROI
+    "general": AgentRole.SYNTHESIS,          # anything else / general CMO chat
+}
+
+_ROUTER_SYSTEM = (
+    "You are a router for a founder's AI marketing team. Read the founder's message and "
+    "reply with EXACTLY ONE word from this list — nothing else, no punctuation:\n"
+    "positioning — competitors, market position, brand read\n"
+    "audience — target customer, ICP, who to sell to\n"
+    "usp — differentiation, unique selling point, positioning wedge\n"
+    "funnel — go-to-market, channels, growth strategy, plan\n"
+    "content — write a post, caption, ad, hook, email, or any copy\n"
+    "script — a video, reel, or short-form script\n"
+    "analytics — metrics, ad spend, performance, ROI, numbers\n"
+    "general — anything else, or a general question\n"
+    "Output only the single label."
+)
+
+_ROLE_PERSONA: dict[AgentRole, str] = {
+    AgentRole.MARKET_INTEL: "the founder's market-intelligence analyst",
+    AgentRole.AUDIENCE: "the founder's audience & positioning strategist",
+    AgentRole.USP: "the founder's differentiation (USP) strategist",
+    AgentRole.STRATEGY: "the founder's funnel & go-to-market strategist",
+    AgentRole.CONTENT: "the founder's ad copywriter",
+    AgentRole.SCRIPT: "the founder's short-form video scriptwriter",
+    AgentRole.ANALYTICS: "the founder's marketing analytics interpreter",
+    AgentRole.SYNTHESIS: "the founder's AI Chief Marketing Officer",
+}
+
+
+class _Route(BaseModel):
+    """Enum-locked router output — the model can only return a valid label."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    adapter: Literal[
+        "positioning", "audience", "usp", "funnel", "content", "script", "analytics", "general"
+    ]
+
+
+async def pick_adapter(socket: LLMSocket, query: str, profile: dict) -> AgentRole:
+    """The router: message (+ company basics) -> which adapter should answer.
+    Structured output on the STRUCTURE seat (accurate model now: gpt-oss; base
+    Qwen3-32B on the Brain) with an enum-locked schema, so the label is always
+    valid. Any failure -> SYNTHESIS (the general CMO)."""
+    company = profile.get("company_name") or ""
+    hint = f"The founder's company is {company}. " if company else ""
+    try:
+        choice, _usage = await socket.complete(
+            AgentRole.STRUCTURE,
+            _ROUTER_SYSTEM,
+            f"{hint}Route this founder message to ONE specialist.\n\nMessage: {query[:600]}",
+            _Route,
+        )
+        return _ROUTE_LABELS.get(choice.adapter, AgentRole.SYNTHESIS)
+    except Exception:  # noqa: BLE001 — a router hiccup must never drop the turn
+        return AgentRole.SYNTHESIS
+
+
+async def comrk_reply(
+    socket: LLMSocket,
+    *,
+    profile: dict,
+    messages: list[dict],
+    chunks: list[dict],
+    role: AgentRole,
+) -> tuple[str, Usage]:
+    """One Comrk turn answered by the routed adapter, grounded in the founder's
+    profile + retrieved Company-Brain chunks. Plain-text chat (not slides)."""
+    if not _is_registered(profile):
+        system = guide_system_prompt("text")
+        role = AgentRole.SYNTHESIS  # no company yet → the guide persona, base seat
+    else:
+        persona = _ROLE_PERSONA.get(role, _ROLE_PERSONA[AgentRole.SYNTHESIS])
+        company = profile.get("company_name", "this founder's company")
+        kb = ""
+        if chunks:
+            lines = "\n".join(f"- {str(c.get('content', ''))[:400]}" for c in chunks[:6])
+            kb = (
+                "\n\nFROM THE COMPANY'S OWN KNOWLEDGE (retrieved for this question — use it, "
+                f"never contradict it):\n{lines}"
+            )
+        system = (
+            f"You are {persona} for {company}, in a TEXT CHAT with the founder. Sharp, warm, "
+            "decisive, India-first. When they ask you to write something (post, hook, caption, "
+            "ad, email), DRAFT it in full, copy-paste ready — not a description. A few short "
+            "paragraphs at most; plain text only, no #headings, **bold** or tables. NEVER "
+            "invent numbers, prices, or results you don't have — reason from judgement and say "
+            "plainly when you'd need real data.\n\n"
+            f"THEIR COMPANY MEMORY:\n{_company_brief(profile)}{kb}"
+        )
+    return await socket.chat(role, system, messages, max_tokens=_MAX_TEXT_TOKENS, temperature=0.6)
 
 
 async def cmo_reply(

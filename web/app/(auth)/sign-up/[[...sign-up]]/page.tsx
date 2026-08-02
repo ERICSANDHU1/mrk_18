@@ -14,7 +14,8 @@ export default function SignUpPage() {
         </p>
       </div>
       <div className="auth-rise w-full" style={{ animationDelay: "0.16s" }}>
-        {/* new accounts land in Chat too — one consistent home base */}
+        {/* new accounts land in Chat too — they get 5 free chats, then the quota
+            popup invites them to onboard (full company context) for 10 more */}
         <SignUp forceRedirectUrl="/chat" />
       </div>
     </>

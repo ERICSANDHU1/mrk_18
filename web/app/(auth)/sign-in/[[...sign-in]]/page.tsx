@@ -14,7 +14,8 @@ export default function SignInPage() {
         </p>
       </div>
       <div className="auth-rise w-full" style={{ animationDelay: "0.16s" }}>
-        {/* always land in Chat after signing in — the founder's home base */}
+        {/* land in Chat — the funnel gives 5 free chats first, then the quota
+            popup walks them into onboarding for 10 more (see chat-quota) */}
         <SignIn forceRedirectUrl="/chat" />
       </div>
     </>

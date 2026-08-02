@@ -95,6 +95,17 @@ def _context_block(ctx: dict) -> str:
     if comps:
         parts.append("Competitors found: " + ", ".join(comps[:8]))
 
+    # Business DNA (Studio) — the brand's own voice, so the CMO answers in it.
+    tagline = str(ctx.get("tagline") or "").strip()
+    if tagline:
+        parts.append(f"Brand tagline: {tagline[:120]}")
+    values = [str(v).strip() for v in (ctx.get("brand_values") or []) if str(v).strip()]
+    if values:
+        parts.append("Brand values: " + ", ".join(values[:6]))
+    tone = [str(t).strip() for t in (ctx.get("tone_tags") or []) if str(t).strip()]
+    if tone:
+        parts.append("Brand voice/tone: " + ", ".join(tone[:6]))
+
     results = ctx.get("results") if isinstance(ctx.get("results"), dict) else {}
     labels = {"usp": "USP", "differentiation": "Competition", "gtm": "GTM Strategy"}
     for key, label in labels.items():

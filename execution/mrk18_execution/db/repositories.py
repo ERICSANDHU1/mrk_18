@@ -36,6 +36,16 @@ async def get_founder_by_auth_user(session: AsyncSession, sub: str) -> FounderRo
     return result.scalar_one_or_none()
 
 
+async def get_founder_by_email(session: AsyncSession, email: str) -> FounderRow | None:
+    """Resolve a (Clerk-verified) email to its founder — used to self-heal a stale
+    auth_user_id when the same person signs in with a new Clerk identity."""
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    result = await session.execute(select(FounderRow).where(FounderRow.email == email))
+    return result.scalar_one_or_none()
+
+
 async def get_profile(session: AsyncSession, founder_id: UUID) -> FounderProfileRow | None:
     result = await session.execute(
         select(FounderProfileRow).where(FounderProfileRow.founder_id == founder_id)

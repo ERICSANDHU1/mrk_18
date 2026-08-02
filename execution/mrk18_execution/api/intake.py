@@ -7,7 +7,7 @@ Partial saves are first-class (founders close laptops); silence costs nothing.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -140,9 +140,19 @@ async def create_founder(
             session, email, body.display_name, auth_user_id=auth_user_id
         )
     except IntegrityError:
-        raise HTTPException(
-            status_code=409, detail="a founder already exists for this account or email"
-        )
+        # Same email, DIFFERENT Clerk id (account re-created / a new Clerk session,
+        # or dev vs prod instance): the verified token already proves they own this
+        # email, so RELINK the existing founder to the current identity instead of
+        # erroring. Idempotent when the sub already matches.
+        await session.rollback()
+        existing = await repo.get_founder_by_email(session, email)
+        if existing is None:
+            raise HTTPException(
+                status_code=409, detail="a founder already exists for this account or email"
+            )
+        existing.auth_user_id = auth_user_id
+        await session.commit()
+        return FounderCreated(founder_id=existing.id, email=existing.email, status="draft")
     await record(
         session,
         event_type=AuditEventType.AGENT_ACTION,
@@ -189,9 +199,33 @@ async def read_intake(
     return _status_view(row, founder_id)
 
 
+async def _build_brain_bg(app, founder_id: UUID, url: str) -> None:
+    """After onboarding, analyse the site on the FREE model (taster verdict +
+    Business DNA) and ingest it into the Company Brain (RAG) — so the routed Brain
+    chat is grounded from message one. Best-effort: never raises, so a build
+    failure can't undo a founder's completed onboarding."""
+    import logging
+
+    try:
+        socket = getattr(app.state, "llm_socket", None) or getattr(app.state, "voice_socket", None)
+        engine = getattr(app.state, "embedding_engine", None)
+        if socket is None or engine is None or not url:
+            return
+        from ..agents.company_brain import build_company_brain
+
+        async with app.state.session_factory() as session:
+            await build_company_brain(session, socket, engine, founder_id, url)
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger("mrk18.intake").warning(
+            "company-brain build failed for %s: %s", founder_id, exc
+        )
+
+
 @router.post("/founders/{founder_id}/intake/complete", response_model=IntakeView)
 async def complete_intake(
     founder_id: UUID,
+    request: Request,
+    background: BackgroundTasks,
     _founder: FounderRow = Depends(founder_scope),
     session: AsyncSession = Depends(get_session),
 ) -> IntakeView:
@@ -238,4 +272,9 @@ async def complete_intake(
         detail={"company_name": profile_obj.company_name},
     )
     await session.commit()
+    # Onboarding done → build the Company Brain (free analysis + DNA → RAG) in the
+    # background, so the chat is grounded. Best-effort; the founder isn't blocked.
+    url = str((row.profile or {}).get("website") or "").strip()
+    if url:
+        background.add_task(_build_brain_bg, request.app, founder_id, url)
     return _status_view(row, founder_id)
