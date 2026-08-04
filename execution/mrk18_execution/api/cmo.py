@@ -212,7 +212,7 @@ async def comrk_chat(
     # daily free-chat cap (per account) — onboarded founders get the bigger allowance
     from . import chat_limit
 
-    limit_key = chat_limit.account_key(founder.email)
+    limit_key = chat_limit.onboarded_key(founder.email)  # fresh-10 tier, separate counter
     snap = chat_limit.state(limit_key, chat_limit.ONBOARDED_PER_DAY)
     if snap["limit_reached"]:
         raise HTTPException(
@@ -294,8 +294,13 @@ async def chat_quota(
     email = (founder.email or email or "").strip() or None
     sub = (founder.auth_user_id or sub or "").strip() or None
 
-    cap = chat_limit.ONBOARDED_PER_DAY if onboarded else chat_limit.FREE_PER_DAY
-    key = chat_limit.account_key(email, sub)
+    # onboarded → the fresh-10 tier on its OWN key; else the pre-onboarding 5
+    if onboarded:
+        key = chat_limit.onboarded_key(email, sub)
+        cap = chat_limit.ONBOARDED_PER_DAY
+    else:
+        key = chat_limit.account_key(email, sub)
+        cap = chat_limit.FREE_PER_DAY
     return {**chat_limit.state(key, cap), "onboarded": onboarded}
 
 

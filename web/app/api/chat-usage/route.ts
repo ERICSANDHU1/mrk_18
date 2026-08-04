@@ -4,57 +4,39 @@ import { backendFetch, getOnboarding } from "@/lib/server/backend";
 
 /** The signed-in account's DAILY free-chat allowance + chat capabilities. The chat
  *  UI reads this on load for the "N left today" counter, to pop the onboarding /
- *  upgrade modal when capped, and to enable image upload when vision (Terra) is on.
- *  The daily cap itself lives in the backend — this route just relays it. */
+ *  upgrade modal at the cap, and to enable image upload when vision (Terra) is on.
+ *  The backend owns the counter (5/day pre-onboarding, a fresh 10/day after) — this
+ *  route just relays it, falling back to the onboarding state only if it's down. */
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
-  const onboarding = await getOnboarding();
-  const onboarded = onboarding.complete;
-
-  let quota: Record<string, unknown> = {
-    used: 0,
-    cap: onboarded ? 15 : 5,
-    remaining: onboarded ? 15 : 5,
-    onboarded,
-    limitReached: false,
-  };
+  // backend chat-quota is the source of truth (it picks the right tier + counter)
+  let quota: Record<string, unknown> | null = null;
   try {
     const q = await backendFetch("/cmo/chat-quota");
     if (q.ok) {
       const j = await q.json();
-      const backendOnboarded = !!j.onboarded || onboarded;
-      const cap = backendOnboarded ? Math.max(Number(j.cap) || 0, 15) : Number(j.cap) || 5;
       const used = Number(j.used) || 0;
+      const cap = Number(j.cap) || (j.onboarded ? 10 : 5);
       quota = {
         used,
         cap,
         remaining: Math.max(0, cap - used),
-        onboarded: backendOnboarded,
+        onboarded: !!j.onboarded,
         limitReached: !!j.limit_reached,
         resets_in: j.resets_in,
       };
-    } else if (onboarded) {
-      quota = {
-        used: 0,
-        cap: 15,
-        remaining: 15,
-        onboarded: true,
-        limitReached: false,
-      };
     }
   } catch {
-    if (onboarded) {
-      quota = {
-        used: 0,
-        cap: 15,
-        remaining: 15,
-        onboarded: true,
-        limitReached: false,
-      };
-    }
-    /* backend down → default allowance; the turn itself will surface any error */
+    /* fall through to the onboarding-state default below */
+  }
+
+  // backend unreachable → a sensible default from the onboarding state
+  if (!quota) {
+    const onboarded = (await getOnboarding().catch(() => ({ complete: false }))).complete;
+    const cap = onboarded ? 10 : 5;
+    quota = { used: 0, cap, remaining: cap, onboarded, limitReached: false };
   }
 
   let vision = false;

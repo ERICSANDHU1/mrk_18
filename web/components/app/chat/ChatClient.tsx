@@ -49,26 +49,6 @@ function greetingFor(hour: number, name?: string | null): string {
   return name ? `${base}, ${name}` : base;
 }
 
-/* ── minimal Web Speech typings (not in the default TS lib) ─────────────── */
-type SRAlt = { transcript: string };
-type SRResult = { isFinal: boolean; 0: SRAlt };
-type SRResultList = { length: number; [i: number]: SRResult };
-type SREvent = { resultIndex: number; results: SRResultList };
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-
-  start: () => void;
-  stop: () => void;
-
-  onstart: (() => void) | null;
-  onresult: ((e: SREvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e?: unknown) => void) | null;
-};
-type SRCtor = new () => SpeechRecognitionLike;
-
 /** Full-page chat with the CMO. Same brain as the floating panel — posts the
  *  running transcript to /api/cmo/voice (Groq), grounded in the founder's memory.
  *  Voice: the mic listens (Web Speech), fills the draft, and Enter sends it. */
@@ -76,18 +56,17 @@ export default function ChatClient() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [listening, setListening] = useState(false);
+  const [listening, setListening] = useState(false); // mic is recording
+  const [transcribing, setTranscribing] = useState(false); // audio → text in flight
   const [error, setError] = useState<string | null>(null);
   // free-chat funnel — used/cap come from the account (Clerk metadata via
   // /api/chat-usage); at the cap we pop the onboarding / upgrade modal.
   const [quota, setQuota] = useState<{ used: number; cap: number; onboarded: boolean } | null>(null);
   const [showQuota, setShowQuota] = useState(false);
   const limitReached = !!quota && quota.used >= quota.cap;
-  const extraChatsLeft = quota
-    ? quota.onboarded
-      ? Math.max(0, 10 - Math.max(0, quota.used - 5))
-      : Math.max(0, 5 - quota.used)
-    : null;
+  // chats left today = cap − used (the backend already gives the right tier:
+  // 5/day pre-onboarding, a fresh 10/day after). Deducts in real time from usage.
+  const chatsLeft = quota ? Math.max(0, quota.cap - quota.used) : null;
   // image upload → Terra vision (critique an ad/screenshot). `vision` gates the
   // button; `attachment` is the pending image (data URL) for the next send.
   const [attachment, setAttachment] = useState<string | null>(null);
@@ -95,10 +74,9 @@ export default function ChatClient() {
   const fileRef = useRef<HTMLInputElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
-  const recRef = useRef<SpeechRecognitionLike | null>(null);
-  const micActiveRef = useRef(false);
-  const micFinalRef = useRef("");
-  const micRestartTimerRef = useRef<number | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
   const sessionIdRef = useRef<string | null>(null); // the saved chat's id (null = unsaved)
   const hydratedIdRef = useRef<string | null>(null); // what the URL ?id is in sync with
   const router = useRouter();
@@ -118,21 +96,9 @@ export default function ChatClient() {
   }, []);
 
   const stopMic = useCallback(() => {
-    micActiveRef.current = false;
-    micFinalRef.current = "";
-    if (micRestartTimerRef.current !== null) {
-      window.clearTimeout(micRestartTimerRef.current);
-      micRestartTimerRef.current = null;
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop(); // → onstop transcribes what was recorded
     }
-    recRef.current?.stop();
-  }, []);
-
-  const ensureMicPermission = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("speech-recognition-unsupported");
-    }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach((track) => track.stop());
   }, []);
 
   // time-aware greeting, set after mount so SSR and client can't disagree
@@ -425,100 +391,83 @@ export default function ChatClient() {
   );
 
   // mic = speech-to-text only: listen, fill the input, and wait for Enter
+  // Push-to-talk: click to RECORD (MediaRecorder), click again to STOP → the clip
+  // goes to Groq Whisper (/api/cmo/stt) → text fills the draft. Reliable — no
+  // dependency on Chrome's flaky Web Speech service.
   const toggleMic = useCallback(async () => {
     if (call !== "idle") return; // a live call owns the mic
-    if (listening) {
-      stopMic();
+    if (recorderRef.current && recorderRef.current.state === "recording") {
+      stopMic(); // → onstop transcribes what was recorded
       return;
     }
-    const w = window as unknown as {
-      SpeechRecognition?: SRCtor;
-      webkitSpeechRecognition?: SRCtor;
-    };
-    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-
-     if (!Ctor) {
-         setError("Voice isn't supported in this browser — try Chrome.");
-    return;
+    if (transcribing) return;
+    setError(null);
+    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setError("Voice input isn't supported in this browser — try Chrome.");
+      return;
     }
-
-// Add this line
-        const SpeechRecognitionCtor: SRCtor = Ctor;
+    let stream: MediaStream;
     try {
-      await ensureMicPermission();
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setListening(false);
-      recRef.current = null;
-      micActiveRef.current = false;
-      micFinalRef.current = "";
-      setError("Allow microphone access in your browser to use voice input.");
+      setError(
+        "Microphone is blocked — click the mic/lock icon in your browser's address bar, allow it for this site, then try again.",
+      );
       return;
     }
-
-    window.speechSynthesis?.cancel();
-    micActiveRef.current = true;
-    micFinalRef.current = "";
-
-    function startSession() {
-      if (!micActiveRef.current) return;
-      const rec = new SpeechRecognitionCtor();
-      rec.lang = "en-IN";
-      rec.interimResults = true;
-      rec.continuous = true;
-      rec.onstart = () => {
-        setError(null);
-        setListening(true);
-        taRef.current?.focus();
-      };
-      rec.onresult = (e: SREvent) => {
-        let interim = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const t = e.results[i][0].transcript;
-          if (e.results[i].isFinal) micFinalRef.current += t;
-          else interim += t;
-        }
-        setDraft(`${micFinalRef.current}${interim}`.trim());
-      };
-      rec.onend = () => {
-        recRef.current = null;
-        setListening(false);
-        if (!micActiveRef.current) {
-          micFinalRef.current = "";
-          return;
-        }
-        if (micRestartTimerRef.current !== null) {
-          window.clearTimeout(micRestartTimerRef.current);
-        }
-        micRestartTimerRef.current = window.setTimeout(() => {
-          micRestartTimerRef.current = null;
-          startSession();
-        }, 180);
-      };
-      rec.onerror = () => {
-        recRef.current = null;
-        setListening(false);
-        micActiveRef.current = false;
-        if (micRestartTimerRef.current !== null) {
-          window.clearTimeout(micRestartTimerRef.current);
-          micRestartTimerRef.current = null;
-        }
-        micFinalRef.current = "";
-        setError("Mic couldn't start. Check browser mic permission and try again.");
-      };
-      recRef.current = rec;
-      try {
-        rec.start();
-      } catch {
-        recRef.current = null;
-        setListening(false);
-        micActiveRef.current = false;
-        micFinalRef.current = "";
-        setError("Mic couldn't start. Check browser mic permission and try again.");
-      }
+    streamRef.current = stream;
+    const mime = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) =>
+      MediaRecorder.isTypeSupported(t),
+    );
+    let rec: MediaRecorder;
+    try {
+      rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    } catch {
+      stream.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setError("Couldn't start the microphone recorder — try again.");
+      return;
     }
-
-    startSession();
-  }, [call, ensureMicPermission, listening, stopMic]);
+    chunksRef.current = [];
+    rec.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    rec.onstop = async () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      recorderRef.current = null;
+      setListening(false);
+      const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+      chunksRef.current = [];
+      if (blob.size < 1200) return; // nothing meaningful was recorded
+      setTranscribing(true);
+      try {
+        const res = await fetch("/api/cmo/stt", {
+          method: "POST",
+          headers: { "Content-Type": blob.type || "audio/webm" },
+          body: blob,
+        });
+        const data = await res.json().catch(() => ({}));
+        const text = (data?.text || "").trim();
+        if (res.ok && text) {
+          setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text));
+          requestAnimationFrame(resize);
+          taRef.current?.focus();
+        } else if (!res.ok) {
+          setError(data?.error || "Couldn't transcribe that — try again.");
+        }
+      } catch {
+        setError("Couldn't reach transcription — is the backend running?");
+      } finally {
+        setTranscribing(false);
+      }
+    };
+    recorderRef.current = rec;
+    window.speechSynthesis?.cancel();
+    rec.start();
+    setListening(true);
+    taRef.current?.focus();
+  }, [call, transcribing, stopMic, resize]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -652,31 +601,44 @@ export default function ChatClient() {
           <button
             type="button"
             onClick={toggleMic}
+            disabled={transcribing}
             aria-pressed={listening}
-            title={listening ? "Stop listening" : "Talk to your CMO"}
-            className={`grid h-7 w-7 place-items-center rounded-lg transition-colors ${
+            title={
+              transcribing ? "Transcribing…" : listening ? "Stop & transcribe" : "Record a voice message"
+            }
+            className={`grid h-7 w-7 place-items-center rounded-lg transition-colors disabled:opacity-50 ${
               listening ? "bg-molten/10 text-molten" : "text-mute-2 hover:text-ink"
             }`}
           >
-            <Mic size={15} aria-hidden />
+            {transcribing ? (
+              <Loader2 size={15} className="animate-spin" aria-hidden />
+            ) : (
+              <Mic size={15} aria-hidden />
+            )}
           </button>
         </div>
         <div className="flex items-center gap-2 pr-1 text-[11px] text-mute-2">
-          {quota && extraChatsLeft !== null && (
+          {quota && chatsLeft !== null && (
             <span
               className={`font-data rounded-full border px-2 py-0.5 ${
-                extraChatsLeft <= 1
+                chatsLeft <= 1
                   ? "border-molten/40 bg-molten/10 text-molten"
                   : "border-line text-mute-2"
               }`}
             >
-              {extraChatsLeft}/{quota.onboarded ? 10 : 5} {quota.onboarded ? "extra chats left" : "free chats left"}
+              {chatsLeft}/{quota.cap} free chats left
             </span>
           )}
           {listening && (
             <span className="font-data inline-flex items-center gap-1.5 rounded-full border border-molten/30 bg-molten/10 px-2 py-0.5 text-molten">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-molten" aria-hidden />
-              Mic live
+              Recording — tap mic to stop
+            </span>
+          )}
+          {transcribing && (
+            <span className="font-data inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-mute-2">
+              <Loader2 size={11} className="animate-spin" aria-hidden />
+              Transcribing…
             </span>
           )}
           <span className="hidden sm:inline">
