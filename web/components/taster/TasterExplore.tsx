@@ -289,13 +289,17 @@ export default function TasterExplore({
   const STEPS = isIdea ? STEPS_IDEA : STEPS_URL;
   const currentStep = STEPS.filter((s) => elapsed >= s.at).length - 1;
 
-  // overall = average of the four card grades (absent in adapter mode)
-  const scores = data
-    ? CARDS.map((c) => data.results[c.key]?.score).filter((s): s is number => typeof s === "number")
+  // overall = average of the three card grades (absent in adapter mode)
+  const graded = data
+    ? CARDS.map((c) => ({
+        label: c.title === "GTM Strategy" ? "GTM" : c.title,
+        score: data.results[c.key]?.score,
+      })).filter((g): g is { label: string; score: number } => typeof g.score === "number")
     : [];
-  const overall = scores.length
-    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+  const overall = graded.length
+    ? Math.round(graded.reduce((a, g) => a + g.score, 0) / graded.length)
     : null;
+  const weakest = graded.length ? graded.reduce((lo, g) => (g.score < lo.score ? g : lo)) : null;
 
   return (
     <div className="theme-sand taster-scope min-h-screen lg:h-screen lg:overflow-hidden">
@@ -465,12 +469,33 @@ export default function TasterExplore({
               {overall !== null && (
                 <div className="glass flex items-center gap-3 rounded-2xl p-4">
                   <Dial value={overall} />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
-                      The CMO&apos;s read
+                      The CMO&apos;s grade
                     </p>
-                    <p className="mt-0.5 text-[11.5px] leading-snug text-muted">
-                      his grade out of 100 —<br />a judgment, not a metric
+                    <p className="text-[13px] font-bold leading-tight text-ink">
+                      {overall}
+                      <span className="text-mute-2">/100</span> · overall grade
+                    </p>
+                    <p className="mt-0.5 text-[10.5px] leading-snug text-muted">
+                      Average of{" "}
+                      {graded.map((g, i) => (
+                        <span key={g.label}>
+                          {g.label}{" "}
+                          <span
+                            className={
+                              g.label === weakest?.label ? "font-bold text-bad" : "font-semibold text-ink"
+                            }
+                          >
+                            {g.score}
+                          </span>
+                          {i < graded.length - 1 ? " · " : ""}
+                        </span>
+                      ))}
+                      {weakest && <> — weakest is {weakest.label}, fix it first.</>}
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-snug text-mute-2">
+                      A judgment, not a metric · 50s = mediocre, 80+ is rare
                     </p>
                   </div>
                 </div>

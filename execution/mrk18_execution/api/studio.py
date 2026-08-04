@@ -13,6 +13,7 @@ LoRA when the Brain is on; the Groq pilot today).
 
 import asyncio
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -20,9 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agents.brand_dna import extract_brand_copy
 from ..config import get_settings
-from ..db.models import BrandDNARow
+from ..db.models import BrandDNARow, FounderProfileRow
 from ..research.brandfetch import fetch_brand_kit
-from .deps import get_session, get_verified_claims
+from .deps import get_session, get_verified_claims, require_founder
 from .taster import _cap_reached, _client_ip, _consume_daily, _daily_used, _normalize
 
 log = logging.getLogger("mrk18.studio")
@@ -307,3 +308,133 @@ async def create_campaign(
         _consume_daily(key, bucket="campaign")
     remaining = max(0, cap - _daily_used(key, bucket="campaign")) if cap > 0 else None
     return {"creatives": creatives, "remaining": remaining, "domain": domain}
+
+
+# ── Onboarded Create Campaigns — ONE free Nano-Banana campaign per account ──────
+# The onboarded founder's paid-quality campaign: 2 HD Nano Banana 2 creatives,
+# capped at ONE lifetime per account (durable — stored in a BrandDNARow keyed by
+# `campaign:{email}`, survives restarts). The anonymous studio taste above stays on
+# free FLUX; only this onboarded flow spends the OpenRouter image credits.
+
+
+async def _ensure_dna(session: AsyncSession, settings, socket, url: str, domain: str) -> dict | None:
+    """The domain's Business DNA — from the studio cache, or freshly built + cached.
+    None when the site can't be read (the caller answers a clean 503)."""
+    cached = await session.get(BrandDNARow, f"domain:{domain}")
+    if cached is not None and (cached.payload or {}).get("v") == _DNA_V:
+        return cached.payload
+    if socket is None or not settings.tavily_api_key:
+        return None
+    from ..research.web import TavilyResearcher
+
+    try:
+        site_text = await TavilyResearcher(settings.tavily_api_key).fetch_page(url)
+    except Exception:  # noqa: BLE001 — a fetch failure → no DNA, one honest 503 upstream
+        site_text = ""
+    if not site_text:
+        return None
+    try:
+        (copy, _usage), kit = await asyncio.gather(
+            extract_brand_copy(socket, site_text[:6000], url, domain),
+            fetch_brand_kit(domain, settings.brandfetch_api_key),
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("campaign: DNA build failed for %s: %s", domain, exc)
+        return None
+    kit = kit or {}
+    payload = {
+        "v": _DNA_V,
+        "domain": domain,
+        "source_url": url,
+        **copy.model_dump(),
+        "colors": kit.get("colors") or [],
+        "heading_font": kit.get("heading_font") or "",
+        "body_font": kit.get("body_font") or "",
+        "logo_url": kit.get("logo_url") or f"https://logo.clearbit.com/{domain}",
+        "brand_kit": "brandfetch" if kit.get("colors") else "none",
+    }
+    await _persist(session, f"domain:{domain}", payload)
+    return payload
+
+
+def _campaign_slot_key(email: str) -> str:
+    return f"campaign:{(email or '').strip().lower()}"
+
+
+@router.get("/founders/{founder_id}/campaign", response_model=dict)
+async def get_campaign(
+    founder_id: UUID,
+    founder=Depends(require_founder),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """The founder's stored free campaign (empty until they generate it) + whether
+    they can still make one."""
+    settings = get_settings()
+    slot = await session.get(BrandDNARow, _campaign_slot_key(founder.email))
+    creatives = ((slot.payload if slot else None) or {}).get("creatives") or []
+    return {
+        "creatives": creatives,
+        "used": bool(creatives),
+        "remaining": 0 if creatives else settings.free_campaigns_per_account,
+    }
+
+
+@router.post("/founders/{founder_id}/campaign", response_model=dict)
+async def create_founder_campaign(
+    founder_id: UUID,
+    request: Request,
+    founder=Depends(require_founder),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Generate the founder's ONE free branded campaign — 2 HD Nano Banana 2
+    creatives from their Business DNA. Durable lifetime cap (per account email):
+    once used, the stored pair is re-served with remaining=0 (the paywall)."""
+    settings = get_settings()
+    slot_key = _campaign_slot_key(founder.email)
+
+    # durable lifetime cap — the free campaign is stored under this key
+    slot = await session.get(BrandDNARow, slot_key)
+    prior = (slot.payload if slot else None) or {}
+    if settings.free_campaigns_per_account and prior.get("creatives"):
+        return {"creatives": prior["creatives"], "remaining": 0, "reused": True}
+
+    prof = await session.get(FounderProfileRow, founder.id)
+    website = str(((prof.profile if prof and prof.profile else {}) or {}).get("website") or "").strip()
+    if not website:
+        raise HTTPException(status_code=422, detail="add your website in onboarding to build a campaign")
+    url, domain = _normalize(website)
+
+    socket = _socket(request)
+    if socket is None:
+        raise HTTPException(status_code=503, detail="the campaign engine isn't configured (set GROQ_API_KEY)")
+
+    dna = await _ensure_dna(session, settings, socket, url, domain)
+    if dna is None:
+        raise HTTPException(status_code=503, detail="couldn't read your brand — try again in a moment")
+
+    from ..creative.campaign import generate_campaign_creatives
+    from ..llm.images import SupabaseMediaStore, openrouter_image_engine, pick_campaign_engine
+
+    # Nano Banana 2 via OpenRouter when funded; else the free FLUX bridge
+    engine = openrouter_image_engine(settings) or pick_campaign_engine(settings)
+    media = (
+        SupabaseMediaStore(settings.supabase_url, settings.supabase_service_key)
+        if settings.supabase_url and settings.supabase_service_key
+        else None
+    )
+    try:
+        creatives = await generate_campaign_creatives(socket, engine, media, dna, domain)
+    except Exception as exc:  # noqa: BLE001 — one honest 503, never a 500
+        log.warning("campaign: generation failed for %s: %s", domain, exc)
+        raise HTTPException(status_code=503, detail="couldn't build your campaign — try again") from exc
+    if not creatives:
+        raise HTTPException(status_code=503, detail="couldn't build your campaign — try again")
+
+    # persist the free campaign (durable lifetime record + viewable later)
+    payload = {"creatives": creatives, "domain": domain, "engine": getattr(engine, "name", "")}
+    if slot is None:
+        session.add(BrandDNARow(auth_user_id=slot_key, payload=payload))
+    else:
+        slot.payload = payload
+    await session.commit()
+    return {"creatives": creatives, "remaining": 0, "reused": False}

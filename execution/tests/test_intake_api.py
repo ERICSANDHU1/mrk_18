@@ -150,6 +150,20 @@ async def test_happy_path_and_lock(client):
     assert again.status_code == 409
 
 
+async def test_chat_quota_reports_onboarded_after_completion(client):
+    fid = await make_founder(client)
+    await client.put(f"/founders/{fid}/intake", json=FULL_INTAKE)
+    done = await client.post(f"/founders/{fid}/intake/complete")
+    assert done.status_code == 200, done.text
+
+    quota = await client.get("/cmo/chat-quota")
+    assert quota.status_code == 200, quota.text
+    body = quota.json()
+    assert body["onboarded"] is True
+    assert body["cap"] == 15
+    assert body["remaining"] == 15
+
+
 async def test_audit_trail_written_including_rejection(client, engine):
     fid = await make_founder(client)
     await client.put(f"/founders/{fid}/intake", json={"company_name": "Chai Robotics"})

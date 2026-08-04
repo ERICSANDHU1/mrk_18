@@ -24,7 +24,13 @@ export default function CustomCursor() {
       x.set(e.clientX);
       y.set(e.clientY);
       const target = e.target as HTMLElement | null;
-      setHovering(!!target?.closest("a, button, [data-cursor]"));
+      // over anything interactive (incl. portaled overlays like the Clerk menu),
+      // step aside and let the real cursor show — never leave it cursor-less
+      setHovering(
+        !!target?.closest(
+          "a, button, [role='button'], [role='menuitem'], input, textarea, select, label, summary, [data-cursor], [role='dialog'], [role='menu'], .cl-rootBox",
+        ),
+      );
     };
     window.addEventListener("mousemove", move, { passive: true });
     return () => {
@@ -37,13 +43,15 @@ export default function CustomCursor() {
 
   return (
     <>
-      {/* dot */}
+      {/* dot — hidden over interactive elements so the native cursor leads there */}
       <motion.div
         className="pointer-events-none fixed left-0 top-0 z-[90] h-1.5 w-1.5 rounded-full"
         style={{ x, y, translateX: "-50%", translateY: "-50%", background: "var(--amber)" }}
+        animate={{ opacity: hovering ? 0 : 1 }}
+        transition={{ duration: 0.15 }}
         aria-hidden
       />
-      {/* ring */}
+      {/* ring — also hidden over interactive elements (native arrow takes over) */}
       <motion.div
         className="pointer-events-none fixed left-0 top-0 z-[90] rounded-full border"
         style={{
@@ -54,11 +62,11 @@ export default function CustomCursor() {
           borderColor: "rgba(180, 83, 42, 0.55)",
         }}
         animate={{
-          width: hovering ? 52 : 32,
-          height: hovering ? 52 : 32,
-          opacity: hovering ? 1 : 0.7,
+          width: 32,
+          height: 32,
+          opacity: hovering ? 0 : 0.7,
         }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.15 }}
         aria-hidden
       />
     </>

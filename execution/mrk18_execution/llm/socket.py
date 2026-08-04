@@ -47,6 +47,9 @@ PRICES_USD_PER_M = {
     "llama-3.1-8b-instant": (0.05, 0.08),
     # Together (the Phase-4 stand-in / paid fallback)
     "Qwen/Qwen3-235B-A22B-Instruct-2507-tput": (0.20, 0.60),
+    # GPT-5.6 Terra via OpenRouter — metered at LIST ($2/$12) not the current 50%
+    # promo ($1/$6), so the cost caps stay conservative when the promo ends.
+    "openai/gpt-5.6-terra": (2.0, 12.0),
     # the trained Brain on self-hosted vLLM is compute-amortised — set its
     # effective per-token rate here at go-live.
 }
@@ -128,6 +131,48 @@ def default_registry(groq_api_key: str) -> dict[AgentRole, ModelSeat]:
             base_url=GROQ_BASE_URL, api_key=groq_api_key, model="llama-3.1-8b-instant"
         ),
     }
+
+
+# The founder-FACING reply seats — the ones whose words a founder actually reads
+# in the chat. These go to Terra on the chat socket; STRUCTURE (the router),
+# TRIAGE (the cheap classifier) and COMMENT stay on Groq. The analysis PIPELINE
+# uses these same roles too, but it runs on its own llm_socket (Groq) — this
+# registry is ONLY ever mounted on the dedicated chat socket.
+_CHAT_TERRA_ROLES = (
+    AgentRole.SYNTHESIS,
+    AgentRole.MARKET_INTEL,
+    AgentRole.AUDIENCE,
+    AgentRole.USP,
+    AgentRole.STRATEGY,
+    AgentRole.CONTENT,
+    AgentRole.SCRIPT,
+    AgentRole.ANALYTICS,
+)
+
+
+def chat_registry(
+    groq_api_key: str,
+    openrouter_api_key: str,
+    openrouter_base_url: str = "https://openrouter.ai/api/v1",
+    terra_model: str = "openai/gpt-5.6-terra",
+) -> dict[AgentRole, ModelSeat]:
+    """The CHAT socket: GPT-5.6 Terra (via OpenRouter) on the reply seats a founder
+    reads, Groq on the router/classifier/comment plumbing. Same agent code, same
+    socket — the app mounts this only when USE_TERRA + OPENROUTER_API_KEY are set,
+    so a missing key or flag silently leaves the chat on the all-Groq default."""
+    reg = default_registry(groq_api_key)  # everything Groq first…
+    for role in _CHAT_TERRA_ROLES:  # …then Terra on the founder-facing reply seats
+        keep = reg[role]
+        reg[role] = ModelSeat(
+            base_url=openrouter_base_url,
+            api_key=openrouter_api_key,
+            model=terra_model,
+            max_tokens=keep.max_tokens,
+            temperature=keep.temperature,
+            # no reasoning_effort: a chat turn needs clean copy, not reasoning
+            # tokens (verified: Terra returns 0 reasoning tokens here).
+        )
+    return reg
 
 
 # Phase 4 — role -> served adapter name on the Brain's vLLM multi-LoRA endpoint.
