@@ -89,8 +89,22 @@ async def current_founder(
     claims: dict = Depends(get_verified_claims),
     session: AsyncSession = Depends(get_session),
 ) -> FounderRow:
-    founder = await repo.get_founder_by_auth_user(session, claims.get("sub", ""))
+    sub = (claims.get("sub") or "").strip()
+    founder = await repo.get_founder_by_auth_user(session, sub) if sub else None
     if founder is None:
+        # Self-heal: the Clerk session subject can change (account re-created, a new
+        # local-dev session, dev vs prod instance). The verified token still proves
+        # this email, so RELINK the existing founder to the current sub instead of
+        # 403-ing — which would strand an already-onboarded founder (no chats, no
+        # quota, /me fails). Idempotent when the sub already matches.
+        email = (claims.get("email") or "").strip()
+        if email:
+            existing = await repo.get_founder_by_email(session, email)
+            if existing is not None:
+                if sub and existing.auth_user_id != sub:
+                    existing.auth_user_id = sub
+                    await session.commit()
+                return existing
         raise HTTPException(
             status_code=403,
             detail="no founder is linked to this account — create one via POST /founders",
