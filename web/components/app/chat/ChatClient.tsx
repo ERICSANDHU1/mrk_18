@@ -58,11 +58,14 @@ type SpeechRecognitionLike = {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
+
   start: () => void;
   stop: () => void;
+
+  onstart: (() => void) | null;
   onresult: ((e: SREvent) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e?: unknown) => void) | null;
 };
 type SRCtor = new () => SpeechRecognitionLike;
 
@@ -433,10 +436,14 @@ export default function ChatClient() {
       webkitSpeechRecognition?: SRCtor;
     };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor) {
-      setError("Voice isn't supported in this browser — try Chrome.");
-      return;
+
+     if (!Ctor) {
+         setError("Voice isn't supported in this browser — try Chrome.");
+    return;
     }
+
+// Add this line
+        const SpeechRecognitionCtor: SRCtor = Ctor;
     try {
       await ensureMicPermission();
     } catch {
@@ -454,7 +461,7 @@ export default function ChatClient() {
 
     function startSession() {
       if (!micActiveRef.current) return;
-      const rec = new Ctor();
+      const rec = new SpeechRecognitionCtor();
       rec.lang = "en-IN";
       rec.interimResults = true;
       rec.continuous = true;
