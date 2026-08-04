@@ -20,7 +20,29 @@ import {
   Target,
   X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { cleanCmoText } from "@/lib/text";
+
+// mermaid is heavy + client-only → lazy-load it, and only for replies that need it
+const MermaidChart = dynamic(() => import("./MermaidChart"), { ssr: false });
+
+/** Render a CMO reply as plain text, drawing any ```mermaid block as a flowchart. */
+function CmoContent({ text }: { text: string }) {
+  const re = /```mermaid\s*([\s\S]*?)```/g;
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const before = text.slice(last, m.index).trim();
+    if (before) out.push(<p key={key++} className="m-0">{cleanCmoText(before)}</p>);
+    out.push(<MermaidChart key={key++} code={m[1].trim()} />);
+    last = m.index + m[0].length;
+  }
+  const after = text.slice(last).trim();
+  if (after) out.push(<p key={key++} className="m-0">{cleanCmoText(after)}</p>);
+  return out.length ? <>{out}</> : <>{cleanCmoText(text)}</>;
+}
 import { useCmoVoiceCall } from "@/components/app/useCmoVoiceCall";
 
 type Role = "user" | "cmo";
@@ -49,15 +71,33 @@ function greetingFor(hour: number, name?: string | null): string {
   return name ? `${base}, ${name}` : base;
 }
 
+/* ── minimal Web Speech typings (not in the default TS lib) ─────────────── */
+type SRAlt = { transcript: string };
+type SRResult = { isFinal: boolean; 0: SRAlt };
+type SRResultList = { length: number; [i: number]: SRResult };
+type SREvent = { resultIndex: number; results: SRResultList };
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onstart: (() => void) | null;
+  onresult: ((e: SREvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e?: unknown) => void) | null;
+};
+type SRCtor = new () => SpeechRecognitionLike;
+
 /** Full-page chat with the CMO. Same brain as the floating panel — posts the
  *  running transcript to /api/cmo/voice (Groq), grounded in the founder's memory.
- *  Voice: the mic listens (Web Speech), fills the draft, and Enter sends it. */
+ *  Voice: the mic writes into the draft LIVE (Web Speech) as you speak. */
 export default function ChatClient() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [listening, setListening] = useState(false); // mic is recording
-  const [transcribing, setTranscribing] = useState(false); // audio → text in flight
+  const [listening, setListening] = useState(false); // mic is live
   const [error, setError] = useState<string | null>(null);
   // free-chat funnel — used/cap come from the account (Clerk metadata via
   // /api/chat-usage); at the cap we pop the onboarding / upgrade modal.
@@ -74,9 +114,9 @@ export default function ChatClient() {
   const fileRef = useRef<HTMLInputElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
+  const recRef = useRef<SpeechRecognitionLike | null>(null);
+  const micActiveRef = useRef(false); // the user wants the mic on (drives auto-restart)
+  const micFinalRef = useRef(""); // accumulated final transcript so far
   const sessionIdRef = useRef<string | null>(null); // the saved chat's id (null = unsaved)
   const hydratedIdRef = useRef<string | null>(null); // what the URL ?id is in sync with
   const router = useRouter();
@@ -96,9 +136,8 @@ export default function ChatClient() {
   }, []);
 
   const stopMic = useCallback(() => {
-    if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      recorderRef.current.stop(); // → onstop transcribes what was recorded
-    }
+    micActiveRef.current = false; // stop the auto-restart, then end the session
+    recRef.current?.stop();
   }, []);
 
   // time-aware greeting, set after mount so SSR and client can't disagree
@@ -390,84 +429,86 @@ export default function ChatClient() {
     [messages, sending, resize, persist, speak, quota, attachment],
   );
 
-  // mic = speech-to-text only: listen, fill the input, and wait for Enter
-  // Push-to-talk: click to RECORD (MediaRecorder), click again to STOP → the clip
-  // goes to Groq Whisper (/api/cmo/stt) → text fills the draft. Reliable — no
-  // dependency on Chrome's flaky Web Speech service.
-  const toggleMic = useCallback(async () => {
+  // mic = LIVE speech-to-text: the Web Speech API writes into the draft word by
+  // word AS YOU SPEAK. Click again to stop. No auto-send — review, then Enter.
+  const toggleMic = useCallback(() => {
     if (call !== "idle") return; // a live call owns the mic
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      stopMic(); // → onstop transcribes what was recorded
+    if (listening) {
+      stopMic();
       return;
     }
-    if (transcribing) return;
-    setError(null);
-    if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setError("Voice input isn't supported in this browser — try Chrome.");
-      return;
-    }
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setError(
-        "Microphone is blocked — click the mic/lock icon in your browser's address bar, allow it for this site, then try again.",
-      );
-      return;
-    }
-    streamRef.current = stream;
-    const mime = ["audio/webm", "audio/mp4", "audio/ogg"].find((t) =>
-      MediaRecorder.isTypeSupported(t),
-    );
-    let rec: MediaRecorder;
-    try {
-      rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-    } catch {
-      stream.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      setError("Couldn't start the microphone recorder — try again.");
-      return;
-    }
-    chunksRef.current = [];
-    rec.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+    const w = window as unknown as {
+      SpeechRecognition?: SRCtor;
+      webkitSpeechRecognition?: SRCtor;
     };
-    rec.onstop = async () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      recorderRef.current = null;
-      setListening(false);
-      const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
-      chunksRef.current = [];
-      if (blob.size < 1200) return; // nothing meaningful was recorded
-      setTranscribing(true);
-      try {
-        const res = await fetch("/api/cmo/stt", {
-          method: "POST",
-          headers: { "Content-Type": blob.type || "audio/webm" },
-          body: blob,
-        });
-        const data = await res.json().catch(() => ({}));
-        const text = (data?.text || "").trim();
-        if (res.ok && text) {
-          setDraft((d) => (d.trim() ? `${d.trim()} ${text}` : text));
-          requestAnimationFrame(resize);
-          taRef.current?.focus();
-        } else if (!res.ok) {
-          setError(data?.error || "Couldn't transcribe that — try again.");
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) {
+      setError("Live voice needs Chrome or Edge — this browser doesn't support it.");
+      return;
+    }
+    setError(null);
+    window.speechSynthesis?.cancel();
+    // keep whatever's already typed, then append the dictation
+    micFinalRef.current = draft.trim() ? `${draft.trim()} ` : "";
+    micActiveRef.current = true;
+
+    const start = () => {
+      if (!micActiveRef.current) return;
+      const rec = new Ctor();
+      rec.lang = "en-IN";
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.onstart = () => {
+        setError(null);
+        setListening(true);
+        taRef.current?.focus();
+      };
+      rec.onresult = (e: SREvent) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) micFinalRef.current += `${t} `;
+          else interim += t;
         }
+        // LIVE — the box fills as you talk
+        setDraft(`${micFinalRef.current}${interim}`.replace(/\s+/g, " ").trimStart());
+        requestAnimationFrame(resize);
+      };
+      rec.onerror = (ev) => {
+        const err = (ev as { error?: string } | undefined)?.error || "";
+        // "no-speech" / "aborted" are benign — onend restarts the session
+        if (err === "no-speech" || err === "aborted") return;
+        micActiveRef.current = false;
+        recRef.current = null;
+        setListening(false);
+        setError(
+          err === "not-allowed" || err === "service-not-allowed"
+            ? "Microphone is blocked — click the mic/lock icon in the address bar, allow it for this site, then try again."
+            : err === "audio-capture"
+              ? "No microphone found — check it's plugged in and not used by another app."
+              : err === "network"
+                ? "Live voice needs internet (Chrome transcribes via Google) — check your connection."
+                : `Mic error${err ? ` (${err})` : ""} — check browser mic permission and try again.`,
+        );
+      };
+      rec.onend = () => {
+        recRef.current = null;
+        if (micActiveRef.current) {
+          start(); // Chrome ends sessions periodically — restart to keep listening
+        } else {
+          setListening(false);
+        }
+      };
+      recRef.current = rec;
+      try {
+        rec.start();
       } catch {
-        setError("Couldn't reach transcription — is the backend running?");
-      } finally {
-        setTranscribing(false);
+        recRef.current = null;
+        if (micActiveRef.current) window.setTimeout(start, 200);
       }
     };
-    recorderRef.current = rec;
-    window.speechSynthesis?.cancel();
-    rec.start();
-    setListening(true);
-    taRef.current?.focus();
-  }, [call, transcribing, stopMic, resize]);
+    start();
+  }, [call, listening, draft, stopMic, resize]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -601,20 +642,13 @@ export default function ChatClient() {
           <button
             type="button"
             onClick={toggleMic}
-            disabled={transcribing}
             aria-pressed={listening}
-            title={
-              transcribing ? "Transcribing…" : listening ? "Stop & transcribe" : "Record a voice message"
-            }
-            className={`grid h-7 w-7 place-items-center rounded-lg transition-colors disabled:opacity-50 ${
+            title={listening ? "Stop dictation" : "Dictate — speak and it types live"}
+            className={`grid h-7 w-7 place-items-center rounded-lg transition-colors ${
               listening ? "bg-molten/10 text-molten" : "text-mute-2 hover:text-ink"
             }`}
           >
-            {transcribing ? (
-              <Loader2 size={15} className="animate-spin" aria-hidden />
-            ) : (
-              <Mic size={15} aria-hidden />
-            )}
+            <Mic size={15} aria-hidden />
           </button>
         </div>
         <div className="flex items-center gap-2 pr-1 text-[11px] text-mute-2">
@@ -632,13 +666,7 @@ export default function ChatClient() {
           {listening && (
             <span className="font-data inline-flex items-center gap-1.5 rounded-full border border-molten/30 bg-molten/10 px-2 py-0.5 text-molten">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-molten" aria-hidden />
-              Recording — tap mic to stop
-            </span>
-          )}
-          {transcribing && (
-            <span className="font-data inline-flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-mute-2">
-              <Loader2 size={11} className="animate-spin" aria-hidden />
-              Transcribing…
+              Listening — speak now
             </span>
           )}
           <span className="hidden sm:inline">
@@ -724,10 +752,12 @@ export default function ChatClient() {
         <>
           <div ref={threadRef} className="dash-scroll min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
-              {messages.map((m) => (
+              {messages.map((m) => {
+                const hasFlow = m.role === "cmo" && m.text.includes("```mermaid");
+                return (
                 <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 leading-relaxed ${
+                    className={`${hasFlow ? "w-full max-w-full" : "max-w-[85%]"} whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 leading-relaxed ${
                       m.role === "cmo"
                         ? "font-claude-serif rounded-tl-sm border border-molten/20 bg-molten/[0.07] text-[15px] text-ink"
                         : "rounded-tr-sm bg-surface-2 text-[14px] text-ink"
@@ -743,10 +773,11 @@ export default function ChatClient() {
                         />
                       </>
                     )}
-                    {m.role === "cmo" ? cleanCmoText(m.text) : m.text}
+                    {m.role === "cmo" ? <CmoContent text={m.text} /> : m.text}
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {sending && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-molten/20 bg-molten/[0.07] px-3.5 py-2.5 text-[13px] text-mute">
