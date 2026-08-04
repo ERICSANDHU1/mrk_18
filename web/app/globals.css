@@ -93,13 +93,51 @@ body {
   color: #ffffff;
 }
 
-/* hide native cursor only when the custom cursor is mounted on a fine pointer */
+/* The custom cursor leads on open canvas, but interactive elements ALWAYS keep a
+   real, visible cursor — so nothing is ever cursor-less. The custom dot/ring hides
+   itself over these (see CustomCursor's `hovering` state), so there's no double
+   cursor: just the native arrow on buttons, menus, and portaled overlays (like the
+   Clerk account menu) that render above the custom-cursor layer. */
 @media (pointer: fine) {
 
-  html.custom-cursor,
-  html.custom-cursor a,
-  html.custom-cursor button {
+  html.custom-cursor {
     cursor: none;
+  }
+
+  html.custom-cursor a,
+  html.custom-cursor button,
+  html.custom-cursor [role="button"],
+  html.custom-cursor [role="menuitem"],
+  html.custom-cursor label[for],
+  html.custom-cursor select,
+  html.custom-cursor summary {
+    cursor: pointer;
+  }
+
+  html.custom-cursor input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]),
+  html.custom-cursor textarea {
+    cursor: text;
+  }
+
+  /* Portaled overlays (Clerk menus/modals, ARIA dialogs/menus) sit above the
+     custom-cursor layer — restore the native cursor across their whole surface so
+     even their non-button areas show a pointer. */
+  html.custom-cursor [role="dialog"],
+  html.custom-cursor [role="dialog"] *,
+  html.custom-cursor [role="menu"],
+  html.custom-cursor [role="menu"] *,
+  html.custom-cursor .cl-rootBox,
+  html.custom-cursor .cl-rootBox * {
+    cursor: auto;
+  }
+
+  html.custom-cursor [role="dialog"] a,
+  html.custom-cursor [role="dialog"] button,
+  html.custom-cursor [role="menu"] a,
+  html.custom-cursor [role="menu"] button,
+  html.custom-cursor .cl-rootBox a,
+  html.custom-cursor .cl-rootBox button {
+    cursor: pointer;
   }
 }
 

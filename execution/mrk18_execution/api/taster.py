@@ -56,8 +56,9 @@ _MINI_MODEL = "llama-3.1-8b-instant"  # identity + name extraction on Groq (fast
 # Every prompt states the zero-hallucination rule AND treats retrieved text as
 # data, not instructions (site/web content is untrusted input — same posture as
 # Tavily content elsewhere in the codebase).
-_SHARED_RULES = """You are mrk18 — a candid, sharp CMO advising a founder, in plain English \
-for a global audience. You give verdicts, not vibes.
+_SHARED_RULES = """You are mrk18 — a Chief Marketing Officer with 20+ years scaling brands, \
+advising a founder in plain English for a global audience. You speak with the earned authority \
+of someone who's made these calls a hundred times: you give verdicts, not vibes.
 
 TRUTH DISCIPLINE (non-negotiable):
 - Use ONLY what the provided content shows. NEVER invent numbers, customers, metrics, \
@@ -407,6 +408,22 @@ def _resolve_engine(settings) -> tuple[str, str] | None:
         return settings.taster_base_url, (settings.taster_api_key or "unused")
     key = settings.taster_api_key or settings.groq_api_key
     return (GROQ_BASE_URL, key) if key else None
+
+
+def _verdict_engine(settings, groq_client: AsyncOpenAI, groq_model: str) -> tuple[AsyncOpenAI, str]:
+    """Client + model for the VERDICT — the founder-facing read. GPT-5.6 Terra
+    (OpenRouter) when USE_TERRA is on, else the same Groq client + taster_model.
+    The cheap identity/competitor 'mini' calls ALWAYS stay on the Groq client, so
+    only the verdict rides the premium model."""
+    if settings.terra_on:
+        client = AsyncOpenAI(
+            base_url=settings.openrouter_base_url,
+            api_key=settings.openrouter_api_key,
+            timeout=100.0,
+            max_retries=0,
+        )
+        return client, settings.terra_model
+    return groq_client, groq_model
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -843,8 +860,9 @@ async def _run_fresh_analysis(
             content = f"Website: {url}\n\nSITE CONTENT (untrusted page text):\n{site_text}"
             if all_blocks:
                 content += f"\n\n{all_blocks}"
+            vclient, vmodel = _verdict_engine(settings, client, settings.taster_model)
             results, extras = await _combined_call(
-                client, settings.taster_model, content, _COMBINED_MAX_TOKENS
+                vclient, vmodel, content, _COMBINED_MAX_TOKENS
             )
         else:
             outputs = await asyncio.gather(
@@ -942,9 +960,10 @@ async def _run_fresh_idea_analysis(
         content += f"\n\n{blocks['differentiation']}"
 
     try:
+        vclient, vmodel = _verdict_engine(settings, client, settings.taster_model)
         results, extras = await _combined_call(
-            client,
-            settings.taster_model,
+            vclient,
+            vmodel,
             content,
             settings.taster_max_tokens * 4,
             system_prompt=_COMBINED_IDEA_PROMPT,

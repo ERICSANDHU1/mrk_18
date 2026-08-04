@@ -19,7 +19,10 @@ envVarGroups:
       - { key: AUTH_JWKS_URL, sync: false }
       - { key: AUTH_ISSUER, sync: false }
       - { key: GROQ_API_KEY, sync: false }
+      - { key: OPENROUTER_API_KEY, sync: false }  # GPT-5.6 Terra (chat + verdict) + Nano Banana images
+      - { key: USE_TERRA, sync: false }            # "false" until OpenRouter credits land (chat runs on free Groq), then "true"
       - { key: TAVILY_API_KEY, sync: false }   # web grounding + the free taster
+      - { key: BRANDFETCH_API_KEY, sync: false }   # real brand kit for DNA / campaigns
       - { key: TOGETHER_API_KEY, sync: false }
       - { key: CF_ACCOUNT_ID, sync: false }
       - { key: CF_API_TOKEN, sync: false }

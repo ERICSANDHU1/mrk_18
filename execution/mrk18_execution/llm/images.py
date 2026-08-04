@@ -174,6 +174,62 @@ class GeminiImageEngine:
         raise RuntimeError(f"gemini image: no image in response ({str(data)[:200]})")
 
 
+class OpenRouterImageEngine:
+    """Nano Banana (Gemini Flash Image) via OpenRouter's Unified Image API.
+
+    HD, renders legible headline text and understands brand context in one call —
+    so a finished branded creative needs no separate text compositor — and it's
+    billed on the OpenRouter credits you already fund (one bill, no new provider).
+    POST /images → {data: [{b64_json}]}.
+    """
+
+    name = "openrouter/nano-banana"
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "google/gemini-3.1-flash-image",
+        base_url: str = "https://openrouter.ai/api/v1",
+    ):
+        self._key = api_key
+        self._model = model
+        self._url = f"{base_url.rstrip('/')}/images"
+
+    async def generate(self, prompt: str, width: int, height: int) -> bytes:
+        import base64
+        from math import gcd
+
+        g = gcd(width, height) or 1
+        aspect = f"{width // g}:{height // g}"  # 1080x1080 → 1:1, 1080x1350 → 4:5
+        body = {"model": self._model, "prompt": prompt[:2000], "n": 1, "aspect_ratio": aspect}
+        async with httpx.AsyncClient(timeout=180) as client:
+            resp = await client.post(
+                self._url, headers={"Authorization": f"Bearer {self._key}"}, json=body
+            )
+            # surface OpenRouter's actual error (402 = out of credits, 400 = bad
+            # model/params) instead of a bare status
+            if resp.status_code >= 400:
+                raise RuntimeError(f"openrouter image HTTP {resp.status_code}: {resp.text[:400]}")
+            data = resp.json()
+        for item in data.get("data") or []:
+            b64 = item.get("b64_json") or item.get("b64")
+            if b64:
+                return base64.b64decode(b64)
+        raise RuntimeError(f"openrouter image: no image in response ({str(data)[:200]})")
+
+
+def openrouter_image_engine(settings) -> "OpenRouterImageEngine | None":
+    """The paid Nano Banana engine when OpenRouter is funded — the onboarded
+    Create-Campaigns engine. None when no key (caller falls back to free FLUX)."""
+    if settings.openrouter_api_key:
+        return OpenRouterImageEngine(
+            settings.openrouter_api_key,
+            settings.openrouter_image_model,
+            settings.openrouter_base_url,
+        )
+    return None
+
+
 def to_jpeg(raw: bytes, width: int, height: int) -> bytes:
     """Normalize any image to a JPEG of exactly width x height (cover-crop)."""
     img = Image.open(io.BytesIO(raw)).convert("RGB")

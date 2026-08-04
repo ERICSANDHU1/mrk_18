@@ -38,7 +38,14 @@ function OnboardingInner() {
   }, [check]);
 
   if (state === "checking") return <Spinner />;
-  return <OnboardingForm onComplete={() => router.push(dest)} />;
+  return (
+    <OnboardingForm
+      onComplete={() => {
+        window.dispatchEvent(new CustomEvent("mrk18:onboarding-completed"));
+        router.push(dest);
+      }}
+    />
+  );
 }
 
 export default function OnboardingPage() {

@@ -103,6 +103,36 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
                 logging.getLogger("mrk18.execution").warning(
                     "CMO voice socket unavailable: %s", exc
                 )
+        # Chat socket — GPT-5.6 Terra (OpenRouter) on the founder-facing reply
+        # seats, Groq on the router/plumbing. Independent of the pipeline
+        # (llm_socket stays all-Groq) and the checkpointer. Mounted ONLY when
+        # USE_TERRA + OPENROUTER_API_KEY + GROQ_API_KEY are all set; otherwise the
+        # chat falls back to the Groq voice/pipeline socket exactly as before.
+        app.state.chat_socket = None
+        if settings.terra_on and settings.groq_api_key:
+            try:
+                from ..llm.socket import LLMSocket, chat_registry
+
+                app.state.chat_socket = LLMSocket(
+                    chat_registry(
+                        settings.groq_api_key,
+                        settings.openrouter_api_key,
+                        settings.openrouter_base_url,
+                        settings.terra_model,
+                    )
+                )
+                import logging
+
+                logging.getLogger("mrk18.execution").info(
+                    "chat socket: %s on the reply seats (OpenRouter), Groq on the router",
+                    settings.terra_model,
+                )
+            except Exception as exc:  # noqa: BLE001 — Terra is optional, never blocks boot
+                import logging
+
+                logging.getLogger("mrk18.execution").warning(
+                    "Terra chat socket unavailable — chat stays on Groq: %s", exc
+                )
         pool = None
         if graph is not None:
             app.state.graph = graph
@@ -199,6 +229,7 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
         settings.meta_app_secret,
         settings.brandfetch_api_key,
         settings.gemini_api_key,
+        settings.openrouter_api_key,
     ]
     install_secret_scrubbing(exact_secrets=app.state.secret_values)
 
@@ -335,6 +366,8 @@ def create_app(engine: AsyncEngine | None = None, graph=None) -> FastAPI:
     # Slice 3.4 — Comment Agent: LLM socket + comment sources (tests inject both)
     if not hasattr(app.state, "llm_socket"):
         app.state.llm_socket = None
+    if not hasattr(app.state, "chat_socket"):
+        app.state.chat_socket = None  # Terra chat socket (set in lifespan when enabled)
     app.state.comment_sources = {}
 
     # Slice 3.3 — Company Brain embeddings: BGE-M3 on Cloudflare's free tier,

@@ -112,12 +112,10 @@ function BrainRow({ label, value }: { label: string; value?: string }) {
 /** This Week — the real operational feed: what needs the founder, and recent runs. */
 export default async function ConsoleDashboard() {
   const { ok, founderId, runs, pending, profile } = await load();
-  const hasRuns = !!founderId && runs.length > 0;
 
   return (
     <DashboardFrame>
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-mute-2">This week</p>
         <h1 className="font-display mt-1 text-2xl">What your CMO is working on</h1>
       </div>
 
@@ -130,36 +128,6 @@ export default async function ConsoleDashboard() {
           <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-mute">
             The backend API didn&apos;t respond. Make sure it&apos;s running, then refresh.
           </p>
-        </div>
-      ) : !hasRuns ? (
-        <div className="rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center">
-          <span className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl border border-line bg-surface-2 text-molten">
-            <Sparkles size={22} aria-hidden />
-          </span>
-          <h3 className="font-display text-xl">Your CMO is ready</h3>
-          <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
-            Start your first run — your CMO researches your market, then drafts a week of
-            platform-native posts for your approval.
-          </p>
-          <div className="mx-auto mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-3">
-            {[
-              { icon: Search, title: "Researches", desc: "your market, audience & angle" },
-              { icon: FileText, title: "Drafts", desc: "a week of posts + visuals" },
-              { icon: Check, title: "You approve", desc: "nothing publishes without you" },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="rounded-xl border border-line bg-surface-2 p-3.5">
-                <Icon size={16} className="text-molten" aria-hidden />
-                <p className="mt-2 text-[13px] font-bold">{title}</p>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-mute">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <Link
-            href="/cowork"
-            className="mt-7 inline-flex items-center gap-1.5 rounded-lg bg-molten px-5 py-2.5 text-[13px] font-bold text-white transition-opacity duration-200 hover:opacity-90"
-          >
-            Start your first run <ArrowRight size={14} aria-hidden />
-          </Link>
         </div>
       ) : (
         <>

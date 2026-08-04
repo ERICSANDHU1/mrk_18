@@ -43,6 +43,22 @@ class Settings(BaseSettings):
     brain_api_key: str = ""
     brain_base_model: str = "qwen3-32b"
 
+    # GPT-5.6 Terra via OpenRouter — the PREMIUM model on the founder-FACING seats
+    # (the chat reply + the taster verdict). Groq stays on the router/classifier,
+    # the analysis pipeline, and the live voice call. Ships DORMANT: active only
+    # when use_terra is true AND openrouter_api_key is set, so it can't break or
+    # cost anything until billing is live. Flip use_terra=true once credits land.
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    terra_model: str = "openai/gpt-5.6-terra"
+    use_terra: bool = False
+    # Campaign images via OpenRouter's Unified Image API — Nano Banana 2 (Gemini
+    # 3.1 Flash Image): HD, renders legible headline text, one funded bill. Used by
+    # the onboarded 1-free-campaign flow; the anonymous studio taste stays on FLUX.
+    openrouter_image_model: str = "google/gemini-3.1-flash-image"
+    # 1 free campaign (2 images) per onboarded account, lifetime. 0 disables the cap.
+    free_campaigns_per_account: int = 1
+
     # Web-search grounding (research/web.py) — Tavily free tier. When set, the
     # router fetches real, current context on the brand + each named competitor
     # before the analysis agents run. Unset → runs proceed with no web context.
@@ -170,6 +186,11 @@ class Settings(BaseSettings):
     def is_prod(self) -> bool:
         """True in production — gates the A1 fail-closed startup guard."""
         return self.app_env.strip().lower() in {"prod", "production"}
+
+    @property
+    def terra_on(self) -> bool:
+        """Terra is live only when explicitly enabled AND funded with a key."""
+        return bool(self.use_terra and self.openrouter_api_key)
 
 
 @lru_cache

@@ -24,8 +24,8 @@ import { cleanCmoText } from "@/lib/text";
 import { useCmoVoiceCall } from "@/components/app/useCmoVoiceCall";
 
 type Role = "user" | "cmo";
-type Msg = { id: string; role: Role; text: string };
-type Wire = { role: "user" | "assistant"; content: string };
+type Msg = { id: string; role: Role; text: string; image?: string };
+type Wire = { role: "user" | "assistant"; content: string; image?: string };
 
 // four marketing words → each fires a useful starter prompt
 const PILLS = [
@@ -37,6 +37,8 @@ const PILLS = [
 
 const ONBOARDING_PROMPT =
   "Finish onboarding first — your CMO activates once your workspace is set up.";
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB — the vision-upload size cap
 
 // Claude-style time-aware greeting for the empty chat
 function greetingFor(hour: number, name?: string | null): string {
@@ -66,7 +68,7 @@ type SRCtor = new () => SpeechRecognitionLike;
 
 /** Full-page chat with the CMO. Same brain as the floating panel — posts the
  *  running transcript to /api/cmo/voice (Groq), grounded in the founder's memory.
- *  Voice: the mic listens (Web Speech), auto-sends, and speaks the reply back. */
+ *  Voice: the mic listens (Web Speech), fills the draft, and Enter sends it. */
 export default function ChatClient() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
@@ -78,14 +80,57 @@ export default function ChatClient() {
   const [quota, setQuota] = useState<{ used: number; cap: number; onboarded: boolean } | null>(null);
   const [showQuota, setShowQuota] = useState(false);
   const limitReached = !!quota && quota.used >= quota.cap;
+  const extraChatsLeft = quota
+    ? quota.onboarded
+      ? Math.max(0, 10 - Math.max(0, quota.used - 5))
+      : Math.max(0, 5 - quota.used)
+    : null;
+  // image upload → Terra vision (critique an ad/screenshot). `vision` gates the
+  // button; `attachment` is the pending image (data URL) for the next send.
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const [vision, setVision] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
+  const micActiveRef = useRef(false);
+  const micFinalRef = useRef("");
+  const micRestartTimerRef = useRef<number | null>(null);
   const sessionIdRef = useRef<string | null>(null); // the saved chat's id (null = unsaved)
   const hydratedIdRef = useRef<string | null>(null); // what the URL ?id is in sync with
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useUser();
+
+  const refreshQuota = useCallback(() => {
+    fetch("/api/chat-usage", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((q) => {
+        if (q && typeof q.used === "number") {
+          setQuota({ used: q.used, cap: q.cap, onboarded: !!q.onboarded });
+        }
+        if (q) setVision(!!q.vision);
+      })
+      .catch(() => {});
+  }, []);
+
+  const stopMic = useCallback(() => {
+    micActiveRef.current = false;
+    micFinalRef.current = "";
+    if (micRestartTimerRef.current !== null) {
+      window.clearTimeout(micRestartTimerRef.current);
+      micRestartTimerRef.current = null;
+    }
+    recRef.current?.stop();
+  }, []);
+
+  const ensureMicPermission = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("speech-recognition-unsupported");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+  }, []);
 
   // time-aware greeting, set after mount so SSR and client can't disagree
   const [greeting, setGreeting] = useState("");
@@ -95,14 +140,24 @@ export default function ChatClient() {
 
   // how many free chats this account has left (and which tier they're on)
   useEffect(() => {
-    fetch("/api/chat-usage", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((q) => {
-        if (q && typeof q.used === "number")
-          setQuota({ used: q.used, cap: q.cap, onboarded: !!q.onboarded });
-      })
-      .catch(() => {});
-  }, []);
+    refreshQuota();
+
+    const onOnboardingCompleted = () => refreshQuota();
+    const onFocus = () => refreshQuota();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshQuota();
+    };
+
+    window.addEventListener("mrk18:onboarding-completed", onOnboardingCompleted);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("mrk18:onboarding-completed", onOnboardingCompleted);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [refreshQuota]);
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
@@ -275,25 +330,55 @@ export default function ChatClient() {
     window.speechSynthesis.speak(u);
   }, []);
 
+  // pick/validate an image to attach for the CMO to analyze (vision)
+  const onFile = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Only images can be attached — export your ad or screenshot as an image.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("That image is over 5MB — attach a smaller one.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setAttachment(reader.result);
+        setError(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
   const submit = useCallback(
     async (raw: string, voice = false) => {
       const text = raw.trim();
-      if (!text || sending) return;
+      // images only on typed turns; a turn needs text OR an image
+      const img = voice ? null : attachment;
+      if ((!text && !img) || sending) return;
       // out of free chats → the popup is the only way forward, not another turn
       if (quota && quota.used >= quota.cap) {
         setShowQuota(true);
         return;
       }
       setDraft("");
+      setAttachment(null);
       requestAnimationFrame(resize);
       setError(null);
       setSending(true);
 
-      const next: Msg[] = [...messages, { id: `u-${Date.now()}`, role: "user", text }];
+      const bodyText = text || "Take a look at this and give me your honest read.";
+      const next: Msg[] = [
+        ...messages,
+        { id: `u-${Date.now()}`, role: "user", text: bodyText, image: img ?? undefined },
+      ];
       setMessages(next);
-      const history: Wire[] = next.map((m) => ({
+      // include the image ONLY on the current (last) turn, so old images aren't
+      // re-sent every turn (token + payload bloat)
+      const history: Wire[] = next.map((m, i) => ({
         role: m.role === "cmo" ? "assistant" : "user",
         content: m.text,
+        ...(i === next.length - 1 && m.image ? { image: m.image } : {}),
       }));
 
       try {
@@ -333,14 +418,14 @@ export default function ChatClient() {
         setSending(false);
       }
     },
-    [messages, sending, resize, persist, speak, quota],
+    [messages, sending, resize, persist, speak, quota, attachment],
   );
 
-  // mic = push-to-talk: listen, fill the input, auto-send, then speak the reply
-  const toggleMic = useCallback(() => {
+  // mic = speech-to-text only: listen, fill the input, and wait for Enter
+  const toggleMic = useCallback(async () => {
     if (call !== "idle") return; // a live call owns the mic
     if (listening) {
-      recRef.current?.stop();
+      stopMic();
       return;
     }
     const w = window as unknown as {
@@ -352,34 +437,81 @@ export default function ChatClient() {
       setError("Voice isn't supported in this browser — try Chrome.");
       return;
     }
-    window.speechSynthesis?.cancel();
-    const rec = new Ctor();
-    rec.lang = "en-IN";
-    rec.interimResults = true;
-    rec.continuous = false;
-    let final = "";
-    rec.onresult = (e: SREvent) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) final += t;
-        else interim += t;
-      }
-      setDraft(`${final}${interim}`.trim());
-    };
-    rec.onend = () => {
+    try {
+      await ensureMicPermission();
+    } catch {
       setListening(false);
-      const said = final.trim();
-      if (said) {
-        setDraft("");
-        void submit(said, true);
+      recRef.current = null;
+      micActiveRef.current = false;
+      micFinalRef.current = "";
+      setError("Allow microphone access in your browser to use voice input.");
+      return;
+    }
+
+    window.speechSynthesis?.cancel();
+    micActiveRef.current = true;
+    micFinalRef.current = "";
+
+    function startSession() {
+      if (!micActiveRef.current) return;
+      const rec = new Ctor();
+      rec.lang = "en-IN";
+      rec.interimResults = true;
+      rec.continuous = true;
+      rec.onstart = () => {
+        setError(null);
+        setListening(true);
+        taRef.current?.focus();
+      };
+      rec.onresult = (e: SREvent) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) micFinalRef.current += t;
+          else interim += t;
+        }
+        setDraft(`${micFinalRef.current}${interim}`.trim());
+      };
+      rec.onend = () => {
+        recRef.current = null;
+        setListening(false);
+        if (!micActiveRef.current) {
+          micFinalRef.current = "";
+          return;
+        }
+        if (micRestartTimerRef.current !== null) {
+          window.clearTimeout(micRestartTimerRef.current);
+        }
+        micRestartTimerRef.current = window.setTimeout(() => {
+          micRestartTimerRef.current = null;
+          startSession();
+        }, 180);
+      };
+      rec.onerror = () => {
+        recRef.current = null;
+        setListening(false);
+        micActiveRef.current = false;
+        if (micRestartTimerRef.current !== null) {
+          window.clearTimeout(micRestartTimerRef.current);
+          micRestartTimerRef.current = null;
+        }
+        micFinalRef.current = "";
+        setError("Mic couldn't start. Check browser mic permission and try again.");
+      };
+      recRef.current = rec;
+      try {
+        rec.start();
+      } catch {
+        recRef.current = null;
+        setListening(false);
+        micActiveRef.current = false;
+        micFinalRef.current = "";
+        setError("Mic couldn't start. Check browser mic permission and try again.");
       }
-    };
-    rec.onerror = () => setListening(false);
-    recRef.current = rec;
-    setListening(true);
-    rec.start();
-  }, [call, listening, submit]);
+    }
+
+    startSession();
+  }, [call, ensureMicPermission, listening, stopMic]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -436,6 +568,27 @@ export default function ChatClient() {
 
   const composer = (
     <div className="rounded-2xl border border-line bg-surface shadow-sm transition-colors focus-within:border-molten/40">
+      {attachment && (
+        <div className="flex items-center gap-2.5 px-3 pt-3">
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={attachment}
+              alt="attachment preview"
+              className="h-14 w-14 rounded-lg border border-line object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              aria-label="Remove image"
+              className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-ink text-bg shadow"
+            >
+              <X size={11} aria-hidden />
+            </button>
+          </div>
+          <span className="text-[11.5px] text-mute-2">Image attached — your CMO will read it.</span>
+        </div>
+      )}
       <div className="flex items-end gap-2 px-3 pt-3">
         <textarea
           ref={taRef}
@@ -452,7 +605,7 @@ export default function ChatClient() {
         />
         <button
           onClick={() => submit(draft)}
-          disabled={!draft.trim() || sending}
+          disabled={(!draft.trim() && !attachment) || sending}
           aria-label="Send message"
           className="mb-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-molten text-white transition-opacity hover:opacity-90 disabled:bg-surface-2 disabled:text-mute-2"
         >
@@ -467,12 +620,28 @@ export default function ChatClient() {
         <div className="flex items-center gap-0.5">
           <button
             type="button"
-            title="Attachments — coming soon"
-            disabled
-            className="grid h-7 w-7 place-items-center rounded-lg text-mute-2 disabled:opacity-50"
+            onClick={() => fileRef.current?.click()}
+            disabled={!vision || sending}
+            title={
+              vision
+                ? "Attach an image — your CMO reads ads & screenshots"
+                : "Image analysis unlocks with the upgraded CMO model"
+            }
+            className="grid h-7 w-7 place-items-center rounded-lg text-mute-2 transition-colors hover:text-ink disabled:opacity-40"
           >
             <Plus size={15} aria-hidden />
           </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onFile(f);
+              e.target.value = "";
+            }}
+          />
           <button
             type="button"
             onClick={toggleMic}
@@ -486,15 +655,21 @@ export default function ChatClient() {
           </button>
         </div>
         <div className="flex items-center gap-2 pr-1 text-[11px] text-mute-2">
-          {quota && quota.cap - quota.used <= 5 && (
+          {quota && extraChatsLeft !== null && (
             <span
               className={`font-data rounded-full border px-2 py-0.5 ${
-                quota.cap - quota.used <= 1
+                extraChatsLeft <= 1
                   ? "border-molten/40 bg-molten/10 text-molten"
                   : "border-line text-mute-2"
               }`}
             >
-              {Math.max(0, quota.cap - quota.used)} free {quota.cap - quota.used === 1 ? "chat" : "chats"} left
+              {extraChatsLeft}/{quota.onboarded ? 10 : 5} {quota.onboarded ? "extra chats left" : "free chats left"}
+            </span>
+          )}
+          {listening && (
+            <span className="font-data inline-flex items-center gap-1.5 rounded-full border border-molten/30 bg-molten/10 px-2 py-0.5 text-molten">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-molten" aria-hidden />
+              Mic live
             </span>
           )}
           <span className="hidden sm:inline">
@@ -589,6 +764,16 @@ export default function ChatClient() {
                         : "rounded-tr-sm bg-surface-2 text-[14px] text-ink"
                     }`}
                   >
+                    {m.image && (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={m.image}
+                          alt="attached"
+                          className="mb-2 max-h-60 w-auto rounded-lg border border-line object-contain"
+                        />
+                      </>
+                    )}
                     {m.role === "cmo" ? cleanCmoText(m.text) : m.text}
                   </div>
                 </div>

@@ -34,6 +34,42 @@ class VoiceTurn(BaseModel):
 
     role: str = Field(pattern="^(user|assistant)$")
     content: str = Field(min_length=1, max_length=4000)
+    # optional data-URL image for vision (a founder's ad/screenshot). The frontend
+    # attaches ONE, on the current turn only. Generous cap for base64 payloads;
+    # only a vision seat (Terra) can actually read it.
+    image: str | None = Field(default=None, max_length=12_000_000)
+
+
+def _wire(turns: list["VoiceTurn"]) -> list[dict]:
+    """[{role, content}] for the socket. A turn carrying an image becomes OpenAI
+    multimodal content (text + image_url) so vision seats can read it; text-only
+    turns stay plain strings."""
+    out: list[dict] = []
+    for t in turns:
+        if t.image:
+            out.append(
+                {
+                    "role": t.role,
+                    "content": [
+                        {"type": "text", "text": t.content},
+                        {"type": "image_url", "image_url": {"url": t.image}},
+                    ],
+                }
+            )
+        else:
+            out.append({"role": t.role, "content": t.content})
+    return out
+
+
+def _reject_image_without_vision(request: Request, turns: list["VoiceTurn"]) -> None:
+    """A picture only works on a vision-capable seat (the Terra chat socket). If one
+    is attached while that's off, fail with a clear, friendly message instead of a
+    raw model error."""
+    if any(t.image for t in turns) and getattr(request.app.state, "chat_socket", None) is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Image analysis needs the upgraded CMO model — it's coming shortly.",
+        )
 
 
 class VoiceRequest(BaseModel):
@@ -62,8 +98,12 @@ async def cmo_voice_turn(
     browser speaks aloud."""
     # Prefer the dedicated fast voice socket (Groq); fall back to the main socket
     # only if voice wasn't configured (degrades, with an honest reason).
-    socket = getattr(request.app.state, "voice_socket", None) or getattr(
-        request.app.state, "llm_socket", None
+    # a TEXT turn gets the Terra reply seat (chat_socket) when enabled; a live
+    # VOICE turn always stays on the fast Groq voice socket (Terra is too slow).
+    socket = (
+        (getattr(request.app.state, "chat_socket", None) if body.mode == "text" else None)
+        or getattr(request.app.state, "voice_socket", None)
+        or getattr(request.app.state, "llm_socket", None)
     )
     if socket is None:
         raise HTTPException(
@@ -73,8 +113,9 @@ async def cmo_voice_turn(
 
     from ..agents.cmo import cmo_reply
 
+    _reject_image_without_vision(request, body.messages)
     profile = await _profile(session, founder.id)
-    messages = [{"role": t.role, "content": t.content} for t in body.messages]
+    messages = _wire(body.messages)
     try:
         reply, _usage = await cmo_reply(
             socket, profile=profile, messages=messages, mode=body.mode
@@ -118,7 +159,7 @@ async def run_slide_ask(
     from ..agents.cmo import ask_about_run
 
     profile = await _profile(session, founder.id)
-    messages = [{"role": t.role, "content": t.content} for t in body.messages]
+    messages = _wire(body.messages)
     try:
         reply, _usage = await ask_about_run(
             socket, adapter=body.adapter, profile=profile, context=body.context, messages=messages
@@ -150,8 +191,12 @@ async def comrk_chat(
 
     Brain-ready: the router picks an AgentRole; the socket serves the matching
     trained adapter on the Brain, or the pilot Groq seat today — one env flip."""
-    socket = getattr(request.app.state, "llm_socket", None) or getattr(
-        request.app.state, "voice_socket", None
+    # The chat REPLY rides Terra when enabled (chat_socket); the router inside
+    # (pick_adapter → STRUCTURE seat) stays on Groq within that same socket.
+    socket = (
+        getattr(request.app.state, "chat_socket", None)
+        or getattr(request.app.state, "llm_socket", None)
+        or getattr(request.app.state, "voice_socket", None)
     )
     if socket is None:
         raise HTTPException(
@@ -162,9 +207,27 @@ async def comrk_chat(
 
     from ..agents.cmo import comrk_reply, pick_adapter
 
+    _reject_image_without_vision(request, body.messages)
+
+    # daily free-chat cap (per account) — onboarded founders get the bigger allowance
+    from . import chat_limit
+
+    limit_key = chat_limit.account_key(founder.email)
+    snap = chat_limit.state(limit_key, chat_limit.ONBOARDED_PER_DAY)
+    if snap["limit_reached"]:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "message": "you've used today's free chats",
+                "limit_reached": True,
+                "onboarded": True,
+                "resets_in": snap["resets_in"],
+            },
+        )
+
     profile = await _profile(session, founder.id)
-    messages = [{"role": t.role, "content": t.content} for t in body.messages]
-    query = messages[-1]["content"]
+    messages = _wire(body.messages)
+    query = body.messages[-1].content  # the TEXT (for routing + RAG); wire content may be multimodal
 
     # RAG — the founder's own Company-Brain knowledge (skipped if no embed engine)
     chunks: list[dict] = []
@@ -188,7 +251,52 @@ async def comrk_chat(
         raise HTTPException(
             status_code=502, detail=f"the CMO couldn't respond right now: {exc}"
         ) from exc
-    return {"reply": reply, "adapter": role.value}
+    chat_limit.consume(limit_key)  # charge one only once the CMO actually replied
+    return {
+        "reply": reply,
+        "adapter": role.value,
+        "usage": {**chat_limit.state(limit_key, chat_limit.ONBOARDED_PER_DAY), "onboarded": True},
+    }
+
+
+@router.get("/cmo/capabilities", response_model=dict)
+async def cmo_capabilities(request: Request) -> dict:
+    """What the CMO chat can do right now. The frontend reads this to enable the
+    image-upload button — vision is live only when the Terra chat socket is on."""
+    return {"vision": getattr(request.app.state, "chat_socket", None) is not None}
+
+
+@router.get("/cmo/chat-quota", response_model=dict)
+async def chat_quota(
+    claims: dict = Depends(get_verified_claims),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """The caller's daily free-chat allowance (per account). The chat UI reads this
+    on load for the "N left today" counter and to know if they're already capped.
+    Onboarded founders get the bigger daily cap."""
+    from . import chat_limit
+    from ..db import repositories as repo
+
+    sub = (claims.get("sub") or "").strip() or None
+    email = (claims.get("email") or "").strip() or None
+
+    founder = None
+    if sub:
+        founder = await repo.get_founder_by_auth_user(session, sub)
+    if founder is None and email:
+        founder = await repo.get_founder_by_email(session, email)
+
+    prof = await session.get(FounderProfileRow, founder.id) if founder is not None else None
+    onboarded = False
+    if prof is not None:
+        onboarded = bool(getattr(prof, "status", "") == "ready_for_analysis")
+
+    email = (founder.email or email or "").strip() or None
+    sub = (founder.auth_user_id or sub or "").strip() or None
+
+    cap = chat_limit.ONBOARDED_PER_DAY if onboarded else chat_limit.FREE_PER_DAY
+    key = chat_limit.account_key(email, sub)
+    return {**chat_limit.state(key, cap), "onboarded": onboarded}
 
 
 @router.post("/founders/{founder_id}/brain/build", response_model=dict)
@@ -338,8 +446,12 @@ async def cmo_guest_voice(
 ) -> dict:
     """One spoken turn for a not-yet-onboarded user: empty profile → the guide
     persona (see agents.cmo.guide_system_prompt)."""
-    socket = getattr(request.app.state, "voice_socket", None) or getattr(
-        request.app.state, "llm_socket", None
+    # a TEXT turn gets the Terra reply seat (chat_socket) when enabled; a live
+    # VOICE turn always stays on the fast Groq voice socket (Terra is too slow).
+    socket = (
+        (getattr(request.app.state, "chat_socket", None) if body.mode == "text" else None)
+        or getattr(request.app.state, "voice_socket", None)
+        or getattr(request.app.state, "llm_socket", None)
     )
     if socket is None:
         raise HTTPException(
@@ -348,14 +460,42 @@ async def cmo_guest_voice(
         )
     from ..agents.cmo import cmo_reply
 
-    messages = [{"role": t.role, "content": t.content} for t in body.messages]
+    _reject_image_without_vision(request, body.messages)
+
+    # daily free-chat cap — 5 typed chats / 24h / account (the "gmail"). A live
+    # voice turn (mode voice) is never charged.
+    from . import chat_limit
+
+    metered = body.mode == "text"
+    limit_key = chat_limit.account_key(claims.get("email"), claims.get("sub"))
+    if metered:
+        snap = chat_limit.state(limit_key, chat_limit.FREE_PER_DAY)
+        if snap["limit_reached"]:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "message": "you've used today's free chats",
+                    "limit_reached": True,
+                    "onboarded": False,
+                    "resets_in": snap["resets_in"],
+                },
+            )
+
+    messages = _wire(body.messages)
     try:
         reply, _usage = await cmo_reply(socket, profile={}, messages=messages, mode=body.mode)
     except Exception as exc:  # noqa: BLE001 — a live call must fail soft
         raise HTTPException(
             status_code=502, detail=f"the assistant couldn't respond right now: {exc}"
         ) from exc
-    return {"reply": reply}
+    if metered:
+        chat_limit.consume(limit_key)
+    usage = (
+        {**chat_limit.state(limit_key, chat_limit.FREE_PER_DAY), "onboarded": False}
+        if metered
+        else None
+    )
+    return {"reply": reply, "usage": usage}
 
 
 @router.post("/cmo/guest/stt", response_model=dict)

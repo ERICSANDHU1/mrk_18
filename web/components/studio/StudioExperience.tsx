@@ -95,6 +95,39 @@ function Score({ value }: { value?: number | null }) {
   );
 }
 
+/** Brand mark — the site's real logo when it renders cleanly, else a branded
+ *  initial. The studio card is DARK, so we tile the logo on a dark surface (not a
+ *  white square): Brandfetch's default `theme/light` is the LIGHT/white logo made
+ *  for dark backgrounds, so a brand's white wordmark shows instead of vanishing —
+ *  and a broken/missing logo falls back to the branded letter. */
+function BrandLogo({ src, name }: { src?: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const letter = (name.trim()[0] || "?").toUpperCase();
+  const url = src;
+  if (!url || failed) {
+    return (
+      <span
+        className="grid h-13 w-13 shrink-0 place-items-center rounded-xl text-[22px] font-extrabold text-[color:var(--cta-ink,#fff)]"
+        style={{ background: "var(--gradient-brand)" }}
+        aria-hidden
+      >
+        {letter}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={`${name} logo`}
+      width={52}
+      height={52}
+      className="h-13 w-13 shrink-0 rounded-xl border border-stroke bg-white/[0.06] object-contain p-1.5"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export default function StudioExperience({ domain }: { domain: string }) {
   const reduce = useReducedMotion();
   const router = useRouter();
@@ -159,15 +192,25 @@ export default function StudioExperience({ domain }: { domain: string }) {
   }, [domain, getToken]);
 
   const step = STEPS.filter((s) => elapsed >= s.at).length - 1;
-  const scores = taster
-    ? CARDS.map((c) => taster.results[c.key]?.score).filter((s): s is number => typeof s === "number")
+  const graded = taster
+    ? CARDS.map((c) => ({
+        label: c.title === "GTM Strategy" ? "GTM" : c.title,
+        score: taster.results[c.key]?.score,
+      })).filter((g): g is { label: string; score: number } => typeof g.score === "number")
     : [];
-  const overall = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+  const overall = graded.length
+    ? Math.round(graded.reduce((a, g) => a + g.score, 0) / graded.length)
+    : null;
+  const weakest = graded.length ? graded.reduce((lo, g) => (g.score < lo.score ? g : lo)) : null;
   const brand = taster?.company || dna?.domain?.replace(/\.(com|io|ai|co|in|app|dev|org|net).*$/i, "") || domain;
 
   return (
     <div className="theme-sand taster-scope min-h-screen">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-30 bg-[image:var(--taster-bg)]" />
+      {/* hairline grid — same as the taster/hero, fading out from the top */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-20">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--taster-grid)_1px,transparent_1px),linear-gradient(to_bottom,var(--taster-grid)_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      </div>
       <Navbar subpage appearance unlock />
 
       <main className="mx-auto w-full max-w-[1400px] px-5 pb-28 pt-24">
@@ -218,20 +261,47 @@ export default function StudioExperience({ domain }: { domain: string }) {
             <div className="min-w-0 space-y-5">
               {/* brand header */}
               <div className="glass flex flex-wrap items-center gap-4 rounded-2xl p-5">
-                {dna?.logo_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={dna.logo_url} alt="" width={52} height={52} className="h-13 w-13 rounded-xl border border-stroke bg-white object-contain p-1.5" onError={(e) => (e.currentTarget.style.display = "none")} />
-                )}
+                <BrandLogo src={dna?.logo_url} name={brand} />
                 <div className="min-w-0 flex-1">
                   <h1 className="font-serif text-[24px] font-bold capitalize leading-tight text-ink">{brand}</h1>
                   <a href={`https://${domain}`} target="_blank" rel="noreferrer" className="text-[12.5px] text-muted hover:text-ink">{domain} ↗</a>
                 </div>
                 {overall !== null && (
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3">
                     <Dial value={overall} />
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">The CMO&apos;s read</p>
-                      <p className="text-[11px] text-muted">a judgment, not a metric</p>
+                    <div className="min-w-0 max-w-[260px]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+                        The CMO&apos;s grade
+                      </p>
+                      <p className="text-[13px] font-bold leading-tight text-ink">
+                        {overall}
+                        <span className="text-mute-2">/100</span> · overall grade
+                      </p>
+                      <p className="mt-0.5 text-[10.5px] leading-snug text-muted">
+                        Average of{" "}
+                        {graded.map((g, i) => (
+                          <span key={g.label}>
+                            {g.label}{" "}
+                            <span
+                              className={
+                                g.label === weakest?.label ? "font-bold text-bad" : "font-semibold text-ink"
+                              }
+                            >
+                              {g.score}
+                            </span>
+                            {i < graded.length - 1 ? " · " : ""}
+                          </span>
+                        ))}
+                        {weakest && (
+                          <>
+                            {" "}
+                            — weakest is {weakest.label}, fix it first.
+                          </>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-[10px] leading-snug text-mute-2">
+                        A judgment, not a metric · 50s = mediocre, 80+ is rare
+                      </p>
                     </div>
                   </div>
                 )}

@@ -1,27 +1,18 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { backendFetch } from "@/lib/server/backend";
-import { bumpChatCount, readChatQuota } from "@/lib/server/chat-quota";
+import { backendFetch, getFounderId } from "@/lib/server/backend";
 
-/** One turn of the live CMO conversation. Onboarded founder → their personal CMO
- *  (grounded in company memory). No company registered yet → the mrk18 GUIDE, an
- *  assistant that knows the product and every page of the site.
+/** One turn of the CMO conversation. Onboarded founder → their personal CMO
+ *  (grounded, routed, RAG). No company yet → the mrk18 GUIDE.
  *
- *  Free-chat funnel: each turn is metered per account (chat-quota). At the limit
- *  we 402 instead of calling the CMO — the UI turns that into the onboarding /
- *  upgrade popup. A turn is only charged once the CMO actually replies. */
+ *  The daily free-chat cap (5/day pre-onboarding, per account) is enforced in the
+ *  BACKEND — this route just forwards and surfaces the backend's 402 so the UI can
+ *  pop the onboarding / upgrade modal. The reply carries fresh `usage`. */
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
-  const quota = await readChatQuota();
-  if (quota?.limitReached) {
-    return NextResponse.json(
-      { error: "free chat limit reached", limit_reached: true, onboarded: quota.onboarded },
-      { status: 402 },
-    );
-  }
-  const founderId = quota?.founderId ?? null;
+  const founderId = await getFounderId();
 
   const body = await req.json().catch(() => ({}));
   const messages = Array.isArray(body?.messages) ? body.messages : [];
@@ -30,10 +21,8 @@ export async function POST(req: Request) {
   }
   const mode = body?.mode === "text" ? "text" : "voice";
 
-  // Typed turns for an onboarded founder → the routed, RAG-grounded Comrk chat
-  // (a classifier picks the adapter; grounded in profile + Company-Brain). Voice
-  // turns, or a visitor with no company yet → the fast personality path (short
-  // spoken reply, or the product guide for guests).
+  // Typed turn + onboarded founder → the routed, RAG-grounded Comrk chat. Voice
+  // turns, or a visitor with no company yet → the personality / guide path.
   const useComrk = mode === "text" && !!founderId;
   const path = useComrk
     ? `/founders/${founderId}/comrk`
@@ -41,29 +30,34 @@ export async function POST(req: Request) {
       ? `/founders/${founderId}/cmo/voice`
       : "/cmo/guest/voice";
   const payload = useComrk
-    ? { messages: messages.slice(-40) } // comrk takes just the history
+    ? { messages: messages.slice(-40) }
     : { messages: messages.slice(-40), mode };
   const res = await backendFetch(path, {
     method: "POST",
     body: JSON.stringify(payload),
   });
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
+    const detail = (data as { detail?: unknown })?.detail;
+    // the backend's daily-cap 402 carries a structured detail — surface
+    // limit_reached so the UI opens the onboarding / upgrade popup.
+    if (res.status === 402 && detail && typeof detail === "object") {
+      const d = detail as Record<string, unknown>;
+      return NextResponse.json(
+        {
+          error: d.message ?? "you've used today's free chats",
+          limit_reached: true,
+          onboarded: !!d.onboarded,
+          resets_in: d.resets_in,
+        },
+        { status: 402 },
+      );
+    }
     return NextResponse.json(
-      { error: typeof data.detail === "string" ? data.detail : "the CMO couldn't respond" },
+      { error: typeof detail === "string" ? detail : "the CMO couldn't respond" },
       { status: res.status },
     );
   }
-
-  // The CMO replied → charge one chat and hand the UI the fresh count so it can
-  // update the counter and pop the modal the moment the allowance runs out.
-  const used = quota ? quota.used + 1 : 0;
-  const cap = quota?.cap ?? null;
-  if (quota) await bumpChatCount(userId, quota.used);
-  return NextResponse.json({
-    ...data, // { reply, adapter? }
-    usage: quota
-      ? { used, cap, remaining: Math.max(0, (cap ?? 0) - used), onboarded: quota.onboarded }
-      : undefined,
-  });
+  return NextResponse.json(data); // { reply, adapter?, usage? } — usage from the backend
 }
