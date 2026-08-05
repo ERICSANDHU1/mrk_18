@@ -20,6 +20,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "no messages" }, { status: 400 });
   }
   const mode = body?.mode === "text" ? "text" : "voice";
+  // mrk1 (fast, 1 unit) / mrk2 (premium, 2 units). Only meaningful on the onboarded
+  // Comrk path; the free/guest tier is locked to mrk1 in the backend regardless.
+  const model = body?.model === "mrk2" ? "mrk2" : "mrk1";
 
   // Typed turn + onboarded founder → the routed, RAG-grounded Comrk chat. Voice
   // turns, or a visitor with no company yet → the personality / guide path.
@@ -30,7 +33,7 @@ export async function POST(req: Request) {
       ? `/founders/${founderId}/cmo/voice`
       : "/cmo/guest/voice";
   const payload = useComrk
-    ? { messages: messages.slice(-40) }
+    ? { messages: messages.slice(-40), model }
     : { messages: messages.slice(-40), mode };
   const res = await backendFetch(path, {
     method: "POST",

@@ -16,6 +16,7 @@ export default function CampaignStudio() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [brief, setBrief] = useState(""); // what the founder wants the images to show
 
   useEffect(() => {
     fetch("/api/campaign", { cache: "no-store" })
@@ -33,7 +34,11 @@ export default function CampaignStudio() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/campaign", { method: "POST" });
+      const res = await fetch("/api/campaign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: brief.trim() }),
+      });
       const d = await res.json().catch(() => ({}));
       if (res.ok && Array.isArray(d.creatives) && d.creatives.length > 0) {
         setCreatives(d.creatives);
@@ -46,7 +51,7 @@ export default function CampaignStudio() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [brief]);
 
   return (
     <div className="dash-scroll h-full overflow-y-auto">
@@ -131,40 +136,61 @@ export default function CampaignStudio() {
             </div>
           </>
         ) : (
-          <div className="rounded-2xl border border-line bg-surface p-8 text-center">
-            <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-molten/30 bg-molten/10 text-molten">
-              {busy ? <Loader2 size={26} className="animate-spin" aria-hidden /> : <ImageIcon size={26} aria-hidden />}
-            </span>
-            <h3 className="font-display text-xl">
-              {busy ? "Designing your campaign…" : "Generate your free campaign"}
-            </h3>
-            <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-mute">
-              {busy
-                ? "Writing two posts and rendering both images in your brand style. This takes ~20–40 seconds — hang tight."
-                : "Your CMO writes two distinct posts and renders both images — Instagram + LinkedIn — from your Business DNA. One free campaign per account."}
+          <div className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
+            <div className="flex items-start gap-2.5 rounded-xl border border-molten/25 bg-molten/[0.06] px-4 py-3">
+              <ImageIcon size={17} className="mt-0.5 shrink-0 text-molten" aria-hidden />
+              <p className="text-[13px] leading-relaxed text-ink/90">
+                <span className="font-semibold">1 free campaign for your business</span> — 2 branded
+                images (Instagram + LinkedIn), written and designed by your CMO from your Business DNA.
+              </p>
+            </div>
+
+            <label htmlFor="brief" className="mt-6 block text-[13.5px] font-semibold text-ink">
+              What should the images show? <span className="font-normal text-mute-2">— optional</span>
+            </label>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-mute">
+              Tell your CMO the offer, message, or look you want. Leave it blank and your CMO decides
+              from your brand.
             </p>
+            <textarea
+              id="brief"
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              disabled={busy}
+              maxLength={500}
+              rows={3}
+              placeholder="e.g. Diwali launch offer — 20% off our GST tool, festive but clean and premium…"
+              className="dash-scroll mt-2 w-full resize-none rounded-xl border border-line bg-surface-2 px-3.5 py-3 text-[13.5px] leading-relaxed text-ink placeholder:text-mute-2 focus:border-molten/40 focus:outline-none disabled:opacity-60"
+            />
+
             {error && (
-              <p className="mx-auto mt-4 max-w-md rounded-xl border border-ember/30 bg-ember/[0.06] px-3.5 py-2.5 text-[13px] text-ember">
+              <p className="mt-3 rounded-xl border border-ember/30 bg-ember/[0.06] px-3.5 py-2.5 text-[13px] text-ember">
                 {error}
               </p>
             )}
-            <button
-              type="button"
-              onClick={generate}
-              disabled={busy}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-bold text-[color:var(--cta-ink,#fff)] transition-transform hover:scale-[1.02] disabled:opacity-60"
-              style={{ background: "var(--gradient-brand)" }}
-            >
-              {busy ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" aria-hidden /> Generating…
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} aria-hidden /> Generate my free campaign
-                </>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={generate}
+                disabled={busy}
+                className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-bold text-[color:var(--cta-ink,#fff)] transition-transform hover:scale-[1.02] disabled:opacity-60"
+                style={{ background: "var(--gradient-brand)" }}
+              >
+                {busy ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" aria-hidden /> Designing your campaign…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} aria-hidden /> Generate my free campaign
+                  </>
+                )}
+              </button>
+              {busy && (
+                <span className="text-[12px] text-mute-2">~20–40 seconds · rendering 2 images</span>
               )}
-            </button>
+            </div>
           </div>
         )}
       </div>

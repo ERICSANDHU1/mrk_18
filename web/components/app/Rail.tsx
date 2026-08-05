@@ -16,6 +16,7 @@ import {
   Files,
   FileSpreadsheet,
   Filter,
+  Image as ImageIcon,
   LayoutDashboard,
   Lock,
   type LucideIcon,
@@ -114,6 +115,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
   const pathname = usePathname();
   const router = useRouter();
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [onboarded, setOnboarded] = useState(false); // gates the Campaign entry
 
   // Real workspace identity = the founder's own company (from their profile).
   // No multi-tenant switching exists yet, so this is a label, not a dropdown.
@@ -123,6 +125,7 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!active || !d) return;
+        setOnboarded(!!d?.complete);
         const name: string =
           d?.profile?.company_name ||
           (typeof d?.email === "string" ? d.email.split("@")[0] : "") ||
@@ -280,6 +283,26 @@ export default function Rail({ collapsed, onToggle }: { collapsed: boolean; onTo
                 );
               })}
             </div>
+
+            {onboarded && (
+              <Link
+                href="/campaign"
+                aria-current={pathname.startsWith("/campaign") ? "page" : undefined}
+                className={`group relative mt-3 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors duration-200 ${
+                  pathname.startsWith("/campaign")
+                    ? "border-molten/40 bg-molten/[0.08]"
+                    : "border-line bg-surface hover:border-molten/40"
+                }`}
+              >
+                <ImageIcon size={16} className="shrink-0 text-molten" aria-hidden />
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block text-[12.5px] font-bold text-ink">Create a campaign</span>
+                  <span className="block truncate text-[10.5px] text-mute-2">
+                    1 free · for your business
+                  </span>
+                </span>
+              </Link>
+            )}
 
             {activeTab === "/chief" ? (
               /* Chief's rooms — overview on the tab itself, one page per room */
