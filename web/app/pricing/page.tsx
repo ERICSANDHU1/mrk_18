@@ -25,9 +25,9 @@ type Tier = {
 const TIERS: Tier[] = [
   {
     name: "Pro",
-    price: "₹1,999",
+    price: "$15",
     period: "/mo",
-    was: "₹3,499",
+    was: "$30",
     tagline: "Your AI CMO — it advises, examines your numbers, and executes with your approval.",
     features: [
       "Comrk execution pipeline",
@@ -39,8 +39,9 @@ const TIERS: Tier[] = [
   },
   {
     name: "Max",
-    price: "₹4,499",
+    price: "$25",
     period: "/mo",
+    was: "$50",
     badge: "Founding 500 only",
     tagline: "Everything in Pro — plus the mrk device: your CMO's ears and brain, in your pocket.",
     features: [
@@ -67,12 +68,14 @@ const TIERS: Tier[] = [
 
 export default function PricingPage() {
   return (
-    <div className="theme-sand relative flex min-h-dvh flex-col">
+    <div className="theme-sand taster-scope relative flex min-h-dvh flex-col">
+      {/* theme-aware backdrop (light sand ↔ dark) — same var the taster uses, so
+          the Appearance toggle flips this page between light/dark/system too */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
+        className="pointer-events-none fixed inset-0 -z-30 bg-[image:var(--taster-bg)]"
       />
-      <Navbar subpage />
+      <Navbar subpage appearance />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-20 pt-28">
         <div className="text-center">
