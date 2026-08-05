@@ -379,10 +379,20 @@ async def get_campaign(
     }
 
 
+class CampaignBrief(BaseModel):
+    """The founder's optional brief for their free campaign — what the images
+    should show/say. Blank → the CMO designs it from the Business DNA."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(default="", max_length=500)
+
+
 @router.post("/founders/{founder_id}/campaign", response_model=dict)
 async def create_founder_campaign(
     founder_id: UUID,
     request: Request,
+    body: CampaignBrief | None = None,
     founder=Depends(require_founder),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
@@ -422,8 +432,9 @@ async def create_founder_campaign(
         if settings.supabase_url and settings.supabase_service_key
         else None
     )
+    brief = (body.prompt.strip() if body and body.prompt else "") or None
     try:
-        creatives = await generate_campaign_creatives(socket, engine, media, dna, domain)
+        creatives = await generate_campaign_creatives(socket, engine, media, dna, domain, prompt=brief)
     except Exception as exc:  # noqa: BLE001 — one honest 503, never a 500
         log.warning("campaign: generation failed for %s: %s", domain, exc)
         raise HTTPException(status_code=503, detail="couldn't build your campaign — try again") from exc

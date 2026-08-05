@@ -9,6 +9,8 @@ import {
   ArrowUp,
   AudioLines,
   Brain,
+  Check,
+  ChevronDown,
   Loader2,
   Lock,
   Mic,
@@ -104,6 +106,11 @@ export default function ChatClient() {
   const [quota, setQuota] = useState<{ used: number; cap: number; onboarded: boolean } | null>(null);
   const [showQuota, setShowQuota] = useState(false);
   const limitReached = !!quota && quota.used >= quota.cap;
+  // model selector — mrk 1 (fast, 1 chat each) / mrk 2.0 (premium, 2× usage).
+  // mrk 2.0 is locked until the founder has onboarded a company.
+  const onboarded = !!quota?.onboarded;
+  const [model, setModel] = useState<"mrk1" | "mrk2">("mrk1");
+  const [modelMenu, setModelMenu] = useState(false);
   // chats left today = cap − used (the backend already gives the right tier:
   // 5/day pre-onboarding, a fresh 10/day after). Deducts in real time from usage.
   const chatsLeft = quota ? Math.max(0, quota.cap - quota.used) : null;
@@ -145,6 +152,11 @@ export default function ChatClient() {
   useEffect(() => {
     setGreeting(greetingFor(new Date().getHours(), user?.firstName));
   }, [user?.firstName]);
+
+  // never leave a not-yet-onboarded account sitting on the locked premium model
+  useEffect(() => {
+    if (!onboarded && model === "mrk2") setModel("mrk1");
+  }, [onboarded, model]);
 
   // how many free chats this account has left (and which tier they're on)
   useEffect(() => {
@@ -393,8 +405,13 @@ export default function ChatClient() {
         const res = await fetch("/api/cmo/voice", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // voice turns get a short, spoken reply; typed turns get the fuller text
-          body: JSON.stringify({ messages: history.slice(-40), mode: voice ? "voice" : "text" }),
+          // voice turns get a short, spoken reply; typed turns get the fuller text.
+          // `model` (mrk1/mrk2) only bites on the onboarded typed path.
+          body: JSON.stringify({
+            messages: history.slice(-40),
+            mode: voice ? "voice" : "text",
+            model,
+          }),
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && typeof data.reply === "string") {
@@ -426,7 +443,7 @@ export default function ChatClient() {
         setSending(false);
       }
     },
-    [messages, sending, resize, persist, speak, quota, attachment],
+    [messages, sending, resize, persist, speak, quota, attachment, model],
   );
 
   // mic = LIVE speech-to-text: the Web Speech API writes into the draft word by
@@ -650,6 +667,94 @@ export default function ChatClient() {
           >
             <Mic size={15} aria-hidden />
           </button>
+
+          {/* model selector — mrk 1 (fast, 1 chat) / mrk 2.0 (2× usage, unlocks post-onboarding) */}
+          <div className="relative ml-1">
+            <button
+              type="button"
+              onClick={() => setModelMenu((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={modelMenu}
+              title="Choose your CMO model"
+              className="flex h-7 items-center gap-1 rounded-lg border border-line px-2 text-[11px] font-semibold transition-colors hover:border-molten/40"
+            >
+              {model === "mrk2" ? (
+                <Brain size={12} className="text-molten" aria-hidden />
+              ) : (
+                <Sparkles size={12} className="text-mute-2" aria-hidden />
+              )}
+              <span className="text-ink">{model === "mrk2" ? "mrk 2.0" : "mrk 1"}</span>
+              <ChevronDown size={11} className="text-mute-2" aria-hidden />
+            </button>
+            {modelMenu && (
+              <>
+                <button
+                  type="button"
+                  aria-hidden
+                  tabIndex={-1}
+                  onClick={() => setModelMenu(false)}
+                  className="fixed inset-0 z-10 cursor-default"
+                />
+                <div
+                  role="menu"
+                  className="absolute bottom-9 left-0 z-20 w-64 overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setModel("mrk1");
+                      setModelMenu(false);
+                    }}
+                    className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
+                  >
+                    <Sparkles size={15} className="mt-0.5 shrink-0 text-ink" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5 text-[12.5px] font-bold text-ink">
+                        mrk 1
+                        {model === "mrk1" && <Check size={12} className="text-molten" aria-hidden />}
+                      </span>
+                      <span className="block text-[11px] leading-snug text-mute-2">
+                        Fast everyday CMO · 1 chat each
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={!onboarded}
+                    onClick={() => {
+                      if (!onboarded) return;
+                      setModel("mrk2");
+                      setModelMenu(false);
+                    }}
+                    className="flex w-full items-start gap-2.5 border-t border-line px-3 py-2.5 text-left transition-colors enabled:hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <Brain
+                      size={15}
+                      className={`mt-0.5 shrink-0 ${onboarded ? "text-molten" : "text-mute-2"}`}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-bold text-ink">
+                        mrk 2.0
+                        <span className="rounded-full border border-molten/30 bg-molten/10 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-molten">
+                          2× usage
+                        </span>
+                        {!onboarded && <Lock size={11} className="text-mute-2" aria-hidden />}
+                        {model === "mrk2" && <Check size={12} className="text-molten" aria-hidden />}
+                      </span>
+                      <span className="block text-[11px] leading-snug text-mute-2">
+                        {onboarded
+                          ? "Deeper reasoning & sharper flowcharts · 2 chats each"
+                          : "Unlocks after you set up your company"}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 pr-1 text-[11px] text-mute-2">
           {quota && chatsLeft !== null && (
