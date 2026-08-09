@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Rail from "./Rail";
 import CmoPanel from "./CmoPanel";
@@ -56,7 +57,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [slotNode, setSlotNode] = useState<HTMLDivElement | null>(null);
   const [hasContent, setHasContent] = useState(false);
+  const [isMobile, setIsMobile] = useState(false); // <768px → rails become overlay drawers
+  const isMobileRef = useRef(false); // same value, readable inside stable callbacks
   const dragRef = useRef<{ side: "left" | "right"; startX: number; moved: boolean } | null>(null);
+  const pathname = usePathname();
 
   // hydrate
   useEffect(() => {
@@ -77,8 +81,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // a page docking content opens the right panel; removing it closes it
   const register = useCallback((on: boolean) => {
     setHasContent(on);
-    if (on) setRightCollapsed(false);
+    // auto-open the panel when a page docks content — but NOT on phones, where it
+    // would cover the main page (the form). There it stays a closable drawer.
+    if (on && !isMobileRef.current) setRightCollapsed(false);
   }, []);
+
+  // phones: track the breakpoint so the rail can become an overlay drawer instead
+  // of an inline column that squeezes the chat
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const on = () => {
+      setIsMobile(mq.matches);
+      isMobileRef.current = mq.matches;
+    };
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
+  // on phones, keep the drawer closed on entering mobile and auto-close it whenever
+  // the route changes (tapping a nav item), so it never sits open over the content
+  useEffect(() => {
+    if (isMobile) {
+      setLeftCollapsed(true);
+      setRightCollapsed(true); // the docked panel (e.g. the CMO-brain preview) must
+      // not cover the main page/form on phones — it opens as a drawer on demand
+    }
+  }, [pathname, isMobile]);
 
   // keyboard: Ctrl/Cmd+B = left, + Alt = right
   useEffect(() => {
@@ -161,18 +190,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // the CMO panel forces the rail shut (without touching the user's saved choice)
   const railCollapsed = cmoOpen || leftCollapsed;
-  const lw = railCollapsed ? LEFT.rail : leftWidth;
+  const mobileDrawer = isMobile && !railCollapsed; // full rail floats over the content
+  const mobileRightDrawer = isMobile && hasContent && !rightCollapsed; // docked panel floats too
+  // inline width: phones use the slim icon rail (the expanded rail overlays instead)
+  const lw = isMobile ? LEFT.rail : railCollapsed ? LEFT.rail : leftWidth;
   const rw = rightCollapsed ? RIGHT.rail : rightWidth;
   const wt = dragRef.current ? "none" : "width 0.18s ease";
 
   return (
     <RightPanelCtx.Provider value={{ node: slotNode, register }}>
       <div className="flex h-full w-full overflow-hidden">
-        {/* LEFT — nav */}
-        <div className="relative z-20 h-full shrink-0" style={{ width: lw, transition: wt }}>
+        {/* LEFT — nav. On phones the expanded rail is an overlay drawer so it never
+            squeezes the chat; collapsed, it's a slim icon strip. */}
+        <div
+          className={
+            mobileDrawer
+              ? "fixed inset-y-0 left-0 z-40 h-full shadow-2xl"
+              : "relative z-20 h-full shrink-0"
+          }
+          style={{ width: mobileDrawer ? "min(300px, 82vw)" : lw, transition: wt }}
+        >
           <Rail collapsed={railCollapsed} onToggle={() => setLeftCollapsed((v) => !v)} />
-          {!railCollapsed && <Handle side="left" shortcut="Ctrl+B" onResizeStart={beginDrag("left")} />}
+          {!railCollapsed && !isMobile && (
+            <Handle side="left" shortcut="Ctrl+B" onResizeStart={beginDrag("left")} />
+          )}
         </div>
+        {/* tap-to-close backdrop behind the mobile drawer */}
+        {mobileDrawer && (
+          <div
+            className="fixed inset-0 z-30 bg-black/40"
+            onClick={() => setLeftCollapsed(true)}
+            aria-hidden
+          />
+        )}
 
         {/* MAIN */}
         <main
@@ -182,9 +232,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
 
-        {/* RIGHT — content-driven (renders only when a page docks content) */}
+        {/* RIGHT — content-driven (renders only when a page docks content). On
+            phones it's an overlay drawer so it never hides the main page/form. */}
         {hasContent && (
-          <div className="relative z-20 h-full shrink-0 border-l border-line bg-[var(--sidebar)]" style={{ width: rw, transition: wt }}>
+          <div
+            className={
+              mobileRightDrawer
+                ? "fixed inset-y-0 right-0 z-40 h-full border-l border-line bg-[var(--sidebar)] shadow-2xl"
+                : "relative z-20 h-full shrink-0 border-l border-line bg-[var(--sidebar)]"
+            }
+            style={{ width: mobileRightDrawer ? "min(340px, 86vw)" : rw, transition: wt }}
+          >
             {rightCollapsed ? (
               <div className="flex h-full flex-col items-center py-3">
                 <button
@@ -198,7 +256,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             ) : (
               <>
-                <Handle side="right" shortcut="Ctrl+Alt+B" onResizeStart={beginDrag("right")} />
+                {!isMobile && (
+                  <Handle side="right" shortcut="Ctrl+Alt+B" onResizeStart={beginDrag("right")} />
+                )}
                 <button
                   onClick={() => setRightCollapsed(true)}
                   title="Collapse panel (Ctrl+Alt+B)"
@@ -211,6 +271,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
+        )}
+        {/* tap-to-close backdrop behind the mobile right drawer */}
+        {mobileRightDrawer && (
+          <div
+            className="fixed inset-0 z-30 bg-black/40"
+            onClick={() => setRightCollapsed(true)}
+            aria-hidden
+          />
         )}
       </div>
       {/* the floating CMO pieces, on every app page: the text drawer, the proactive

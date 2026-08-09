@@ -1,6 +1,7 @@
 import SmoothScroll from "../components/SmoothScroll";
 import Preloader from "../components/Preloader";
-import Background3D from "../components/Background3D";
+// TEMP: 3D background disabled — re-enable this import with the <Background3D /> line below.
+// import Background3D from "../components/Background3D";
 import CursorFluid from "../components/CursorFluid";
 import CustomCursor from "../components/CustomCursor";
 import ScrollProgress from "../components/ScrollProgress";
@@ -25,7 +26,9 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 -z-30 bg-[linear-gradient(105deg,#d3ccbb_0%,#dcd6c6_50%,#e5dfd1_100%)]"
       />
       <Preloader />
-      <Background3D />
+      {/* TEMP: 3D floating shapes hidden to preview the landing without them.
+          To REVERT, just un-comment the line below. */}
+      {/* <Background3D /> */}
       <CursorFluid />
       <CustomCursor />
       <ScrollProgress />
