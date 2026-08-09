@@ -676,7 +676,7 @@ export default function ChatClient() {
               aria-haspopup="menu"
               aria-expanded={modelMenu}
               title="Choose your CMO model"
-              className="flex h-7 items-center gap-1 rounded-lg border border-line px-2 text-[11px] font-semibold transition-colors hover:border-molten/40"
+              className="flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-line px-2 text-[11px] font-semibold transition-colors hover:border-molten/40"
             >
               {model === "mrk2" ? (
                 <Brain size={12} className="text-molten" aria-hidden />
@@ -759,13 +759,14 @@ export default function ChatClient() {
         <div className="flex items-center gap-2 pr-1 text-[11px] text-mute-2">
           {quota && chatsLeft !== null && (
             <span
-              className={`font-data rounded-full border px-2 py-0.5 ${
+              className={`font-data shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 ${
                 chatsLeft <= 1
                   ? "border-molten/40 bg-molten/10 text-molten"
                   : "border-line text-mute-2"
               }`}
             >
-              {chatsLeft}/{quota.cap} free chats left
+              {chatsLeft}/{quota.cap}
+              <span className="hidden sm:inline"> free chats</span> left
             </span>
           )}
           {listening && (
@@ -777,7 +778,6 @@ export default function ChatClient() {
           <span className="hidden sm:inline">
             {listening ? "Listening — speak now" : "Enter to send · Shift+Enter for newline"}
           </span>
-          <span className="font-data">CMO</span>
         </div>
       </div>
     </div>

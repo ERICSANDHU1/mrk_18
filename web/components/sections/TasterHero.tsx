@@ -14,8 +14,8 @@ import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
 
-const TAGLINE = "Drop your URL. Get your verdicts.";
-const TAGLINE_LINES = ["Drop your URL.", "Get your verdicts."];
+const TAGLINE = "Drop your URL Get your verdicts";
+const TAGLINE_LINES = ["Drop your URL", "Get your verdicts"];
 
 /** Words that rotate in the headline ticker — slot-machine style. */
 const ROTATING_WORDS = ["URL", "IDEA"] as const;
@@ -50,10 +50,10 @@ function RevealWords({
       {words.map((word, wi) => (
         <span key={wi} className="inline-block whitespace-nowrap">
           {word.split("").map((char, ci) => (
-            <span key={ci} className="inline-block overflow-hidden align-bottom">
+            <span key={ci} className="inline-block overflow-hidden align-bottom pb-[0.26em] -mb-[0.26em]">
               <motion.span
                 className={`${className} inline-block`}
-                initial={{ y: "112%" }}
+                initial={{ y: "135%" }}
                 animate={{ y: 0 }}
                 transition={{
                   delay: 2.3 + (offsets[wi] + ci) * 0.03,
@@ -262,7 +262,7 @@ export default function TasterHero() {
           {reduceMotion ? (
             <span>
               <span className="block text-ink">
-                Drop your{"\u00A0"}<RotatingWord startDelay={0} />.
+                Drop your{"\u00A0"}<RotatingWord startDelay={0} />
               </span>
               <span className="text-gradient block">{TAGLINE_LINES[1]}</span>
             </span>
@@ -284,23 +284,12 @@ export default function TasterHero() {
                     <RotatingWord startDelay={3200} />
                   </motion.span>
                 </span>
-                {/* Static period "." */}
-                <span className="inline-block overflow-hidden align-bottom">
-                  <motion.span
-                    className="text-ink inline-block"
-                    initial={{ y: "112%" }}
-                    animate={{ y: 0 }}
-                    transition={{ delay: 2.3 + 13 * 0.03, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    .
-                  </motion.span>
-                </span>
               </span>
               {/* Line 2: "Meet your CMO." — char-by-char reveal, no rotation */}
               <span className="block">
-                {/* offset 14 = length of "Drop your URL.", so line 2 keeps
+                {/* offset 13 = length of "Drop your URL", so line 2 keeps
                     revealing in sequence after line 1 */}
-                <RevealWords text={TAGLINE_LINES[1]} startIndex={14} className="text-gradient" />
+                <RevealWords text={TAGLINE_LINES[1]} startIndex={13} className="text-gradient" />
               </span>
             </span>
           )}
